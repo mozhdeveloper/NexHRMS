@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Sun, Moon, Monitor, Building2, Shield, Bell, Palette, ClipboardList, Pencil, Plus, Clock3, ExternalLink, Wallet, CalendarDays, Lock, UserPlus, Trash2, Eye, EyeOff, KeyRound, RotateCcw, TriangleAlert, LayoutDashboard, FileText, Puzzle } from "lucide-react";
+import { Sun, Moon, Monitor, Building2, Shield, Bell, Palette, ClipboardList, Pencil, Plus, Clock3, ExternalLink, Wallet, CalendarDays, Lock, UserPlus, Trash2, Eye, EyeOff, KeyRound, RotateCcw, TriangleAlert, LayoutDashboard, FileText, Puzzle, Tablet } from "lucide-react";
 import type { Role } from "@/types";
 import { toast } from "sonner";
 import {
@@ -403,6 +403,24 @@ export default function SettingsPage() {
                                         </div>
                                     </div>
                                     <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-orange-500 transition-colors" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                    <Link href="/settings/kiosk">
+                        <Card className="border border-emerald-500/20 bg-emerald-500/5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group">
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-9 w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                                            <Tablet className="h-4 w-4 text-emerald-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold group-hover:text-emerald-600 transition-colors">Kiosk</p>
+                                            <p className="text-xs text-muted-foreground">Attendance kiosk settings</p>
+                                        </div>
+                                    </div>
+                                    <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-emerald-500 transition-colors" />
                                 </div>
                             </CardContent>
                         </Card>

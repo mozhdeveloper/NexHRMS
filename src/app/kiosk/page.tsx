@@ -5,16 +5,17 @@ import { useAttendanceStore } from "@/store/attendance.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAppearanceStore } from "@/store/appearance.store";
+import { useKioskStore } from "@/store/kiosk.store";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Shield, QrCode, Delete, LogIn, LogOut, RefreshCw } from "lucide-react";
 
 // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-function generateToken(): string {
+function generateToken(length = 8): string {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     let t = "";
-    for (let i = 0; i < 8; i++) t += chars[Math.floor(Math.random() * chars.length)];
+    for (let i = 0; i < length; i++) t += chars[Math.floor(Math.random() * chars.length)];
     return t;
 }
 
@@ -72,10 +73,10 @@ function CountdownRing({ value, max }: { value: number; max: number }) {
 
 // â”€â”€â”€ PIN Dots â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-function PinDots({ pin }: { pin: string }) {
+function PinDots({ pin, maxLen }: { pin: string; maxLen: number }) {
     return (
         <div className="flex items-center justify-center gap-3 h-10">
-            {Array.from({ length: 6 }).map((_, i) => (
+            {Array.from({ length: maxLen }).map((_, i) => (
                 <div key={i} className={cn(
                     "rounded-full transition-all duration-200",
                     i < pin.length ? "w-4 h-4 bg-white shadow-lg shadow-white/20" : "w-3 h-3 bg-white/20 border border-white/20"
@@ -94,8 +95,10 @@ type FeedbackState = "idle" | "success-in" | "success-out" | "error";
 // â”€â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function KioskPage() {
-    const [token,     setToken]    = useState(generateToken);
-    const [countdown, setCountdown]= useState(30);
+    const ks = useKioskStore((s) => s.settings);
+
+    const [token,     setToken]    = useState(() => generateToken(ks.tokenLength));
+    const [countdown, setCountdown]= useState(ks.tokenRefreshInterval);
     const [pin,       setPin]      = useState("");
     const [mode,      setMode]     = useState<KioskMode>("in");
     const [feedback,  setFeedback] = useState<FeedbackState>("idle");
@@ -111,21 +114,22 @@ export default function KioskPage() {
     useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
     useEffect(() => { setDeviceId(generateDeviceId()); }, []);
 
-    const refreshToken = useCallback(() => { setToken(generateToken()); setCountdown(30); }, []);
+    const refreshToken = useCallback(() => { setToken(generateToken(ks.tokenLength)); setCountdown(ks.tokenRefreshInterval); }, [ks.tokenLength, ks.tokenRefreshInterval]);
 
     useEffect(() => {
         const t = setInterval(() => {
-            setCountdown((prev) => { if (prev <= 1) { refreshToken(); return 30; } return prev - 1; });
+            setCountdown((prev) => { if (prev <= 1) { refreshToken(); return ks.tokenRefreshInterval; } return prev - 1; });
         }, 1000);
         return () => clearInterval(t);
-    }, [refreshToken]);
+    }, [refreshToken, ks.tokenRefreshInterval]);
 
     const triggerFeedback = (state: FeedbackState) => {
         setFeedback(state);
-        setTimeout(() => { setFeedback("idle"); setPin(""); }, 1800);
+        setTimeout(() => { setFeedback("idle"); setPin(""); }, ks.feedbackDuration);
     };
 
     const checkWorkDay = (empId: string) => {
+        if (!ks.warnOffDay) return;
         const emp = employees.find((e) => e.id === empId);
         if (emp?.workDays?.length) {
             const day = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date().getDay()];
@@ -144,11 +148,14 @@ export default function KioskPage() {
         if (feedback !== "idle") return;
         if (key === "←") { setPin((p) => p.slice(0, -1)); return; }
         if (key === "✓") { handleSubmit(); return; }
-        if (pin.length >= 6) return;
+        if (pin.length >= ks.pinLength) return;
         setPin((p) => p + key);
     };
 
-    const TIME = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
+    const h = now.getHours();
+    const TIME = ks.clockFormat === "12h"
+        ? `${h % 12 || 12}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())} ${h >= 12 ? "PM" : "AM"}`
+        : `${pad2(h)}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
     const DATE = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
     const isSuccessIn  = feedback === "success-in";
@@ -156,10 +163,26 @@ export default function KioskPage() {
     const isError      = feedback === "error";
     const isSuccess    = isSuccessIn || isSuccessOut;
 
+    const themeBg = ks.kioskTheme === "midnight" ? "bg-slate-950" : ks.kioskTheme === "charcoal" ? "bg-neutral-950" : "bg-zinc-950";
+    const showQr  = ks.checkInMethod === "qr"  || ks.checkInMethod === "both";
+    const showPin = ks.checkInMethod === "pin" || ks.checkInMethod === "both";
+
+    if (!ks.kioskEnabled) {
+        return (
+            <div className="fixed inset-0 flex items-center justify-center bg-zinc-950 text-white/40 select-none">
+                <div className="text-center space-y-3">
+                    <Shield className="h-12 w-12 mx-auto text-white/20" />
+                    <p className="text-lg font-semibold">Kiosk Disabled</p>
+                    <p className="text-sm text-white/25">An administrator has disabled this kiosk.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className={cn(
             "fixed inset-0 flex flex-col items-center justify-between overflow-hidden transition-colors duration-700 select-none",
-            isSuccess ? (isSuccessIn ? "bg-emerald-950" : "bg-sky-950") : isError ? "bg-red-950" : "bg-zinc-950"
+            isSuccess ? (isSuccessIn ? "bg-emerald-950" : "bg-sky-950") : isError ? "bg-red-950" : themeBg
         )}>
             {/* Ambient blobs */}
             <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -176,17 +199,17 @@ export default function KioskPage() {
             {/* Top bar */}
             <header className="relative z-10 w-full flex items-center justify-between px-8 pt-7">
                 <div className="flex items-center gap-3 min-w-[160px]">
-                    {logoUrl
+                    {ks.showLogo && (logoUrl
                         ? <img src={logoUrl} alt={companyName} className="h-8 max-w-[130px] object-contain brightness-0 invert opacity-90" />
                         : <span className="text-white font-bold text-lg tracking-tight">{companyName || "NexHRMS"}</span>
-                    }
+                    )}
                 </div>
                 <div className="text-center">
-                    <p className="text-white font-mono text-5xl font-bold tracking-widest tabular-nums drop-shadow-lg">{TIME}</p>
-                    <p className="text-white/40 text-xs mt-1">{DATE}</p>
+                    {ks.showClock && <p className="text-white font-mono text-5xl font-bold tracking-widest tabular-nums drop-shadow-lg">{TIME}</p>}
+                    {ks.showDate && <p className="text-white/40 text-xs mt-1">{DATE}</p>}
                 </div>
                 <div className="flex items-center gap-1.5 text-white/25 text-[11px] font-mono min-w-[160px] justify-end">
-                    <Shield className="h-3.5 w-3.5" />{deviceId || "â€¦"}
+                    {ks.showDeviceId && <><Shield className="h-3.5 w-3.5" />{deviceId || "..."}</>}
                 </div>
             </header>
 
@@ -194,7 +217,7 @@ export default function KioskPage() {
             <main className="relative z-10 flex flex-col lg:flex-row items-center justify-center gap-10 xl:gap-20 px-6 flex-1 w-full max-w-5xl">
 
                 {/* QR Panel */}
-                <div className="bg-white/[0.04] border border-white/10 rounded-3xl p-8 backdrop-blur-sm flex flex-col items-center gap-5 shadow-2xl">
+                {showQr && <div className="bg-white/[0.04] border border-white/10 rounded-3xl p-8 backdrop-blur-sm flex flex-col items-center gap-5 shadow-2xl">
                     <p className="text-white/35 text-[11px] font-semibold uppercase tracking-widest">QR Scan Check-In</p>
                     <QrMosaic token={token} />
                     <div className="text-center space-y-1.5">
@@ -202,15 +225,15 @@ export default function KioskPage() {
                         <p className="text-white/30 text-[11px]">Scan with NexHRMS mobile</p>
                     </div>
                     <div className="flex items-center gap-4">
-                        <CountdownRing value={countdown} max={30} />
+                        <CountdownRing value={countdown} max={ks.tokenRefreshInterval} />
                         <button onClick={refreshToken} className="flex items-center gap-1.5 text-white/25 hover:text-white/60 text-[11px] transition-colors">
                             <RefreshCw className="h-3.5 w-3.5" /> Refresh
                         </button>
                     </div>
-                </div>
+                </div>}
 
                 {/* PIN Panel */}
-                <div className={cn(
+                {showPin && <div className={cn(
                     "bg-white/[0.04] border rounded-3xl p-8 backdrop-blur-sm flex flex-col items-center gap-5 w-full max-w-[300px] shadow-2xl transition-colors duration-500",
                     isSuccess ? "border-white/20" : isError ? "border-red-400/40" : "border-white/10"
                 )}>
@@ -218,7 +241,7 @@ export default function KioskPage() {
 
                     {/* Mode toggle */}
                     <div className="flex rounded-xl overflow-hidden border border-white/10 w-full">
-                        {(["in","out"] as KioskMode[]).map((m) => (
+                        {(["in", ...(ks.allowCheckOut ? ["out"] : [])] as KioskMode[]).map((m) => (
                             <button key={m} onClick={() => { setMode(m); setPin(""); }} className={cn(
                                 "flex-1 py-2.5 text-sm font-semibold flex items-center justify-center gap-1.5 transition-all duration-200",
                                 mode === m
@@ -243,7 +266,7 @@ export default function KioskPage() {
                         ) : isError ? (
                             <p className="text-red-400 font-semibold animate-in fade-in duration-200">Invalid PIN — try again</p>
                         ) : (
-                            <PinDots pin={pin} />
+                            <PinDots pin={pin} maxLen={ks.pinLength} />
                         )}
                     </div>
 
@@ -269,14 +292,14 @@ export default function KioskPage() {
                         })}
                     </div>
 
-                    <p className="text-white/20 text-[10px] text-center">Enter 4–6 digit employee PIN</p>
-                </div>
+                    <p className="text-white/20 text-[10px] text-center">Enter {ks.pinLength}-digit employee PIN</p>
+                </div>}
             </main>
 
             {/* Footer */}
             <footer className="relative z-10 pb-6 text-white/15 text-[10px] flex items-center gap-2">
-                <Shield className="h-3 w-3" />
-                Attendance Kiosk · {companyName || "NexHRMS"} · Unauthorized access is prohibited
+                {ks.showSecurityBadge && <Shield className="h-3 w-3" />}
+                {ks.kioskTitle} · {companyName || "NexHRMS"} · {ks.footerMessage}
             </footer>
         </div>
     );
