@@ -1,13 +1,16 @@
 "use client";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { nanoid } from "nanoid";
 import type { CalendarEvent } from "@/types";
 import { SEED_EVENTS } from "@/data/seed";
 
 interface EventsState {
     events: CalendarEvent[];
     addEvent: (event: Omit<CalendarEvent, "id">) => void;
+    updateEvent: (id: string, data: Partial<Omit<CalendarEvent, "id">>) => void;
     removeEvent: (id: string) => void;
+    resetToSeed: () => void;
 }
 
 export const useEventsStore = create<EventsState>()(
@@ -18,11 +21,16 @@ export const useEventsStore = create<EventsState>()(
                 set((s) => ({
                     events: [
                         ...s.events,
-                        { ...event, id: `EVT${String(s.events.length + 1).padStart(3, "0")}` },
+                        { ...event, id: `EVT-${nanoid(8)}` },
                     ],
+                })),
+            updateEvent: (id, data) =>
+                set((s) => ({
+                    events: s.events.map((e) => (e.id === id ? { ...e, ...data } : e)),
                 })),
             removeEvent: (id) =>
                 set((s) => ({ events: s.events.filter((e) => e.id !== id) })),
+            resetToSeed: () => set({ events: SEED_EVENTS }),
         }),
         { name: "nexhrms-events", version: 1 }
     )

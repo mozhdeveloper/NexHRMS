@@ -1,36 +1,113 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { useState } from "react";
 import { useEmployeesStore } from "@/store/employees.store";
+import { useAuthStore } from "@/store/auth.store";
 import { useAttendanceStore } from "@/store/attendance.store";
 import { useLeaveStore } from "@/store/leave.store";
 import { usePayrollStore } from "@/store/payroll.store";
+import { useLoansStore } from "@/store/loans.store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { getInitials, formatCurrency, formatDate } from "@/lib/format";
-import { Mail, MapPin, Phone, Briefcase, Calendar, DollarSign, FileText } from "lucide-react";
+import { DEPARTMENTS, ROLES, LOCATIONS } from "@/lib/constants";
+import { Mail, MapPin, Phone, Briefcase, Calendar, DollarSign, FileText, Pencil, Banknote } from "lucide-react";
 import { toast } from "sonner";
 import { useMemo } from "react";
+import type { WorkType, PayFrequency } from "@/types";
 
 export default function EmployeeProfilePage() {
     const { id } = useParams<{ id: string }>();
     const employees = useEmployeesStore((s) => s.employees);
     const toggleStatus = useEmployeesStore((s) => s.toggleStatus);
+    const updateEmployee = useEmployeesStore((s) => s.updateEmployee);
+    const currentUser = useAuthStore((s) => s.currentUser);
+    const canEdit = currentUser.role === "admin" || currentUser.role === "hr";
     const attendanceLogs = useAttendanceStore((s) => s.logs);
     const leaveRequests = useLeaveStore((s) => s.requests);
     const payslips = usePayrollStore((s) => s.payslips);
+    const paySchedule = usePayrollStore((s) => s.paySchedule);
 
     const employee = employees.find((e) => e.id === id);
 
     const empAttendance = useMemo(() => attendanceLogs.filter((l) => l.employeeId === id).slice(0, 20), [attendanceLogs, id]);
     const empLeaves = useMemo(() => leaveRequests.filter((l) => l.employeeId === id), [leaveRequests, id]);
     const empPayslips = useMemo(() => payslips.filter((p) => p.employeeId === id), [payslips, id]);
+    const allLoans = useLoansStore((s) => s.loans);
+    const empLoans = useMemo(() => allLoans.filter((l) => l.employeeId === id), [allLoans, id]);
+
+    // Edit dialog state
+    const [editOpen, setEditOpen] = useState(false);
+    const [editName, setEditName] = useState("");
+    const [editEmail, setEditEmail] = useState("");
+    const [editPhone, setEditPhone] = useState("");
+    const [editRole, setEditRole] = useState("");
+    const [editDept, setEditDept] = useState("");
+    const [editWorkType, setEditWorkType] = useState<WorkType>("WFO");
+    const [editSalary, setEditSalary] = useState("");
+    const [editLocation, setEditLocation] = useState("");
+    const [editPayFreq, setEditPayFreq] = useState<string>("company");
+
+    // Document mock state
+    const [docName, setDocName] = useState("");
+    const [docOpen, setDocOpen] = useState(false);
+    const [mockDocs, setMockDocs] = useState<{ name: string; uploadedAt: string }[]>([]);
+
+    const openEditDialog = () => {
+        if (!employee) return;
+        setEditName(employee.name);
+        setEditEmail(employee.email);
+        setEditPhone(employee.phone || "");
+        setEditRole(employee.role);
+        setEditDept(employee.department);
+        setEditWorkType(employee.workType);
+        setEditSalary(String(employee.salary));
+        setEditLocation(employee.location);
+        setEditPayFreq(employee.payFrequency || "company");
+        setEditOpen(true);
+    };
+
+    const handleEditSave = () => {
+        if (!employee || !editName || !editEmail) {
+            toast.error("Name and email are required");
+            return;
+        }
+        updateEmployee(employee.id, {
+            name: editName,
+            email: editEmail,
+            phone: editPhone || undefined,
+            role: editRole,
+            department: editDept,
+            workType: editWorkType,
+            salary: Number(editSalary) || employee.salary,
+            location: editLocation,
+            payFrequency: editPayFreq !== "company" ? editPayFreq as PayFrequency : undefined,
+        });
+        toast.success("Profile updated successfully!");
+        setEditOpen(false);
+    };
+
+    const handleAddDoc = () => {
+        if (!docName) { toast.error("Enter a document name"); return; }
+        setMockDocs((prev) => [...prev, { name: docName, uploadedAt: new Date().toISOString() }]);
+        toast.success(`"${docName}" uploaded`);
+        setDocName("");
+        setDocOpen(false);
+    };
 
     if (!employee) {
         return (
@@ -40,13 +117,13 @@ export default function EmployeeProfilePage() {
         );
     }
 
-    const statusColors = {
+    const statusColors: Record<string, string> = {
         present: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
         absent: "bg-red-500/15 text-red-700 dark:text-red-400",
         on_leave: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
     };
 
-    const leaveStatusColors = {
+    const leaveStatusColors: Record<string, string> = {
         pending: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
         approved: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
         rejected: "bg-red-500/15 text-red-700 dark:text-red-400",
@@ -78,9 +155,29 @@ export default function EmployeeProfilePage() {
                                 <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" />{employee.location}</span>
                             </div>
                         </div>
-                        <Button variant="outline" onClick={() => { toggleStatus(employee.id); toast.success(`Employee ${employee.status === "active" ? "deactivated" : "activated"}`); }}>
-                            {employee.status === "active" ? "Deactivate" : "Activate"}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="gap-1.5" 
+                                onClick={openEditDialog}
+                                disabled={!canEdit}
+                            >
+                                <Pencil className="h-3.5 w-3.5" /> Edit
+                            </Button>
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => { 
+                                    if (!canEdit) return;
+                                    toggleStatus(employee.id); 
+                                    toast.success(`Employee ${employee.status === "active" ? "deactivated" : "activated"}`); 
+                                }}
+                                disabled={!canEdit}
+                            >
+                                {employee.status === "active" ? "Deactivate" : "Activate"}
+                            </Button>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -93,6 +190,7 @@ export default function EmployeeProfilePage() {
                     <TabsTrigger value="attendance">Attendance</TabsTrigger>
                     <TabsTrigger value="leave">Leave</TabsTrigger>
                     <TabsTrigger value="payslips">Payslips</TabsTrigger>
+                    <TabsTrigger value="loans">Loans</TabsTrigger>
                     <TabsTrigger value="documents">Documents</TabsTrigger>
                 </TabsList>
 
@@ -110,7 +208,7 @@ export default function EmployeeProfilePage() {
                         <Card className="border border-border/50">
                             <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Work Summary</CardTitle></CardHeader>
                             <CardContent className="space-y-3">
-                                <InfoRow icon={<DollarSign className="h-4 w-4" />} label="Salary" value={formatCurrency(employee.salary)} />
+                                <InfoRow icon={<DollarSign className="h-4 w-4" />} label="Monthly Salary" value={`${formatCurrency(employee.salary)}/mo`} />
                                 <InfoRow icon={<Calendar className="h-4 w-4" />} label="Join Date" value={formatDate(employee.joinDate)} />
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-muted-foreground">Productivity</span>
@@ -152,7 +250,9 @@ export default function EmployeeProfilePage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {empAttendance.map((log) => (
+                                    {empAttendance.length === 0 ? (
+                                        <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">No attendance records</TableCell></TableRow>
+                                    ) : empAttendance.map((log) => (
                                         <TableRow key={log.id}>
                                             <TableCell className="text-sm">{log.date}</TableCell>
                                             <TableCell className="text-sm">{log.checkIn || "—"}</TableCell>
@@ -227,16 +327,181 @@ export default function EmployeeProfilePage() {
                     </Card>
                 </TabsContent>
 
+                <TabsContent value="loans" className="mt-4">
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                        <Card className="border border-blue-500/20 bg-blue-500/5">
+                            <CardContent className="p-4">
+                                <p className="text-xs text-muted-foreground font-medium">Active Loans</p>
+                                <p className="text-2xl font-bold mt-1">{empLoans.filter((l) => l.status === "active").length}</p>
+                            </CardContent>
+                        </Card>
+                        <Card className="border border-amber-500/20 bg-amber-500/5">
+                            <CardContent className="p-4">
+                                <p className="text-xs text-muted-foreground font-medium">Outstanding Balance</p>
+                                <p className="text-2xl font-bold mt-1">₱{empLoans.filter((l) => l.status === "active").reduce((sum, l) => sum + l.remainingBalance, 0).toLocaleString()}</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                    <Card className="border border-border/50">
+                        <CardContent className="p-0">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="text-xs">Type</TableHead>
+                                        <TableHead className="text-xs">Amount</TableHead>
+                                        <TableHead className="text-xs">Balance</TableHead>
+                                        <TableHead className="text-xs">Monthly</TableHead>
+                                        <TableHead className="text-xs">Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {empLoans.length === 0 ? (
+                                        <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
+                                            <Banknote className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />No loans
+                                        </TableCell></TableRow>
+                                    ) : empLoans.map((loan) => (
+                                        <TableRow key={loan.id}>
+                                            <TableCell className="text-sm capitalize">{loan.type.replace("_", " ")}</TableCell>
+                                            <TableCell className="text-sm">₱{loan.amount.toLocaleString()}</TableCell>
+                                            <TableCell className="text-sm font-medium">₱{loan.remainingBalance.toLocaleString()}</TableCell>
+                                            <TableCell className="text-xs">₱{loan.monthlyDeduction.toLocaleString()}/mo</TableCell>
+                                            <TableCell>
+                                                <Badge variant="secondary" className={`text-[10px] ${loan.status === "active" ? "bg-blue-500/15 text-blue-700 dark:text-blue-400" : loan.status === "settled" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/15 text-amber-700 dark:text-amber-400"}`}>
+                                                    {loan.status}
+                                                </Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
                 <TabsContent value="documents" className="mt-4">
                     <Card className="border border-border/50">
-                        <CardContent className="flex flex-col items-center justify-center py-12">
-                            <FileText className="h-12 w-12 text-muted-foreground/40" />
-                            <p className="text-muted-foreground mt-3">No documents uploaded yet</p>
-                            <Button variant="outline" size="sm" className="mt-3">Upload Document</Button>
+                        <CardContent className="p-6">
+                            {mockDocs.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-6">
+                                    <FileText className="h-12 w-12 text-muted-foreground/40" />
+                                    <p className="text-muted-foreground mt-3">No documents uploaded yet</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2 mb-4">
+                                    {mockDocs.map((doc, i) => (
+                                        <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                                            <div className="flex items-center gap-2">
+                                                <FileText className="h-4 w-4 text-muted-foreground" />
+                                                <span className="text-sm font-medium">{doc.name}</span>
+                                            </div>
+                                            <span className="text-xs text-muted-foreground">{new Date(doc.uploadedAt).toLocaleDateString()}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            <Dialog open={docOpen} onOpenChange={setDocOpen}>
+                                <Button variant="outline" size="sm" className="mt-2" onClick={() => setDocOpen(true)}>Upload Document</Button>
+                                <DialogContent className="max-w-sm">
+                                    <DialogHeader><DialogTitle>Upload Document</DialogTitle></DialogHeader>
+                                    <div className="space-y-4 pt-2">
+                                        <div>
+                                            <label className="text-sm font-medium">Document Name</label>
+                                            <Input value={docName} onChange={(e) => setDocName(e.target.value)} placeholder="e.g. Resume, ID, Contract" className="mt-1" />
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">File upload is simulated for MVP. Only the document label is stored.</p>
+                                        <Button onClick={handleAddDoc} className="w-full">Upload</Button>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
                         </CardContent>
                     </Card>
                 </TabsContent>
             </Tabs>
+
+            {/* Edit Profile Dialog */}
+            <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                <DialogContent className="max-w-lg">
+                    <DialogHeader><DialogTitle>Edit Profile — {employee.name}</DialogTitle></DialogHeader>
+                    <div className="space-y-4 pt-2">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-sm font-medium">Name *</label>
+                                <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="mt-1" />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium">Email *</label>
+                                <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="mt-1" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-sm font-medium">Role</label>
+                                <Select value={editRole} onValueChange={setEditRole}>
+                                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium">Department</label>
+                                <Select value={editDept} onValueChange={setEditDept}>
+                                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                            <div>
+                                <label className="text-sm font-medium">Work Type</label>
+                                <Select value={editWorkType} onValueChange={(v) => setEditWorkType(v as WorkType)}>
+                                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="WFO">WFO</SelectItem>
+                                        <SelectItem value="WFH">WFH</SelectItem>
+                                        <SelectItem value="HYBRID">Hybrid</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium">Monthly Salary (₱)</label>
+                                <Input type="number" value={editSalary} onChange={(e) => setEditSalary(e.target.value)} className="mt-1" />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium">Location</label>
+                                <Select value={editLocation} onValueChange={setEditLocation}>
+                                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {LOCATIONS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-sm font-medium">Pay Frequency</label>
+                                <Select value={editPayFreq} onValueChange={setEditPayFreq}>
+                                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="company">Company Default ({paySchedule.defaultFrequency.replace("_", "-")})</SelectItem>
+                                        <SelectItem value="monthly">Monthly</SelectItem>
+                                        <SelectItem value="semi_monthly">Semi-Monthly</SelectItem>
+                                        <SelectItem value="bi_weekly">Bi-Weekly</SelectItem>
+                                        <SelectItem value="weekly">Weekly</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium">Phone</label>
+                                <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="mt-1" />
+                            </div>
+                        </div>
+                        <Button onClick={handleEditSave} className="w-full">Save Changes</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

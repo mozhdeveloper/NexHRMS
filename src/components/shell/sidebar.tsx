@@ -11,11 +11,22 @@ import {
     LayoutDashboard,
     Users,
     Contact,
+    FolderKanban,
     Clock,
     CalendarOff,
     Wallet,
+    Banknote,
+    BarChart3,
     Settings,
+    Bell,
     ChevronLeft,
+    LogOut,
+    Building2,
+    Clock3,
+    Shield,
+    ClipboardList,
+    FileSearch,
+    AlarmClock,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -23,10 +34,20 @@ const iconMap: Record<string, React.ElementType> = {
     LayoutDashboard,
     Users,
     Contact,
+    FolderKanban,
     Clock,
     CalendarOff,
     Wallet,
+    Banknote,
+    BarChart3,
     Settings,
+    Bell,
+    Building2,
+    Clock3,
+    Shield,
+    ClipboardList,
+    FileSearch,
+    AlarmClock,
 };
 
 export function Sidebar() {
@@ -61,8 +82,14 @@ export function Sidebar() {
             <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
                 {filtered.map((item) => {
                     const Icon = iconMap[item.icon];
-                    const isActive =
-                        pathname === item.href || pathname.startsWith(item.href + "/");
+                    // An item is active if it exactly matches OR if it's the
+                    // longest prefix match and no other nav item matches exactly.
+                    const exactMatch = pathname === item.href;
+                    const prefixMatch = pathname.startsWith(item.href + "/");
+                    const moreSpecificExists = prefixMatch && filtered.some(
+                        (other) => other.href !== item.href && (pathname === other.href || pathname.startsWith(other.href + "/")) && other.href.startsWith(item.href)
+                    );
+                    const isActive = exactMatch || (prefixMatch && !moreSpecificExists);
                     return (
                         <Tooltip key={item.href} delayDuration={0}>
                             <TooltipTrigger asChild>
@@ -89,10 +116,32 @@ export function Sidebar() {
                 })}
             </nav>
 
+            {/* Sign Out */}
+            <div className="border-t border-border p-3">
+                <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild>
+                        <button
+                            onClick={() => {
+                                useAuthStore.getState().logout();
+                                window.location.href = "/login"; // Force full reload to clear state cleanly or just use router
+                            }}
+                            className={cn(
+                                "group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                                "text-muted-foreground hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
+                            )}
+                        >
+                            <LogOut className="h-5 w-5 shrink-0" />
+                            {sidebarOpen && <span className="truncate">Sign Out</span>}
+                        </button>
+                    </TooltipTrigger>
+                    {!sidebarOpen && <TooltipContent side="right">Sign Out</TooltipContent>}
+                </Tooltip>
+            </div>
+
             {/* Collapse toggle */}
             <button
                 onClick={toggleSidebar}
-                className="flex h-12 items-center justify-center border-t border-border text-muted-foreground hover:text-foreground transition-colors"
+                className="flex h-12 w-full items-center justify-center border-t border-border text-muted-foreground hover:text-foreground transition-colors"
                 aria-label="Toggle sidebar"
             >
                 <ChevronLeft

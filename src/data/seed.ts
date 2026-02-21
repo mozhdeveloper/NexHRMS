@@ -5,14 +5,20 @@ import type {
     Payslip,
     CalendarEvent,
     DemoUser,
+    Project,
+    Loan,
 } from "@/types";
 
 // ─── Demo Users ──────────────────────────────────────────────
 export const DEMO_USERS: DemoUser[] = [
-    { id: "U001", name: "Alex Rivera", role: "admin", email: "alex@nexhrms.com" },
-    { id: "U002", name: "Jordan Lee", role: "hr", email: "jordan@nexhrms.com" },
-    { id: "U003", name: "Morgan Chen", role: "finance", email: "morgan@nexhrms.com" },
-    { id: "U004", name: "Sam Torres", role: "employee", email: "sam@nexhrms.com" },
+    { id: "U001", name: "Alex Rivera", role: "admin", email: "admin@nexhrms.com" },
+    { id: "U002", name: "Jordan Lee", role: "hr", email: "hr@nexhrms.com" },
+    { id: "U003", name: "Morgan Chen", role: "finance", email: "finance@nexhrms.com" },
+    { id: "U004", name: "Sam Torres", role: "employee", email: "employee@nexhrms.com" },
+    { id: "U005", name: "Olivia Harper", role: "employee", email: "olivia@nexhrms.com" },
+    { id: "U006", name: "Pat Reyes", role: "supervisor", email: "supervisor@nexhrms.com" },
+    { id: "U007", name: "Dana Cruz", role: "payroll_admin", email: "payroll@nexhrms.com" },
+    { id: "U008", name: "Rene Santos", role: "auditor", email: "auditor@nexhrms.com" },
 ];
 
 // ─── Employees ───────────────────────────────────────────────
@@ -42,15 +48,54 @@ export const SEED_EMPLOYEES: Employee[] = [
     { id: "EMP023", name: "Luna Adams", email: "luna@company.com", role: "UI/UX Designer", department: "Design", status: "active", workType: "WFO", salary: 82000, joinDate: "2023-06-05", productivity: 77, location: "Tokyo", phone: "+81-555-0123", birthday: "1997-05-14", teamLeader: "EMP011" },
     { id: "EMP024", name: "Leo Campbell", email: "leo@company.com", role: "QA Engineer", department: "Engineering", status: "active", workType: "WFH", salary: 87000, joinDate: "2022-12-10", productivity: 86, location: "Manila", phone: "+63-555-0124", birthday: "1994-10-31" },
     { id: "EMP025", name: "Aria Evans", email: "aria@company.com", role: "HR Specialist", department: "Human Resources", status: "active", workType: "HYBRID", salary: 74000, joinDate: "2023-08-01", productivity: 80, location: "Singapore", phone: "+65-555-0125", birthday: "1995-12-20" },
+    // Sam Torres (Employee demo user mapped to an EMP record)
+    { id: "EMP026", name: "Sam Torres", email: "employee@nexhrms.com", role: "Frontend Developer", department: "Engineering", status: "active", workType: "WFO", salary: 88000, joinDate: "2024-01-10", productivity: 82, location: "Manila", phone: "+63-555-0126", birthday: "1995-04-20", teamLeader: "EMP010" },
 ];
 
-// ─── Attendance Logs (last 30 days) ──────────────────────────
+// ─── Seed Projects ───────────────────────────────────────────
+export const SEED_PROJECTS: Project[] = [
+    {
+        id: "PRJ001",
+        name: "Metro Tower Construction",
+        description: "High-rise office building construction project in Makati CBD.",
+        location: { lat: 14.5547, lng: 121.0244, radius: 200 },
+        assignedEmployeeIds: ["EMP001", "EMP002", "EMP004", "EMP026"],
+        createdAt: "2025-11-01T00:00:00Z",
+    },
+    {
+        id: "PRJ002",
+        name: "Greenfield Data Center",
+        description: "New data center build-out in Clark Freeport Zone.",
+        location: { lat: 15.1852, lng: 120.5464, radius: 300 },
+        assignedEmployeeIds: ["EMP010", "EMP016", "EMP018"],
+        createdAt: "2025-12-15T00:00:00Z",
+    },
+    {
+        id: "PRJ003",
+        name: "Client Portal Redesign",
+        description: "Remote project — UX redesign for enterprise client portal.",
+        location: { lat: 40.7128, lng: -74.006, radius: 500 },
+        assignedEmployeeIds: ["EMP003", "EMP011", "EMP023"],
+        createdAt: "2026-01-05T00:00:00Z",
+    },
+    {
+        id: "PRJ004",
+        name: "Warehouse Automation",
+        description: "IoT integration for logistics warehouse in Singapore.",
+        location: { lat: 1.3521, lng: 103.8198, radius: 150 },
+        assignedEmployeeIds: ["EMP012", "EMP024"],
+        createdAt: "2026-01-20T00:00:00Z",
+    },
+];
+
+// ─── Attendance Logs (last 30 days, EXCLUDING today) ─────────
 function generateAttendanceLogs(): AttendanceLog[] {
     const logs: AttendanceLog[] = [];
     const today = new Date();
     const statuses: Array<"present" | "absent" | "on_leave"> = ["present", "present", "present", "present", "absent", "on_leave"];
 
-    for (let d = 0; d < 30; d++) {
+    // Start from d=1 (yesterday) to exclude today's date from seed data
+    for (let d = 1; d <= 30; d++) {
         const date = new Date(today);
         date.setDate(date.getDate() - d);
         const dayOfWeek = date.getDay();
@@ -92,16 +137,16 @@ export const SEED_LEAVES: LeaveRequest[] = [
     { id: "LV008", employeeId: "EMP018", type: "OTHER", startDate: "2026-02-14", endDate: "2026-02-14", reason: "Conference attendance.", status: "approved", reviewedBy: "EMP006", reviewedAt: "2026-02-12" },
 ];
 
-// ─── Payslips ────────────────────────────────────────────────
+// ─── Payslips (based on MONTHLY salary, semi-monthly 1st cutoff Jan 1–15) ────
 export const SEED_PAYSLIPS: Payslip[] = [
-    { id: "PS001", employeeId: "EMP001", periodStart: "2026-01-01", periodEnd: "2026-01-31", netPay: 7917, issuedAt: "2026-02-05", status: "confirmed", confirmedAt: "2026-02-06" },
-    { id: "PS002", employeeId: "EMP002", periodStart: "2026-01-01", periodEnd: "2026-01-31", netPay: 8750, issuedAt: "2026-02-05", status: "confirmed", confirmedAt: "2026-02-07" },
-    { id: "PS003", employeeId: "EMP003", periodStart: "2026-01-01", periodEnd: "2026-01-31", netPay: 7333, issuedAt: "2026-02-05", status: "pending" },
-    { id: "PS004", employeeId: "EMP004", periodStart: "2026-01-01", periodEnd: "2026-01-31", netPay: 9167, issuedAt: "2026-02-05", status: "pending" },
-    { id: "PS005", employeeId: "EMP005", periodStart: "2026-01-01", periodEnd: "2026-01-31", netPay: 9583, issuedAt: "2026-02-05", status: "confirmed", confirmedAt: "2026-02-08" },
-    { id: "PS006", employeeId: "EMP010", periodStart: "2026-01-01", periodEnd: "2026-01-31", netPay: 10000, issuedAt: "2026-02-05", status: "pending" },
-    { id: "PS007", employeeId: "EMP011", periodStart: "2026-01-01", periodEnd: "2026-01-31", netPay: 7917, issuedAt: "2026-02-05", status: "pending" },
-    { id: "PS008", employeeId: "EMP016", periodStart: "2026-01-01", periodEnd: "2026-01-31", netPay: 8333, issuedAt: "2026-02-05", status: "confirmed", confirmedAt: "2026-02-06" },
+    { id: "PS001", employeeId: "EMP001", periodStart: "2026-01-01", periodEnd: "2026-01-15", grossPay: 47500, allowances: 0, sssDeduction: 1350, philhealthDeduction: 2375, pagibigDeduction: 100, taxDeduction: 10844, otherDeductions: 0, loanDeduction: 0, netPay: 32831, issuedAt: "2026-01-20", status: "confirmed", confirmedAt: "2026-01-21" },
+    { id: "PS002", employeeId: "EMP002", periodStart: "2026-01-01", periodEnd: "2026-01-15", grossPay: 52500, allowances: 0, sssDeduction: 1350, philhealthDeduction: 2625, pagibigDeduction: 100, taxDeduction: 12606, otherDeductions: 0, loanDeduction: 0, netPay: 35819, issuedAt: "2026-01-20", status: "confirmed", confirmedAt: "2026-01-22" },
+    { id: "PS003", employeeId: "EMP003", periodStart: "2026-01-01", periodEnd: "2026-01-15", grossPay: 44000, allowances: 0, sssDeduction: 1350, philhealthDeduction: 2200, pagibigDeduction: 100, taxDeduction: 9588, otherDeductions: 0, loanDeduction: 0, netPay: 30762, issuedAt: "2026-01-20", status: "issued" },
+    { id: "PS004", employeeId: "EMP004", periodStart: "2026-01-01", periodEnd: "2026-01-15", grossPay: 55000, allowances: 0, sssDeduction: 1350, philhealthDeduction: 2750, pagibigDeduction: 100, taxDeduction: 13581, otherDeductions: 0, loanDeduction: 0, netPay: 37219, issuedAt: "2026-01-20", status: "issued" },
+    { id: "PS005", employeeId: "EMP005", periodStart: "2026-01-01", periodEnd: "2026-01-15", grossPay: 57500, allowances: 0, sssDeduction: 1350, philhealthDeduction: 2875, pagibigDeduction: 100, taxDeduction: 14294, otherDeductions: 0, loanDeduction: 0, netPay: 38881, issuedAt: "2026-01-20", status: "confirmed", confirmedAt: "2026-01-23" },
+    { id: "PS006", employeeId: "EMP010", periodStart: "2026-01-01", periodEnd: "2026-01-15", grossPay: 60000, allowances: 0, sssDeduction: 1350, philhealthDeduction: 2500, pagibigDeduction: 100, taxDeduction: 15513, otherDeductions: 0, loanDeduction: 0, netPay: 40537, issuedAt: "2026-01-20", status: "issued" },
+    { id: "PS007", employeeId: "EMP011", periodStart: "2026-01-01", periodEnd: "2026-01-15", grossPay: 47500, allowances: 0, sssDeduction: 1350, philhealthDeduction: 2375, pagibigDeduction: 100, taxDeduction: 10844, otherDeductions: 0, loanDeduction: 0, netPay: 32831, issuedAt: "2026-01-20", status: "issued" },
+    { id: "PS008", employeeId: "EMP016", periodStart: "2026-01-01", periodEnd: "2026-01-15", grossPay: 50000, allowances: 0, sssDeduction: 1350, philhealthDeduction: 2500, pagibigDeduction: 100, taxDeduction: 11763, otherDeductions: 0, loanDeduction: 0, netPay: 34287, issuedAt: "2026-01-20", status: "confirmed", confirmedAt: "2026-01-21" },
 ];
 
 // ─── Events ──────────────────────────────────────────────────
@@ -112,4 +157,11 @@ export const SEED_EVENTS: CalendarEvent[] = [
     { id: "EVT004", title: "Design Workshop", time: "13:00", date: "2026-02-22", type: "event" },
     { id: "EVT005", title: "Q1 Planning", time: "09:30", date: "2026-03-01", type: "meeting" },
     { id: "EVT006", title: "Company Anniversary", time: "18:00", date: "2026-03-15", type: "event" },
+];
+
+// ─── Loans ───────────────────────────────────────────────────
+export const SEED_LOANS: Loan[] = [
+    { id: "LN001", employeeId: "EMP001", type: "cash_advance", amount: 15000, remainingBalance: 10000, monthlyDeduction: 2500, deductionCapPercent: 30, status: "active", approvedBy: "U001", createdAt: "2026-01-15", remarks: "Emergency cash advance" },
+    { id: "LN002", employeeId: "EMP004", type: "salary_loan", amount: 50000, remainingBalance: 50000, monthlyDeduction: 5000, deductionCapPercent: 30, status: "active", approvedBy: "U001", createdAt: "2026-02-01", remarks: "Salary loan for housing" },
+    { id: "LN003", employeeId: "EMP009", type: "cash_advance", amount: 8000, remainingBalance: 0, monthlyDeduction: 2000, deductionCapPercent: 30, status: "settled", approvedBy: "U001", createdAt: "2025-11-10" },
 ];

@@ -4,6 +4,8 @@ import { useEmployeesStore } from "@/store/employees.store";
 import { useAttendanceStore } from "@/store/attendance.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useEventsStore } from "@/store/events.store";
+import { useLeaveStore } from "@/store/leave.store";
+import { useLoansStore } from "@/store/loans.store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -19,6 +21,10 @@ import {
     Cake,
     Eye,
     Plus,
+    Clock,
+    Banknote,
+    Pencil,
+    Trash2,
 } from "lucide-react";
 import {
     ResponsiveContainer,
@@ -52,12 +58,18 @@ import {
 import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 // ─── KPI Cards ──────────────────────────────────────────────
 function KpiCards() {
     const employees = useEmployeesStore((s) => s.employees);
     const logs = useAttendanceStore((s) => s.logs);
+    const leaveRequests = useLeaveStore((s) => s.requests);
+    const loans = useLoansStore((s) => s.loans);
     // Use state so the date is only computed client-side, avoiding SSR mismatch
     const [today, setToday] = useState<string>("");
 
@@ -74,12 +86,15 @@ function KpiCards() {
     const totalPresent = todayLogs.filter((l) => l.status === "present").length;
     const totalAbsent = todayLogs.filter((l) => l.status === "absent").length;
     const totalOnLeave = todayLogs.filter((l) => l.status === "on_leave").length;
+    const pendingLeaves = leaveRequests.filter((r) => r.status === "pending").length;
+    const outstandingLoans = loans.reduce((sum, l) => l.status === "active" ? sum + l.remainingBalance : sum, 0);
 
     const cards = [
         { label: "Total Present", value: totalPresent, icon: UserCheck, color: "text-emerald-500", bg: "bg-emerald-500/10" },
         { label: "Total Absent", value: totalAbsent, icon: UserX, color: "text-red-500", bg: "bg-red-500/10" },
         { label: "On Leave", value: totalOnLeave, icon: CalendarOff, color: "text-amber-500", bg: "bg-amber-500/10" },
-        { label: "Total Employees", value: totalEmployees, icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
+        { label: "Pending Leaves", value: pendingLeaves, icon: Clock, color: "text-violet-500", bg: "bg-violet-500/10" },
+        { label: "Loan Balance", value: `₱${outstandingLoans.toLocaleString()}`, icon: Banknote, color: "text-blue-600", bg: "bg-blue-500/10" },
     ];
 
     return (
@@ -337,11 +352,19 @@ function EmployeeStatusTable() {
 
 // ─── Events Widget ──────────────────────────────────────────
 function EventsWidget() {
-    const { events, addEvent } = useEventsStore();
+    const { events, addEvent, updateEvent, removeEvent } = useEventsStore();
     const [open, setOpen] = useState(false);
     const [title, setTitle] = useState("");
     const [date, setDate] = useState("");
     const [time, setTime] = useState("");
+
+    // Edit state
+    const [editOpen, setEditOpen] = useState(false);
+    const [editEvt, setEditEvt] = useState<(typeof events)[0] | null>(null);
+    const [editTitle, setEditTitle] = useState("");
+    const [editDate, setEditDate] = useState("");
+    const [editTime, setEditTime] = useState("");
+    const [deleteEvtId, setDeleteEvtId] = useState<string | null>(null);
 
     const upcoming = [...events]
         .sort((a, b) => a.date.localeCompare(b.date))
@@ -355,6 +378,18 @@ function EventsWidget() {
         setTime("");
         setOpen(false);
         toast.success("Event created successfully");
+    };
+
+    const openEdit = (evt: (typeof events)[0]) => {
+        setEditEvt(evt); setEditTitle(evt.title); setEditDate(evt.date); setEditTime(evt.time);
+        setEditOpen(true);
+    };
+
+    const handleEditSave = () => {
+        if (!editEvt || !editTitle || !editDate || !editTime) return;
+        updateEvent(editEvt.id, { title: editTitle, date: editDate, time: editTime });
+        toast.success("Event updated");
+        setEditOpen(false); setEditEvt(null);
     };
 
     return (
@@ -385,7 +420,7 @@ function EventsWidget() {
             </CardHeader>
             <CardContent className="space-y-3">
                 {upcoming.map((evt) => (
-                    <div key={evt.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div key={evt.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group">
                         <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                             <Calendar className="h-4 w-4 text-primary" />
                         </div>
@@ -393,12 +428,53 @@ function EventsWidget() {
                             <p className="text-sm font-medium truncate">{evt.title}</p>
                             <p className="text-xs text-muted-foreground">{evt.date} · {evt.time}</p>
                         </div>
-                        <Badge variant="secondary" className="text-[10px] shrink-0">
-                            {evt.type}
-                        </Badge>
+                        <Badge variant="secondary" className="text-[10px] shrink-0">{evt.type}</Badge>
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEdit(evt)}>
+                                <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-600 hover:bg-red-500/10" onClick={() => setDeleteEvtId(evt.id)}>
+                                <Trash2 className="h-3 w-3" />
+                            </Button>
+                        </div>
                     </div>
                 ))}
+                {upcoming.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No upcoming events</p>}
             </CardContent>
+
+            {/* Edit Event Dialog */}
+            <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Edit Event</DialogTitle></DialogHeader>
+                    <div className="space-y-3 pt-2">
+                        <Input placeholder="Event title" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+                        <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+                        <Input type="time" value={editTime} onChange={(e) => setEditTime(e.target.value)} />
+                        <div className="flex gap-2">
+                            <Button variant="outline" className="flex-1" onClick={() => setEditOpen(false)}>Cancel</Button>
+                            <Button className="flex-1" onClick={handleEditSave}>Save</Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Event Confirmation */}
+            <AlertDialog open={!!deleteEvtId} onOpenChange={(o) => !o && setDeleteEvtId(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Event?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This event will be permanently removed.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => { if (deleteEvtId) { removeEvent(deleteEvtId); toast.success("Event deleted"); setDeleteEvtId(null); } }}>
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </Card>
     );
 }
@@ -451,7 +527,7 @@ function BirthdaysWidget() {
                     <p className="text-sm text-muted-foreground text-center py-4">No birthdays this month</p>
                 ) : (
                     birthdays.slice(0, 5).map((emp) => (
-                        <div key={emp.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                        <div key={emp.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group">
                             <Avatar className="h-9 w-9">
                                 <AvatarFallback className="text-xs bg-muted">{getInitials(emp.name)}</AvatarFallback>
                             </Avatar>

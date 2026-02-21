@@ -3,6 +3,7 @@
 import { useAuthStore } from "@/store/auth.store";
 import { useUIStore } from "@/store/ui.store";
 import { useEmployeesStore } from "@/store/employees.store";
+import { useNotificationsStore } from "@/store/notifications.store";
 import { DEMO_USERS } from "@/data/seed";
 import {
     Search,
@@ -11,6 +12,7 @@ import {
     Sun,
     Menu,
     ChevronDown,
+    LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,11 +41,12 @@ import {
 import { useEffect, useState } from "react";
 
 export function Topbar() {
-    const { currentUser, theme, setTheme, switchRole } = useAuthStore();
+    const { currentUser, theme, setTheme, switchRole, logout } = useAuthStore();
     const { toggleSidebar, sidebarOpen } = useUIStore();
     const employees = useEmployeesStore((s) => s.employees);
     const router = useRouter();
     const [cmdOpen, setCmdOpen] = useState(false);
+    const notifCount = useNotificationsStore((s) => s.logs.length);
 
     useEffect(() => {
         const down = (e: KeyboardEvent) => {
@@ -61,6 +64,9 @@ export function Topbar() {
         hr: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
         finance: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
         employee: "bg-purple-500/15 text-purple-700 dark:text-purple-400",
+        supervisor: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400",
+        payroll_admin: "bg-orange-500/15 text-orange-700 dark:text-orange-400",
+        auditor: "bg-rose-500/15 text-rose-700 dark:text-rose-400",
     };
 
     return (
@@ -103,9 +109,13 @@ export function Topbar() {
                     </Button>
 
                     {/* Notifications */}
-                    <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
+                    <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground" onClick={() => router.push("/notifications")}>
                         <Bell className="h-5 w-5" />
-                        <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-destructive" />
+                        {notifCount > 0 && (
+                            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground">
+                                {notifCount > 9 ? "9+" : notifCount}
+                            </span>
+                        )}
                     </Button>
 
                     {/* Role Switcher */}
@@ -157,6 +167,13 @@ export function Topbar() {
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => router.push("/settings")}>
                                 Settings
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                onClick={() => { logout(); router.push("/login"); }}
+                                className="text-red-600 focus:text-red-600 focus:bg-red-500/10 gap-2"
+                            >
+                                <LogOut className="h-4 w-4" /> Log out
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>

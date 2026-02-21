@@ -1,0 +1,64 @@
+import { NextRequest, NextResponse } from "next/server";
+import { sendNotification, notifyProjectAssignment, notifyAbsence } from "@/lib/notifications";
+
+export async function POST(request: NextRequest) {
+    try {
+        const body = await request.json();
+        const { employeeId, employeeName, employeeEmail, type, projectName, date } = body;
+
+        if (!employeeId || !employeeName || !employeeEmail || !type) {
+            return NextResponse.json(
+                { success: false, message: "Missing required fields: employeeId, employeeName, employeeEmail, and type" },
+                { status: 400 }
+            );
+        }
+
+        let result;
+
+        switch (type) {
+            case "assignment":
+            case "reassignment":
+                if (!projectName) {
+                    return NextResponse.json(
+                        { success: false, message: "projectName required for assignment notifications" },
+                        { status: 400 }
+                    );
+                }
+                result = notifyProjectAssignment({
+                    employeeId,
+                    employeeName,
+                    employeeEmail,
+                    projectName,
+                });
+                break;
+
+            case "absence":
+                if (!date) {
+                    return NextResponse.json(
+                        { success: false, message: "date required for absence notifications" },
+                        { status: 400 }
+                    );
+                }
+                result = notifyAbsence({ employeeId, employeeName, employeeEmail, date });
+                break;
+
+            default:
+                return NextResponse.json(
+                    { success: false, message: `Invalid notification type: ${type}` },
+                    { status: 400 }
+                );
+        }
+
+        return NextResponse.json({
+            success: true,
+            message: "Notification sent successfully",
+            simulatedEmail: result,
+        });
+    } catch (error) {
+        console.error("Notification API error:", error);
+        return NextResponse.json(
+            { success: false, message: "Internal server error" },
+            { status: 500 }
+        );
+    }
+}
