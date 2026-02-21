@@ -123,7 +123,7 @@ export default function GovernmentReportsPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
                         <Shield className="h-5 w-5 text-blue-500" />
@@ -134,7 +134,7 @@ export default function GovernmentReportsPage() {
                     </div>
                 </div>
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                    <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-[180px]"><SelectValue /></SelectTrigger>
                     <SelectContent>
                         {last6Months.map((m) => (
                             <SelectItem key={m} value={m}>
@@ -186,7 +186,7 @@ export default function GovernmentReportsPage() {
                 </Card>
             ) : (
                 <Tabs defaultValue="sss">
-                    <TabsList>
+                    <TabsList className="w-full overflow-x-auto justify-start">
                         <TabsTrigger value="sss">SSS</TabsTrigger>
                         <TabsTrigger value="philhealth">PhilHealth</TabsTrigger>
                         <TabsTrigger value="pagibig">Pag-IBIG</TabsTrigger>
@@ -206,6 +206,7 @@ export default function GovernmentReportsPage() {
                                 </Button>
                             </div>
                             <CardContent className="p-0">
+                              <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -235,6 +236,7 @@ export default function GovernmentReportsPage() {
                                         </TableRow>
                                     </TableBody>
                                 </Table>
+                              </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -252,6 +254,7 @@ export default function GovernmentReportsPage() {
                                 </Button>
                             </div>
                             <CardContent className="p-0">
+                              <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -281,6 +284,7 @@ export default function GovernmentReportsPage() {
                                         </TableRow>
                                     </TableBody>
                                 </Table>
+                              </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -298,6 +302,7 @@ export default function GovernmentReportsPage() {
                                 </Button>
                             </div>
                             <CardContent className="p-0">
+                              <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -327,6 +332,7 @@ export default function GovernmentReportsPage() {
                                         </TableRow>
                                     </TableBody>
                                 </Table>
+                              </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -344,6 +350,7 @@ export default function GovernmentReportsPage() {
                                 </Button>
                             </div>
                             <CardContent className="p-0">
+                              <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -376,6 +383,7 @@ export default function GovernmentReportsPage() {
                                         </TableRow>
                                     </TableBody>
                                 </Table>
+                              </div>
                             </CardContent>
                         </Card>
                     </TabsContent>

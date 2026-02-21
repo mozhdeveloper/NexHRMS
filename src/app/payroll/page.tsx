@@ -120,9 +120,10 @@ export default function PayrollPage() {
     };
 
     const handleIssue = () => {
-        const todayLocked = isRunLocked(today);
-        if (todayLocked) {
-            toast.error("Today's payroll run is locked. Use adjustments for corrections.");
+        // Lock check: block if the issuance date falls on a locked run
+        const issuanceDateLocked = isRunLocked(formIssuedAt);
+        if (issuanceDateLocked) {
+            toast.error("The selected issuance date belongs to a locked payroll run. Use adjustments for corrections.");
             return;
         }
         if (selectedEmployeeIds.length === 0 || !cutoffDates.start || !cutoffDates.end) {
@@ -257,7 +258,7 @@ export default function PayrollPage() {
 
     const handle13thMonth = () => {
         const activeEmps = employees.filter((e) => e.status === "active");
-        generate13thMonth(activeEmps.map((e) => ({ id: e.id, salary: e.salary })));
+        generate13thMonth(activeEmps.map((e) => ({ id: e.id, salary: e.salary, joinDate: e.joinDate })));
         toast.success(`Generated 13th Month Pay for ${activeEmps.length} employees`);
     };
 
@@ -287,7 +288,8 @@ export default function PayrollPage() {
     const isRunLocked = (runDate: string) => runs.find((r) => r.periodLabel === runDate)?.locked ?? false;
 
     const today = new Date().toISOString().split("T")[0];
-    const isTodayLocked = isRunLocked(today);
+    // Lock is checked against formIssuedAt at submission time; button uses formIssuedAt too
+    const isTodayLocked = isRunLocked(formIssuedAt);
 
     const viewedPayslip = viewSlip ? payslips.find((p) => p.id === viewSlip) : null;
 

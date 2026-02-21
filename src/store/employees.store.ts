@@ -140,7 +140,7 @@ export const useEmployeesStore = create<EmployeesState>()(
                             {
                                 id: `SH-${nanoid(8)}`,
                                 employeeId: req.employeeId,
-                                annualSalary: req.proposedSalary,
+                                monthlySalary: req.proposedSalary,
                                 effectiveFrom: req.effectiveDate,
                                 approvedBy: reviewerId,
                                 reason: req.reason,

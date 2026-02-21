@@ -248,7 +248,7 @@ describe("Employees Store — salary change governance", () => {
         expect(history.length).toBeGreaterThanOrEqual(1);
         const entry = history.find((h) => h.employeeId === "TEST-EMP-001" && !h.effectiveTo);
         expect(entry).toBeDefined();
-        expect(entry?.annualSalary).toBe(120000);
+        expect(entry?.monthlySalary).toBe(120000);
     });
 
     it("rejectSalaryChange does not change employee salary", () => {
@@ -270,12 +270,12 @@ describe("Employees Store — salary change governance", () => {
         // Manually add history
         useEmployeesStore.setState({
             salaryHistory: [
-                { id: "SH-1", employeeId: "TEST-EMP-001", annualSalary: 80000, effectiveFrom: "2024-01-01", approvedBy: "SYS", reason: "Initial" },
-                { id: "SH-2", employeeId: "TEST-EMP-002", annualSalary: 70000, effectiveFrom: "2024-01-01", approvedBy: "SYS", reason: "Initial" },
+                { id: "SH-1", employeeId: "TEST-EMP-001", monthlySalary: 80000, effectiveFrom: "2024-01-01", approvedBy: "SYS", reason: "Initial" },
+                { id: "SH-2", employeeId: "TEST-EMP-002", monthlySalary: 70000, effectiveFrom: "2024-01-01", approvedBy: "SYS", reason: "Initial" },
             ],
         });
         const history = useEmployeesStore.getState().getSalaryHistory("TEST-EMP-001");
         expect(history).toHaveLength(1);
-        expect(history[0].annualSalary).toBe(80000);
+        expect(history[0].monthlySalary).toBe(80000);
     });
 });

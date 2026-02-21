@@ -89,7 +89,7 @@ export default function AuditPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Card className="border border-blue-500/20 bg-blue-500/5">
                     <CardContent className="p-4">
                         <p className="text-xs text-muted-foreground font-medium">Total Entries</p>
@@ -117,7 +117,7 @@ export default function AuditPage() {
                 <CardContent className="p-4">
                     <div className="flex flex-wrap items-center gap-3">
                         <Select value={actionFilter} onValueChange={setActionFilter}>
-                            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Filter by action" /></SelectTrigger>
+                            <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Filter by action" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Actions</SelectItem>
                                 {uniqueActions.map((a) => (
@@ -129,13 +129,13 @@ export default function AuditPage() {
                             placeholder="Filter by entity..."
                             value={entityFilter}
                             onChange={(e) => setEntityFilter(e.target.value)}
-                            className="w-[200px]"
+                            className="w-full sm:w-[200px]"
                         />
                         <Input
                             placeholder="Filter by performer..."
                             value={performerFilter}
                             onChange={(e) => setPerformerFilter(e.target.value)}
-                            className="w-[200px]"
+                            className="w-full sm:w-[200px]"
                         />
                     </div>
                 </CardContent>
@@ -144,6 +144,7 @@ export default function AuditPage() {
             {/* Table */}
             <Card className="border border-border/50">
                 <CardContent className="p-0">
+                  <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -186,6 +187,7 @@ export default function AuditPage() {
                             ))}
                         </TableBody>
                     </Table>
+                  </div>
                 </CardContent>
             </Card>
 

@@ -150,7 +150,7 @@ export default function OrganizationPage() {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Card className="border border-blue-500/20 bg-blue-500/5">
                     <CardContent className="p-4">
                         <p className="text-xs text-muted-foreground font-medium">Departments</p>
@@ -172,7 +172,7 @@ export default function OrganizationPage() {
             </div>
 
             <Tabs defaultValue="departments">
-                <TabsList>
+                <TabsList className="w-full overflow-x-auto justify-start">
                     <TabsTrigger value="departments" className="gap-1.5">
                         <Building2 className="h-3.5 w-3.5" /> Departments
                     </TabsTrigger>
@@ -191,6 +191,7 @@ export default function OrganizationPage() {
                     </div>
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -226,6 +227,7 @@ export default function OrganizationPage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -240,6 +242,7 @@ export default function OrganizationPage() {
                     </div>
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -273,6 +276,7 @@ export default function OrganizationPage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
                 </TabsContent>

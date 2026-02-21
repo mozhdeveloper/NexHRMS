@@ -106,18 +106,28 @@ export const useLeaveStore = create<LeaveState>()(
                             : r
                     );
 
-                    // If approving, deduct from balance
-                    if (status === "approved" && req) {
-                        const year = new Date(req.startDate).getFullYear();
-                        const startD = new Date(req.startDate);
-                        const endD = new Date(req.endDate);
-                        const days = Math.ceil((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                    const year = new Date(req.startDate).getFullYear();
+                    const days = Math.ceil((new Date(req.endDate).getTime() - new Date(req.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
+                    // If approving, deduct from balance
+                    if (status === "approved" && req.status !== "approved") {
                         return {
                             requests: updatedRequests,
                             balances: s.balances.map((b) =>
                                 b.employeeId === req.employeeId && b.leaveType === req.type && b.year === year
                                     ? { ...b, used: b.used + days, remaining: b.remaining - days }
+                                    : b
+                            ),
+                        };
+                    }
+
+                    // If rejecting a previously approved leave, credit the balance back
+                    if (status === "rejected" && req.status === "approved") {
+                        return {
+                            requests: updatedRequests,
+                            balances: s.balances.map((b) =>
+                                b.employeeId === req.employeeId && b.leaveType === req.type && b.year === year
+                                    ? { ...b, used: Math.max(0, b.used - days), remaining: b.remaining + days }
                                     : b
                             ),
                         };

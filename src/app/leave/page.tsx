@@ -28,8 +28,8 @@ import {
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-// Configurable annual leave allocations
-const LEAVE_ALLOC: Record<LeaveType, number> = { VL: 15, SL: 10, EL: 5, OTHER: 5 };
+// Fallback allocations only used if no policy exists in the store
+const LEAVE_ALLOC_FALLBACK: Record<LeaveType, number> = { VL: 15, SL: 10, EL: 5, OTHER: 5 };;
 const LEAVE_LABELS: Record<LeaveType, string> = { VL: "Vacation", SL: "Sick", EL: "Emergency", OTHER: "Other" };
 const LEAVE_ICONS: Record<LeaveType, React.ReactNode> = {
     VL: <Palmtree className="h-4 w-4" />,
@@ -113,15 +113,17 @@ export default function LeavePage() {
         const targetId = isEmployee ? myEmpId : undefined;
         const result: Record<LeaveType, { alloc: number; used: number; remaining: number }> = {} as never;
         for (const type of ["VL", "SL", "EL", "OTHER"] as LeaveType[]) {
+            // Use store policy entitlement, fall back to local constant
+            const policyEntitlement = policies.find((p) => p.leaveType === type)?.annualEntitlement ?? LEAVE_ALLOC_FALLBACK[type];
             const approved = requests.filter(
                 (r) => r.status === "approved" && r.type === type && (!targetId || r.employeeId === targetId)
             );
             const usedDays = approved.reduce((sum, r) => sum + daysBetween(r.startDate, r.endDate), 0);
-            const alloc = targetId ? LEAVE_ALLOC[type] : LEAVE_ALLOC[type] * employees.filter((e) => e.status === "active").length;
+            const alloc = targetId ? policyEntitlement : policyEntitlement * employees.filter((e) => e.status === "active").length;
             result[type] = { alloc, used: usedDays, remaining: Math.max(0, alloc - usedDays) };
         }
         return result;
-    }, [requests, myEmpId, isEmployee, employees]);
+    }, [requests, myEmpId, isEmployee, employees, policies]);
 
     const filteredRequests = requests.filter((r) => {
         if (statusFilter !== "all" && r.status !== statusFilter) return false;

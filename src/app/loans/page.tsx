@@ -212,6 +212,7 @@ export default function LoansPage() {
                         <SelectItem value="active">Active</SelectItem>
                         <SelectItem value="settled">Settled</SelectItem>
                         <SelectItem value="frozen">Frozen</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
@@ -256,6 +257,7 @@ export default function LoansPage() {
                                 const paidPct = loan.amount > 0 ? Math.round(((loan.amount - loan.remainingBalance) / loan.amount) * 100) : 100;
                                 const statusColor = loan.status === "active" ? "bg-blue-500/15 text-blue-700 dark:text-blue-400"
                                     : loan.status === "settled" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                                    : loan.status === "cancelled" ? "bg-red-500/15 text-red-700 dark:text-red-400"
                                         : "bg-amber-500/15 text-amber-700 dark:text-amber-400";
                                 return (
                                     <TableRow key={loan.id}>

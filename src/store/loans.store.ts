@@ -89,7 +89,12 @@ export const useLoansStore = create<LoansState>()(
                 })),
 
             cancelLoan: (id) =>
-                set((s) => ({ loans: s.loans.filter((l) => l.id !== id) })),
+                set((s) => ({
+                    // Soft-cancel: preserve history, just mark status
+                    loans: s.loans.map((l) =>
+                        l.id === id ? { ...l, status: "cancelled" as const } : l
+                    ),
+                })),
 
             getByEmployee: (employeeId) =>
                 get().loans.filter((l) => l.employeeId === employeeId),

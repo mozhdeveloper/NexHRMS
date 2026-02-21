@@ -79,10 +79,18 @@ export default function TimesheetsPage() {
 
     // Bulk compute: generate timesheets for every checked-in log that doesn't have one yet
     const handleBulkCompute = () => {
-        const existingKeys = new Set(timesheets.filter((t) => t.status !== "computed").map((t) => `${t.employeeId}|${t.date}`));
-        const computedKeys = new Set(timesheets.map((t) => `${t.employeeId}|${t.date}`));
-        const pending = logs.filter((l) => l.checkIn && !existingKeys.has(`${l.employeeId}|${l.date}`));
-        const toCompute = pending.filter((l) => !computedKeys.has(`${l.employeeId}|${l.date}`) || timesheets.find((t) => t.employeeId === l.employeeId && t.date === l.date && t.status === "computed"));
+        // Keys for timesheets that are already past "computed" (submitted/approved/rejected) — skip these
+        const lockedKeys = new Set(
+            timesheets
+                .filter((t) => t.status !== "computed")
+                .map((t) => `${t.employeeId}|${t.date}`)
+        );
+        // Keys for ALL existing timesheets — to skip re-computation of already-computed ones
+        const allTimesheetKeys = new Set(timesheets.map((t) => `${t.employeeId}|${t.date}`));
+        // Only process logs that have a check-in AND no timesheet at all yet
+        const toCompute = logs.filter(
+            (l) => l.checkIn && l.status === "present" && !allTimesheetKeys.has(`${l.employeeId}|${l.date}`) && !lockedKeys.has(`${l.employeeId}|${l.date}`)
+        );
         if (toCompute.length === 0) { toast.info("No new attendance logs to compute."); return; }
         let count = 0;
         toCompute.forEach((log) => {
@@ -171,7 +179,7 @@ export default function TimesheetsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Timesheets</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">
@@ -179,7 +187,7 @@ export default function TimesheetsPage() {
                         {pendingCount > 0 && <span className="ml-2 text-amber-600 font-medium">({pendingCount} pending approval)</span>}
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                 {(isSupervisor || isPayrollAdmin) && (
                         <>
                             <Button variant="outline" size="sm" className="gap-1.5" onClick={handleBulkCompute}>
@@ -194,7 +202,7 @@ export default function TimesheetsPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <Card className="border border-slate-500/20 bg-slate-500/5">
                     <CardContent className="p-4">
                         <p className="text-xs text-muted-foreground font-medium">Computed</p>
@@ -222,7 +230,7 @@ export default function TimesheetsPage() {
             </div>
 
             <Tabs defaultValue="timesheets">
-                <TabsList>
+                <TabsList className="w-full overflow-x-auto justify-start">
                     <TabsTrigger value="timesheets">Timesheets</TabsTrigger>
                     <TabsTrigger value="rulesets" className="gap-1.5">
                         <ClipboardList className="h-3.5 w-3.5" /> Rule Sets
@@ -232,10 +240,10 @@ export default function TimesheetsPage() {
                 <TabsContent value="timesheets" className="mt-4 space-y-4">
                     {/* Filters */}
                     <div className="flex flex-wrap items-center gap-3">
-                        <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-[180px]" />
+                        <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-full sm:w-[180px]" />
                         {isSupervisor && (
                             <Select value={empFilter} onValueChange={setEmpFilter}>
-                                <SelectTrigger className="w-[200px]"><SelectValue placeholder="All Employees" /></SelectTrigger>
+                                <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="All Employees" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Employees</SelectItem>
                                     {employees.filter((e) => e.status === "active").map((e) => (
@@ -245,7 +253,7 @@ export default function TimesheetsPage() {
                             </Select>
                         )}
                         <Select value={statusFilter} onValueChange={setStatusFilter}>
-                            <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="w-full sm:w-[150px]"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Status</SelectItem>
                                 <SelectItem value="computed">Computed</SelectItem>
@@ -258,6 +266,7 @@ export default function TimesheetsPage() {
 
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                            <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -340,6 +349,7 @@ export default function TimesheetsPage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>

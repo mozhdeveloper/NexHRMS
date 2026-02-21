@@ -274,8 +274,13 @@ export const useAttendanceStore = create<AttendanceState>()(
                     logs: s.logs.map((l) => {
                         if (l.employeeId === employeeId && l.date === today && l.checkIn) {
                             const [inH, inM] = l.checkIn.split(":").map(Number);
-                            const hours = now.getHours() - inH + (now.getMinutes() - inM) / 60;
-                            return { ...l, checkOut: timeStr, hours: Math.round(hours * 10) / 10 };
+                            const outTotalMin = now.getHours() * 60 + now.getMinutes();
+                            const inTotalMin = inH * 60 + inM;
+                            // Handle overnight shifts (checkout next day is < checkin time)
+                            const diffMin = outTotalMin >= inTotalMin
+                                ? outTotalMin - inTotalMin
+                                : 24 * 60 - inTotalMin + outTotalMin;
+                            return { ...l, checkOut: timeStr, hours: Math.round((diffMin / 60) * 10) / 10 };
                         }
                         return l;
                     }),
@@ -334,12 +339,16 @@ export const useAttendanceStore = create<AttendanceState>()(
                     logs: s.logs.map((l) => {
                         if (l.id !== id) return l;
                         const updated = { ...l, ...patch };
-                        // Recalculate hours if both times are present
+                        // Recalculate hours if both times are present; handle overnight shifts
                         if (updated.checkIn && updated.checkOut) {
                             const [inH, inM] = updated.checkIn.split(":").map(Number);
                             const [outH, outM] = updated.checkOut.split(":").map(Number);
-                            const rawH = (outH * 60 + outM - inH * 60 - inM) / 60;
-                            updated.hours = Math.max(0, Math.round(rawH * 10) / 10);
+                            const inTotal = inH * 60 + inM;
+                            const outTotal = outH * 60 + outM;
+                            const diffMin = outTotal >= inTotal
+                                ? outTotal - inTotal
+                                : 24 * 60 - inTotal + outTotal;
+                            updated.hours = Math.round((diffMin / 60) * 10) / 10;
                         }
                         return updated;
                     }),

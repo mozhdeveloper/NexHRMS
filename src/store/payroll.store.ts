@@ -45,7 +45,7 @@ interface PayrollState {
     computeFinalPay: (data: { employeeId: string; resignedAt: string; salary: number; unpaidOTHours: number; leaveDays: number; loanBalance: number }) => void;
     getFinalPay: (employeeId: string) => FinalPayComputation | undefined;
     // ─── Helpers ──────────────────────────────────────
-    generate13thMonth: (employees: { id: string; salary: number }[]) => void;
+    generate13thMonth: (employees: { id: string; salary: number; joinDate?: string }[]) => void;
     getByEmployee: (employeeId: string) => Payslip[];
     getPending: () => Payslip[];
     exportBankFile: (runDate: string, employees: { id: string; name: string; salary: number }[]) => void;
@@ -295,15 +295,16 @@ export const usePayrollStore = create<PayrollState>()(
                 set((s) => {
                     const existing = s.finalPayComputations.find((f) => f.employeeId === data.employeeId);
                     if (existing) return {}; // already computed
-                    // data.salary is MONTHLY — convert to annual for daily rate
-                    const annualSalary = data.salary * 12;
-                    const dailyRate = annualSalary / 365;
                     const resignDate = new Date(data.resignedAt);
-                    const yearStart = new Date(resignDate.getFullYear(), 0, 1);
-                    const daysWorked = Math.ceil((resignDate.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24));
-                    const proRatedSalary = Math.round(dailyRate * daysWorked);
-                    const hourlyRate = annualSalary / 2080;
-                    const unpaidOT = Math.round(data.unpaidOTHours * hourlyRate * 1.25); // 1.25x OT rate
+                    // Pro-rate salary for the CURRENT PARTIAL MONTH only (last payroll to resignation)
+                    const daysInMonth = new Date(resignDate.getFullYear(), resignDate.getMonth() + 1, 0).getDate();
+                    const daysWorkedInMonth = resignDate.getDate(); // day of month on resignation
+                    const dailyRate = Math.round(data.salary / daysInMonth);
+                    const proRatedSalary = Math.round(dailyRate * daysWorkedInMonth);
+                    // Unpaid OT at 1.25x hourly rate
+                    const hourlyRate = (data.salary * 12) / 2080;
+                    const unpaidOT = Math.round(data.unpaidOTHours * hourlyRate * 1.25);
+                    // Leave cash-out at daily rate
                     const leavePayout = Math.round(data.leaveDays * dailyRate);
                     const grossFinalPay = proRatedSalary + unpaidOT + leavePayout;
                     const deductions = data.loanBalance;
@@ -330,28 +331,45 @@ export const usePayrollStore = create<PayrollState>()(
                 get().finalPayComputations.find((f) => f.employeeId === employeeId),
 
             // ─── Helpers ──────────────────────────────────────────────
-            // 13th month = 1 month salary (salary is already monthly)
+            // 13th month = (total basic salary earned in the year) / 12
+            // Pro-rated for mid-year joiners: only months worked count
             generate13thMonth: (employees) =>
                 set((s) => {
                     const today = new Date().toISOString().split("T")[0];
-                    const newSlips: Payslip[] = employees.map((emp) => ({
-                        id: `PS-${nanoid(8)}`,
-                        employeeId: emp.id,
-                        periodStart: `${new Date().getFullYear()}-01-01`,
-                        periodEnd: `${new Date().getFullYear()}-12-31`,
-                        grossPay: emp.salary, // salary = monthly
-                        allowances: 0,
-                        sssDeduction: 0,
-                        philhealthDeduction: 0,
-                        pagibigDeduction: 0,
-                        taxDeduction: 0,
-                        otherDeductions: 0,
-                        loanDeduction: 0,
-                        netPay: emp.salary,
-                        issuedAt: today,
-                        status: "issued",
-                        notes: "13th Month Pay",
-                    }));
+                    const currentYear = new Date().getFullYear();
+                    const newSlips: Payslip[] = employees.map((emp) => {
+                        // Determine how many full months the employee worked this year
+                        let monthsWorked = 12;
+                        if (emp.joinDate) {
+                            const join = new Date(emp.joinDate);
+                            if (join.getFullYear() === currentYear) {
+                                // Joined this year: count from join month to December (inclusive)
+                                monthsWorked = 12 - join.getMonth(); // getMonth() is 0-based
+                            } else if (join.getFullYear() > currentYear) {
+                                monthsWorked = 0; // hasn't started yet
+                            }
+                        }
+                        // 13th month pay = (monthly salary × months worked) / 12
+                        const thirteenthPay = Math.round((emp.salary * monthsWorked) / 12);
+                        return {
+                            id: `PS-${nanoid(8)}`,
+                            employeeId: emp.id,
+                            periodStart: `${currentYear}-01-01`,
+                            periodEnd: `${currentYear}-12-31`,
+                            grossPay: thirteenthPay,
+                            allowances: 0,
+                            sssDeduction: 0,
+                            philhealthDeduction: 0,
+                            pagibigDeduction: 0,
+                            taxDeduction: 0,   // 13th month is tax-exempt up to ₱90,000 (TRAIN Law)
+                            otherDeductions: 0,
+                            loanDeduction: 0,
+                            netPay: thirteenthPay,
+                            issuedAt: today,
+                            status: "issued" as const,
+                            notes: `13th Month Pay (${monthsWorked}/12 months)`,
+                        };
+                    }).filter((s) => s.netPay > 0);
                     return { payslips: [...s.payslips, ...newSlips] };
                 }),
 

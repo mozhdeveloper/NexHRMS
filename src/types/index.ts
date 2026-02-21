@@ -9,7 +9,7 @@ export type LeaveType = "SL" | "VL" | "EL" | "OTHER";
 export type LeaveStatus = "pending" | "approved" | "rejected";
 export type PayslipStatus = "issued" | "confirmed" | "published" | "paid" | "acknowledged";
 export type PayrollRunStatus = "draft" | "validated" | "locked" | "published" | "paid";
-export type LoanStatus = "active" | "settled" | "frozen";
+export type LoanStatus = "active" | "settled" | "frozen" | "cancelled";
 export type OvertimeStatus = "pending" | "approved" | "rejected";
 export type AdjustmentType = "earnings" | "deduction" | "net_correction" | "statutory_correction";
 export type AdjustmentStatus = "pending" | "approved" | "applied" | "rejected";
@@ -85,7 +85,7 @@ export interface SalaryChangeRequest {
 export interface SalaryHistoryEntry {
   id: string;
   employeeId: string;
-  annualSalary: number;
+  monthlySalary: number;  // monthly (same unit as Employee.salary)
   effectiveFrom: string;
   effectiveTo?: string;
   approvedBy: string;

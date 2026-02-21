@@ -155,7 +155,7 @@ export default function ShiftsPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
                         <Clock3 className="h-5 w-5 text-purple-500" />
@@ -165,7 +165,7 @@ export default function ShiftsPage() {
                         <p className="text-sm text-muted-foreground mt-0.5">Configure and assign work shifts</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setAssignOpen(true)}>
                         <UserCog className="h-4 w-4" /> Assign Shift
                     </Button>
@@ -176,7 +176,7 @@ export default function ShiftsPage() {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Card className="border border-purple-500/20 bg-purple-500/5">
                     <CardContent className="p-4">
                         <p className="text-xs text-muted-foreground font-medium">Shift Templates</p>
@@ -198,7 +198,7 @@ export default function ShiftsPage() {
             </div>
 
             <Tabs defaultValue="templates">
-                <TabsList>
+                <TabsList className="w-full overflow-x-auto justify-start">
                     <TabsTrigger value="templates" className="gap-1.5">
                         <Clock3 className="h-3.5 w-3.5" /> Shift Templates
                     </TabsTrigger>
@@ -211,6 +211,7 @@ export default function ShiftsPage() {
                 <TabsContent value="templates" className="mt-4">
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -261,6 +262,7 @@ export default function ShiftsPage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -269,6 +271,7 @@ export default function ShiftsPage() {
                 <TabsContent value="assignments" className="mt-4">
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -293,7 +296,7 @@ export default function ShiftsPage() {
                                                         value={shiftId || "unassigned"}
                                                         onValueChange={(val) => handleQuickAssign(emp.id, val === "unassigned" ? null : val)}
                                                     >
-                                                        <SelectTrigger className="h-7 w-[180px] text-xs">
+                                                        <SelectTrigger className="h-7 w-full sm:w-[180px] text-xs">
                                                             <SelectValue />
                                                         </SelectTrigger>
                                                         <SelectContent>
@@ -320,6 +323,7 @@ export default function ShiftsPage() {
                                     })}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
