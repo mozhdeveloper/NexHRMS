@@ -14,8 +14,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Topbar />
             <main
                 className={cn(
-                    "min-h-[calc(100vh-4rem)] transition-all duration-300 p-6",
-                    sidebarOpen ? "ml-64" : "ml-[72px]"
+                    "min-h-[calc(100vh-4rem)] transition-all duration-300 p-3 sm:p-4 md:p-6",
+                    // On mobile: full width (sidebar is overlay). On desktop: respect sidebar width.
+                    "lg:transition-all lg:duration-300",
+                    sidebarOpen ? "lg:ml-64" : "lg:ml-[72px]"
                 )}
             >
                 {children}

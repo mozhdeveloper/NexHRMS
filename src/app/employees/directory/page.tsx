@@ -100,14 +100,14 @@ export default function DirectoryPage() {
                     <Input placeholder="Search employees..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
                 </div>
                 <Select value={dept} onValueChange={setDept}>
-                    <SelectTrigger className="w-[160px]"><SelectValue placeholder="Department" /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-[160px]"><SelectValue placeholder="Department" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Departments</SelectItem>
                         {DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                     </SelectContent>
                 </Select>
                 <Select value={status} onValueChange={setStatus}>
-                    <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-[130px]"><SelectValue /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Status</SelectItem>
                         <SelectItem value="active">Active</SelectItem>

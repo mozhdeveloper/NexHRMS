@@ -293,17 +293,17 @@ export default function PayrollPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Payroll</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">{filteredPayslips.length} payslips</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     {/* Reset Button — for simulation */}
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button variant="outline" size="sm" className="gap-1.5 text-muted-foreground">
-                                <RotateCcw className="h-4 w-4" /> Reset
+                                <RotateCcw className="h-4 w-4" /> <span className="hidden sm:inline">Reset</span>
                             </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -322,7 +322,7 @@ export default function PayrollPage() {
                     {canIssue && (
                         <>
                             <Button variant="outline" size="sm" className="gap-1.5" onClick={handle13thMonth}>
-                                <Gift className="h-4 w-4" /> 13th Month
+                                <Gift className="h-4 w-4" /> <span className="hidden sm:inline">13th Month</span>
                             </Button>
                             <Dialog open={open} onOpenChange={setOpen}>
                                 <DialogTrigger asChild>
@@ -522,7 +522,7 @@ export default function PayrollPage() {
             </div>
 
             <Tabs defaultValue="payslips">
-                <TabsList>
+                <TabsList className="w-full overflow-x-auto justify-start">
                     <TabsTrigger value="payslips">Payslips</TabsTrigger>
                     <TabsTrigger value="runs">Payroll Runs</TabsTrigger>
                     {canIssue && <TabsTrigger value="adjustments">Adjustments</TabsTrigger>}
@@ -532,6 +532,7 @@ export default function PayrollPage() {
                 <TabsContent value="payslips" className="mt-4">
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -594,6 +595,7 @@ export default function PayrollPage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -601,6 +603,7 @@ export default function PayrollPage() {
                 <TabsContent value="runs" className="mt-4">
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -716,6 +719,7 @@ export default function PayrollPage() {
                                     })}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -732,6 +736,7 @@ export default function PayrollPage() {
                                 {adjustments.length === 0 ? (
                                     <p className="text-sm text-muted-foreground text-center py-6">No adjustments yet. Adjustments allow corrections to prior payroll runs without unlocking them.</p>
                                 ) : (
+                                  <div className="overflow-x-auto">
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
@@ -782,6 +787,7 @@ export default function PayrollPage() {
                                             ))}
                                         </TableBody>
                                     </Table>
+                                  </div>
                                 )}
                             </CardContent>
                         </Card>
@@ -800,6 +806,7 @@ export default function PayrollPage() {
                                 {(!finalPayComputations || finalPayComputations.length === 0) ? (
                                     <p className="text-sm text-muted-foreground text-center py-6">No final pay computations yet. Resign an employee from Employee Management to trigger final pay.</p>
                                 ) : (
+                                  <div className="overflow-x-auto">
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
@@ -839,6 +846,7 @@ export default function PayrollPage() {
                                             ))}
                                         </TableBody>
                                     </Table>
+                                  </div>
                                 )}
                             </CardContent>
                         </Card>

@@ -27,8 +27,10 @@ import {
     ClipboardList,
     FileSearch,
     AlarmClock,
+    X,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useEffect } from "react";
 
 const iconMap: Record<string, React.ElementType> = {
     LayoutDashboard,
@@ -53,37 +55,54 @@ const iconMap: Record<string, React.ElementType> = {
 export function Sidebar() {
     const pathname = usePathname();
     const role = useAuthStore((s) => s.currentUser.role);
-    const { sidebarOpen, toggleSidebar } = useUIStore();
+    const { sidebarOpen, toggleSidebar, mobileSidebarOpen, setMobileSidebarOpen } = useUIStore();
 
     const filtered = NAV_ITEMS.filter((item) => item.roles.includes(role));
 
-    return (
-        <aside
-            className={cn(
-                "fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-border bg-card transition-all duration-300",
-                sidebarOpen ? "w-64" : "w-[72px]"
-            )}
-        >
+    // Close mobile sidebar on route change
+    useEffect(() => {
+        setMobileSidebarOpen(false);
+    }, [pathname, setMobileSidebarOpen]);
+
+    // Close mobile sidebar on window resize to desktop
+    useEffect(() => {
+        const onResize = () => {
+            if (window.innerWidth >= 1024) setMobileSidebarOpen(false);
+        };
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+    }, [setMobileSidebarOpen]);
+
+    /* ---------- Shared navigation content ---------- */
+    const navContent = (showLabel: boolean, isMobile: boolean) => (
+        <>
             {/* Logo */}
             <div className="flex h-16 items-center justify-between px-4">
                 <Link href="/dashboard" className="flex items-center gap-2.5">
                     <Image
                         src="/logo.svg"
                         alt="NexHRMS"
-                        width={sidebarOpen ? 140 : 36}
+                        width={showLabel ? 140 : 36}
                         height={36}
                         className="transition-all duration-300"
                         priority
                     />
                 </Link>
+                {isMobile && (
+                    <button
+                        onClick={() => setMobileSidebarOpen(false)}
+                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                        aria-label="Close menu"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                )}
             </div>
 
             {/* Navigation */}
             <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
                 {filtered.map((item) => {
                     const Icon = iconMap[item.icon];
-                    // An item is active if it exactly matches OR if it's the
-                    // longest prefix match and no other nav item matches exactly.
                     const exactMatch = pathname === item.href;
                     const prefixMatch = pathname.startsWith(item.href + "/");
                     const moreSpecificExists = prefixMatch && filtered.some(
@@ -103,12 +122,10 @@ export function Sidebar() {
                                     )}
                                 >
                                     {Icon && <Icon className="h-5 w-5 shrink-0" />}
-                                    {sidebarOpen && (
-                                        <span className="truncate">{item.label}</span>
-                                    )}
+                                    {showLabel && <span className="truncate">{item.label}</span>}
                                 </Link>
                             </TooltipTrigger>
-                            {!sidebarOpen && (
+                            {!showLabel && (
                                 <TooltipContent side="right">{item.label}</TooltipContent>
                             )}
                         </Tooltip>
@@ -123,7 +140,7 @@ export function Sidebar() {
                         <button
                             onClick={() => {
                                 useAuthStore.getState().logout();
-                                window.location.href = "/login"; // Force full reload to clear state cleanly or just use router
+                                window.location.href = "/login";
                             }}
                             className={cn(
                                 "group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
@@ -131,26 +148,57 @@ export function Sidebar() {
                             )}
                         >
                             <LogOut className="h-5 w-5 shrink-0" />
-                            {sidebarOpen && <span className="truncate">Sign Out</span>}
+                            {showLabel && <span className="truncate">Sign Out</span>}
                         </button>
                     </TooltipTrigger>
-                    {!sidebarOpen && <TooltipContent side="right">Sign Out</TooltipContent>}
+                    {!showLabel && <TooltipContent side="right">Sign Out</TooltipContent>}
                 </Tooltip>
             </div>
 
-            {/* Collapse toggle */}
-            <button
-                onClick={toggleSidebar}
-                className="flex h-12 w-full items-center justify-center border-t border-border text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Toggle sidebar"
+            {/* Collapse toggle — desktop only */}
+            {!isMobile && (
+                <button
+                    onClick={toggleSidebar}
+                    className="flex h-12 w-full items-center justify-center border-t border-border text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Toggle sidebar"
+                >
+                    <ChevronLeft
+                        className={cn(
+                            "h-5 w-5 transition-transform duration-300",
+                            !sidebarOpen && "rotate-180"
+                        )}
+                    />
+                </button>
+            )}
+        </>
+    );
+
+    return (
+        <>
+            {/* Desktop sidebar — hidden below lg */}
+            <aside
+                className={cn(
+                    "fixed left-0 top-0 z-40 hidden lg:flex h-screen flex-col border-r border-border bg-card transition-all duration-300",
+                    sidebarOpen ? "w-64" : "w-[72px]"
+                )}
             >
-                <ChevronLeft
-                    className={cn(
-                        "h-5 w-5 transition-transform duration-300",
-                        !sidebarOpen && "rotate-180"
-                    )}
-                />
-            </button>
-        </aside>
+                {navContent(sidebarOpen, false)}
+            </aside>
+
+            {/* Mobile sidebar overlay — shown only when mobileSidebarOpen, hidden at lg+ */}
+            {mobileSidebarOpen && (
+                <>
+                    {/* Backdrop */}
+                    <div
+                        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm lg:hidden"
+                        onClick={() => setMobileSidebarOpen(false)}
+                    />
+                    {/* Drawer */}
+                    <aside className="fixed left-0 top-0 z-50 flex h-screen w-72 max-w-[85vw] flex-col border-r border-border bg-card shadow-xl lg:hidden animate-in slide-in-from-left duration-200">
+                        {navContent(true, true)}
+                    </aside>
+                </>
+            )}
+        </>
     );
 }

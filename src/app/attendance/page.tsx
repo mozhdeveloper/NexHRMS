@@ -396,24 +396,24 @@ export default function AttendancePage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Attendance</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">Daily check-in/out logs</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     {myEmployeeId && (
                         <>
                             {!todayLog?.checkIn ? (
                                 <Button onClick={startCheckIn} className="gap-1.5">
-                                    <LogIn className="h-4 w-4" /> Check In
+                                    <LogIn className="h-4 w-4" /> <span className="hidden sm:inline">Check In</span>
                                 </Button>
                             ) : !todayLog?.checkOut ? (
                                 <Button
                                     onClick={() => { checkOut(myEmployeeId, myProject?.id); toast.success("Checked out successfully!"); }}
                                     variant="outline" className="gap-1.5"
                                 >
-                                    <LogOut className="h-4 w-4" /> Check Out
+                                    <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Check Out</span>
                                 </Button>
                             ) : (
                                 <Badge variant="secondary" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 px-3 py-1.5">
@@ -439,16 +439,16 @@ export default function AttendancePage() {
                             missing.forEach((e) => markAbsent(e.id, dateFilter));
                             toast.success(`Marked ${missing.length} employee(s) as absent for ${dateFilter}`);
                         }}>
-                            <Users className="h-4 w-4" /> Reconcile Day
+                            <Users className="h-4 w-4" /> <span className="hidden sm:inline">Reconcile Day</span>
                         </Button>
                     )}
                     {myEmployeeId && !isAdmin && (
                         <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setOtDate(new Date().toISOString().split("T")[0]); setOtOpen(true); }}>
-                            <Timer className="h-4 w-4" /> Request OT
+                            <Timer className="h-4 w-4" /> <span className="hidden sm:inline">Request OT</span>
                         </Button>
                     )}
                     <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExportCSV}>
-                        <Download className="h-4 w-4" /> Export CSV
+                        <Download className="h-4 w-4" /> <span className="hidden sm:inline">Export CSV</span>
                     </Button>
                     {isAdmin && (
                         <>
@@ -463,7 +463,7 @@ export default function AttendancePage() {
                                 variant="outline" size="sm" className="gap-1.5"
                                 onClick={() => csvInputRef.current?.click()}
                             >
-                                <UploadCloud className="h-4 w-4" /> Upload CSV
+                                <UploadCloud className="h-4 w-4" /> <span className="hidden sm:inline">Upload CSV</span>
                             </Button>
                         </>
                     )}
@@ -471,7 +471,7 @@ export default function AttendancePage() {
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button variant="outline" size="sm" className="gap-1.5 text-muted-foreground">
-                                <RotateCcw className="h-4 w-4" /> Reset
+                                <RotateCcw className="h-4 w-4" /> <span className="hidden sm:inline">Reset</span>
                             </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -513,7 +513,7 @@ export default function AttendancePage() {
             )}
 
             <Tabs defaultValue="logs">
-                <TabsList>
+                <TabsList className="w-full overflow-x-auto justify-start">
                     <TabsTrigger value="logs">Attendance Logs</TabsTrigger>
                     <TabsTrigger value="events" className="gap-1.5">
                         <Zap className="h-3.5 w-3.5" /> Event Ledger
@@ -541,11 +541,11 @@ export default function AttendancePage() {
                         <Input
                             type="date" value={dateFilter}
                             onChange={(e) => setDateFilter(e.target.value)}
-                            className="w-[180px]"
+                            className="w-full sm:w-[180px]"
                         />
                         {isAdmin && (
                             <Select value={empFilter} onValueChange={setEmpFilter}>
-                                <SelectTrigger className="w-[200px]">
+                                <SelectTrigger className="w-full sm:w-[200px]">
                                     <SelectValue placeholder="All Employees" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -563,6 +563,7 @@ export default function AttendancePage() {
             {/* Table */}
             <Card className="border border-border/50">
                 <CardContent className="p-0">
+                  <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -662,6 +663,7 @@ export default function AttendancePage() {
                             )}
                         </TableBody>
                     </Table>
+                  </div>
                 </CardContent>
             </Card>
 
@@ -671,6 +673,7 @@ export default function AttendancePage() {
                 <TabsContent value="events" className="mt-4">
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -703,6 +706,7 @@ export default function AttendancePage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
                     <p className="text-[10px] text-muted-foreground mt-2">⚠️ Event ledger is append-only. Editing/deleting events is disabled by design.</p>
@@ -723,6 +727,7 @@ export default function AttendancePage() {
                     )}
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -771,6 +776,7 @@ export default function AttendancePage() {
                                     })}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -778,6 +784,7 @@ export default function AttendancePage() {
                 <TabsContent value="overtime" className="mt-4">
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -833,6 +840,7 @@ export default function AttendancePage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -907,6 +915,7 @@ export default function AttendancePage() {
 
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -999,6 +1008,7 @@ export default function AttendancePage() {
                                     })}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
 

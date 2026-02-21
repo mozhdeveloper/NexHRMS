@@ -212,6 +212,7 @@ export default function ReportsPage() {
                 <TabsContent value="payroll_register" className="mt-4">
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -242,6 +243,7 @@ export default function ReportsPage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -288,6 +290,7 @@ export default function ReportsPage() {
                 <TabsContent value="absence" className="mt-4">
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -314,6 +317,7 @@ export default function ReportsPage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -322,6 +326,7 @@ export default function ReportsPage() {
                 <TabsContent value="late" className="mt-4">
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -344,19 +349,20 @@ export default function ReportsPage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
 
                 {/* Government Compliance — SSS / PhilHealth / Pag-IBIG / BIR */}
                 <TabsContent value="gov_compliance" className="mt-4">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                         <div className="flex items-center gap-2">
                             <Shield className="h-4 w-4 text-blue-500" />
                             <p className="text-sm font-semibold">Monthly Government Compliance Report</p>
                         </div>
                         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="w-full sm:w-[180px]"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 {last6Months.map((m) => (
                                     <SelectItem key={m} value={m}>{format(new Date(m + "-01"), "MMMM yyyy")}</SelectItem>
@@ -396,7 +402,7 @@ export default function ReportsPage() {
                         </CardContent></Card>
                     ) : (
                         <Tabs defaultValue="sss">
-                            <TabsList>
+                            <TabsList className="w-full overflow-x-auto justify-start">
                                 <TabsTrigger value="sss">SSS</TabsTrigger>
                                 <TabsTrigger value="philhealth">PhilHealth</TabsTrigger>
                                 <TabsTrigger value="pagibig">Pag-IBIG</TabsTrigger>
@@ -409,6 +415,7 @@ export default function ReportsPage() {
                                         <Button size="sm" variant="outline" className="gap-1.5 h-7" onClick={() => handleExport("SSS")}><Download className="h-3 w-3" /> CSV</Button>
                                     </div>
                                     <CardContent className="p-0">
+                                      <div className="overflow-x-auto">
                                         <Table><TableHeader><TableRow>
                                             <TableHead className="text-xs">Employee</TableHead><TableHead className="text-xs">Gross Pay</TableHead><TableHead className="text-xs">Emp. Share</TableHead><TableHead className="text-xs">Er. Share</TableHead><TableHead className="text-xs font-semibold">Total</TableHead>
                                         </TableRow></TableHeader><TableBody>
@@ -425,6 +432,7 @@ export default function ReportsPage() {
                                                 <TableCell className="text-blue-600 dark:text-blue-400">₱{govTotals.sss.toLocaleString()}</TableCell>
                                             </TableRow>
                                         </TableBody></Table>
+                                      </div>
                                     </CardContent>
                                 </Card>
                             </TabsContent>
@@ -435,6 +443,7 @@ export default function ReportsPage() {
                                         <Button size="sm" variant="outline" className="gap-1.5 h-7" onClick={() => handleExport("PhilHealth")}><Download className="h-3 w-3" /> CSV</Button>
                                     </div>
                                     <CardContent className="p-0">
+                                      <div className="overflow-x-auto">
                                         <Table><TableHeader><TableRow>
                                             <TableHead className="text-xs">Employee</TableHead><TableHead className="text-xs">Gross Pay</TableHead><TableHead className="text-xs">Emp. Share</TableHead><TableHead className="text-xs">Er. Share</TableHead><TableHead className="text-xs font-semibold">Total</TableHead>
                                         </TableRow></TableHeader><TableBody>
@@ -451,6 +460,7 @@ export default function ReportsPage() {
                                                 <TableCell className="text-emerald-600 dark:text-emerald-400">₱{govTotals.philhealth.toLocaleString()}</TableCell>
                                             </TableRow>
                                         </TableBody></Table>
+                                      </div>
                                     </CardContent>
                                 </Card>
                             </TabsContent>
@@ -461,6 +471,7 @@ export default function ReportsPage() {
                                         <Button size="sm" variant="outline" className="gap-1.5 h-7" onClick={() => handleExport("Pag-IBIG")}><Download className="h-3 w-3" /> CSV</Button>
                                     </div>
                                     <CardContent className="p-0">
+                                      <div className="overflow-x-auto">
                                         <Table><TableHeader><TableRow>
                                             <TableHead className="text-xs">Employee</TableHead><TableHead className="text-xs">Gross Pay</TableHead><TableHead className="text-xs">Emp. Share</TableHead><TableHead className="text-xs">Er. Share</TableHead><TableHead className="text-xs font-semibold">Total</TableHead>
                                         </TableRow></TableHeader><TableBody>
@@ -477,6 +488,7 @@ export default function ReportsPage() {
                                                 <TableCell className="text-amber-600 dark:text-amber-400">₱{govTotals.pagibig.toLocaleString()}</TableCell>
                                             </TableRow>
                                         </TableBody></Table>
+                                      </div>
                                     </CardContent>
                                 </Card>
                             </TabsContent>
@@ -487,6 +499,7 @@ export default function ReportsPage() {
                                         <Button size="sm" variant="outline" className="gap-1.5 h-7" onClick={() => handleExport("BIR Tax")}><Download className="h-3 w-3" /> CSV</Button>
                                     </div>
                                     <CardContent className="p-0">
+                                      <div className="overflow-x-auto">
                                         <Table><TableHeader><TableRow>
                                             <TableHead className="text-xs">Employee</TableHead><TableHead className="text-xs">Gross Income</TableHead><TableHead className="text-xs font-semibold">Withholding Tax</TableHead><TableHead className="text-xs">Rate</TableHead>
                                         </TableRow></TableHeader><TableBody>
@@ -501,6 +514,7 @@ export default function ReportsPage() {
                                                 <TableCell className="text-red-600 dark:text-red-400">₱{govTotals.tax.toLocaleString()}</TableCell><TableCell></TableCell>
                                             </TableRow>
                                         </TableBody></Table>
+                                      </div>
                                     </CardContent>
                                 </Card>
                             </TabsContent>

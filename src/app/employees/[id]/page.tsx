@@ -184,7 +184,7 @@ export default function EmployeeProfilePage() {
 
             {/* Tabs */}
             <Tabs defaultValue="overview">
-                <TabsList>
+                <TabsList className="w-full overflow-x-auto justify-start">
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="employment">Employment</TabsTrigger>
                     <TabsTrigger value="attendance">Attendance</TabsTrigger>
@@ -239,6 +239,7 @@ export default function EmployeeProfilePage() {
                 <TabsContent value="attendance" className="mt-4">
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -263,6 +264,7 @@ export default function EmployeeProfilePage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -270,6 +272,7 @@ export default function EmployeeProfilePage() {
                 <TabsContent value="leave" className="mt-4">
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -294,6 +297,7 @@ export default function EmployeeProfilePage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -301,6 +305,7 @@ export default function EmployeeProfilePage() {
                 <TabsContent value="payslips" className="mt-4">
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -323,6 +328,7 @@ export default function EmployeeProfilePage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -344,6 +350,7 @@ export default function EmployeeProfilePage() {
                     </div>
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -374,6 +381,7 @@ export default function EmployeeProfilePage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
                 </TabsContent>

@@ -49,7 +49,7 @@ export default function NotificationsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Notification Log</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">
@@ -70,6 +70,7 @@ export default function NotificationsPage() {
 
             <Card className="border border-border/50">
                 <CardContent className="p-0">
+                  <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -114,6 +115,7 @@ export default function NotificationsPage() {
                             )}
                         </TableBody>
                     </Table>
+                  </div>
                 </CardContent>
             </Card>
         </div>

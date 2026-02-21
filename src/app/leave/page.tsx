@@ -179,7 +179,7 @@ export default function LeavePage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Leave Management</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">{filteredRequests.length} requests</p>
@@ -275,7 +275,7 @@ export default function LeavePage() {
                 <TabsContent value="requests" className="mt-4 space-y-4">
             <div className="flex items-center gap-3">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[150px]"><SelectValue placeholder="Filter" /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Filter" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Status</SelectItem>
                         <SelectItem value="pending">Pending</SelectItem>
@@ -288,6 +288,7 @@ export default function LeavePage() {
             {/* Table */}
             <Card className="border border-border/50">
                 <CardContent className="p-0">
+                  <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -335,6 +336,7 @@ export default function LeavePage() {
                             ))}
                         </TableBody>
                     </Table>
+                  </div>
                 </CardContent>
             </Card>
                 </TabsContent>

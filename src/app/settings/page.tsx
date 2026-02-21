@@ -233,7 +233,7 @@ export default function SettingsPage() {
 
             {/* Quick Navigation Cards */}
             {isAdmin && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Link href="/settings/organization">
                         <Card className="border border-blue-500/20 bg-blue-500/5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group">
                             <CardContent className="p-4">
@@ -374,7 +374,7 @@ export default function SettingsPage() {
                         {paySchedule.defaultFrequency === "semi_monthly" && (
                             <div className="p-3 rounded-lg border border-border/50 space-y-3">
                                 <p className="text-sm font-medium flex items-center gap-2"><CalendarDays className="h-4 w-4" /> Semi-Monthly Cutoff</p>
-                                <div className="grid grid-cols-3 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <div>
                                         <label className="text-xs text-muted-foreground">1st Cutoff Day</label>
                                         <Input type="number" min={1} max={28} value={paySchedule.semiMonthlyFirstCutoff} onChange={(e) => updatePaySchedule({ semiMonthlyFirstCutoff: Number(e.target.value) || 15 })} className="mt-1" />

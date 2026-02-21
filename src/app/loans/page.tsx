@@ -117,7 +117,7 @@ export default function LoansPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Loans & Cash Advances</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">{loans.length} total loans</p>
@@ -182,7 +182,7 @@ export default function LoansPage() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Card className="border border-blue-500/20 bg-blue-500/5">
                     <CardContent className="p-4">
                         <p className="text-xs text-muted-foreground font-medium">Active Loans</p>
@@ -206,7 +206,7 @@ export default function LoansPage() {
             {/* Filter */}
             <div className="flex items-center gap-3">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-[150px]"><SelectValue /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Status</SelectItem>
                         <SelectItem value="active">Active</SelectItem>
@@ -217,7 +217,7 @@ export default function LoansPage() {
             </div>
 
             <Tabs defaultValue="loans">
-                <TabsList>
+                <TabsList className="w-full overflow-x-auto justify-start">
                     <TabsTrigger value="loans">Loan Accounts</TabsTrigger>
                     <TabsTrigger value="schedule" className="gap-1.5">
                         <Calendar className="h-3.5 w-3.5" /> Repayment Schedule
@@ -234,6 +234,7 @@ export default function LoansPage() {
             {/* Loans Table */}
             <Card className="border border-border/50">
                 <CardContent className="p-0">
+                  <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -332,6 +333,7 @@ export default function LoansPage() {
                             })}
                         </TableBody>
                     </Table>
+                  </div>
                 </CardContent>
             </Card>
                 </TabsContent>
@@ -356,6 +358,7 @@ export default function LoansPage() {
                                             </div>
                                             <Badge variant="outline" className="text-[10px]">{schedule.length} installments</Badge>
                                         </div>
+                                        <div className="overflow-x-auto">
                                         <Table>
                                             <TableHeader>
                                                 <TableRow>
@@ -382,6 +385,7 @@ export default function LoansPage() {
                                                 ))}
                                             </TableBody>
                                         </Table>
+                                        </div>
                                     </CardContent>
                                 </Card>
                             );
@@ -392,6 +396,7 @@ export default function LoansPage() {
                 <TabsContent value="history" className="mt-4">
                     <Card className="border border-border/50">
                         <CardContent className="p-0">
+                          <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -418,6 +423,7 @@ export default function LoansPage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                          </div>
                         </CardContent>
                     </Card>
                 </TabsContent>

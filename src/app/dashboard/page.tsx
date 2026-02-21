@@ -154,7 +154,7 @@ function TeamPerformanceChart() {
                     <CardTitle className="text-base font-semibold">Team Performance</CardTitle>
                 </div>
                 <Select value={selectedDept} onValueChange={setSelectedDept}>
-                    <SelectTrigger className="w-[160px] h-8 text-xs">
+                    <SelectTrigger className="w-[120px] sm:w-[160px] h-8 text-xs">
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -304,6 +304,7 @@ function EmployeeStatusTable() {
                 </div>
             </CardHeader>
             <CardContent className="p-0">
+              <div className="overflow-x-auto">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -345,6 +346,7 @@ function EmployeeStatusTable() {
                         ))}
                     </TableBody>
                 </Table>
+              </div>
             </CardContent>
         </Card>
     );

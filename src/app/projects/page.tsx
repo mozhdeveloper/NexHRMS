@@ -113,7 +113,7 @@ export default function ProjectsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">{projects.length} projects</p>
@@ -156,6 +156,7 @@ export default function ProjectsPage() {
             {/* Projects Table */}
             <Card className="border border-border/50">
                 <CardContent className="p-0">
+                  <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -196,7 +197,7 @@ export default function ProjectsPage() {
                                     <TableCell className="text-sm">{project.location.radius}m</TableCell>
                                     <TableCell>
                                         <Select value={project.status || "active"} onValueChange={(v) => updateProject(project.id, { status: v as "active" | "completed" | "on_hold" })}>
-                                            <SelectTrigger className="h-7 w-[110px] text-xs border-0 bg-transparent">
+                                            <SelectTrigger className="h-7 w-full sm:w-[110px] text-xs border-0 bg-transparent">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -257,6 +258,7 @@ export default function ProjectsPage() {
                             ))}
                         </TableBody>
                     </Table>
+                  </div>
                 </CardContent>
             </Card>
 

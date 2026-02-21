@@ -42,7 +42,7 @@ import { useEffect, useState } from "react";
 
 export function Topbar() {
     const { currentUser, theme, setTheme, switchRole, logout } = useAuthStore();
-    const { toggleSidebar, sidebarOpen } = useUIStore();
+    const { sidebarOpen, toggleMobileSidebar } = useUIStore();
     const employees = useEmployeesStore((s) => s.employees);
     const router = useRouter();
     const [cmdOpen, setCmdOpen] = useState(false);
@@ -73,21 +73,23 @@ export function Topbar() {
         <>
             <header
                 className={cn(
-                    "sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border bg-card/80 backdrop-blur-xl px-6 transition-all duration-300",
-                    sidebarOpen ? "ml-64" : "ml-[72px]"
+                    "sticky top-0 z-30 flex h-16 items-center gap-2 sm:gap-4 border-b border-border bg-card/80 backdrop-blur-xl px-3 sm:px-6 transition-all duration-300",
+                    // On mobile: full width. On desktop: respect sidebar width.
+                    sidebarOpen ? "lg:ml-64" : "lg:ml-[72px]"
                 )}
             >
+                {/* Hamburger — mobile only */}
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="lg:hidden"
-                    onClick={toggleSidebar}
+                    className="lg:hidden shrink-0"
+                    onClick={toggleMobileSidebar}
                 >
                     <Menu className="h-5 w-5" />
                 </Button>
 
-                {/* Search */}
-                <div className="relative flex-1 max-w-md">
+                {/* Search — hidden on small screens, icon button to open command palette */}
+                <div className="relative flex-1 max-w-md hidden sm:block">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                         placeholder="Search... (Ctrl+K)"
@@ -96,8 +98,20 @@ export function Topbar() {
                         readOnly
                     />
                 </div>
+                {/* Mobile search icon */}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="sm:hidden shrink-0 text-muted-foreground hover:text-foreground"
+                    onClick={() => setCmdOpen(true)}
+                >
+                    <Search className="h-5 w-5" />
+                </Button>
 
-                <div className="flex items-center gap-2">
+                {/* Spacer on mobile */}
+                <div className="flex-1 sm:hidden" />
+
+                <div className="flex items-center gap-1 sm:gap-2">
                     {/* Theme toggle */}
                     <Button
                         variant="ghost"
@@ -118,12 +132,13 @@ export function Topbar() {
                         )}
                     </Button>
 
-                    {/* Role Switcher */}
+                    {/* Role Switcher — compact on mobile */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm" className="gap-1.5 text-xs">
                                 <Badge variant="secondary" className={cn("text-xs font-medium", roleColors[currentUser.role])}>
-                                    {currentUser.role.toUpperCase()}
+                                    <span className="hidden sm:inline">{currentUser.role.toUpperCase()}</span>
+                                    <span className="sm:hidden">{currentUser.role.slice(0, 3).toUpperCase()}</span>
                                 </Badge>
                                 <ChevronDown className="h-3.5 w-3.5" />
                             </Button>

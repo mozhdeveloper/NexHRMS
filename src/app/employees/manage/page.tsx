@@ -298,7 +298,7 @@ export default function EmployeesManagePage() {
 
                 {/* ─── Management Tab ─── */}
                 <TabsContent value="management" className="mt-4 space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <p className="text-sm text-muted-foreground">{filtered.length} employees found</p>
                 <Dialog open={addOpen} onOpenChange={setAddOpen}>
                     <DialogTrigger asChild>
@@ -688,7 +688,7 @@ export default function EmployeesManagePage() {
                             <Input placeholder="Search by name, email, or ID..." className="pl-9" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} />
                         </div>
                         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as "all" | "active" | "inactive"); setPage(1); }}>
-                            <SelectTrigger className="w-[130px]"><SelectValue placeholder="Status" /></SelectTrigger>
+                            <SelectTrigger className="w-full sm:w-[130px]"><SelectValue placeholder="Status" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Status</SelectItem>
                                 <SelectItem value="active">Active</SelectItem>
@@ -697,7 +697,7 @@ export default function EmployeesManagePage() {
                             </SelectContent>
                         </Select>
                         <Select value={workTypeFilter} onValueChange={(v) => { setWorkTypeFilter(v as "all" | "WFH" | "WFO" | "HYBRID"); setPage(1); }}>
-                            <SelectTrigger className="w-[130px]"><SelectValue placeholder="Work Type" /></SelectTrigger>
+                            <SelectTrigger className="w-full sm:w-[130px]"><SelectValue placeholder="Work Type" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Types</SelectItem>
                                 <SelectItem value="WFH">WFH</SelectItem>
@@ -936,7 +936,7 @@ export default function EmployeesManagePage() {
             </Card>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Rows per page:</span>
                     <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
@@ -960,14 +960,14 @@ export default function EmployeesManagePage() {
                             <Input placeholder="Search employees..." className="pl-9" value={dirSearch} onChange={(e) => setDirSearch(e.target.value)} />
                         </div>
                         <Select value={dirDept} onValueChange={setDirDept}>
-                            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Department" /></SelectTrigger>
+                            <SelectTrigger className="w-full sm:w-[160px]"><SelectValue placeholder="Department" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Departments</SelectItem>
                                 {DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                             </SelectContent>
                         </Select>
                         <Select value={dirStatus} onValueChange={setDirStatus}>
-                            <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="w-full sm:w-[130px]"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Status</SelectItem>
                                 <SelectItem value="active">Active</SelectItem>
