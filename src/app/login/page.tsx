@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
+import { useAppearanceStore } from "@/store/appearance.store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 const DEMO_ACCOUNTS = [
     { role: "Admin", email: "admin@nexhrms.com", color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
@@ -26,6 +28,16 @@ export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
+
+    // Branding from appearance store
+    const loginHeading = useAppearanceStore((s) => s.loginHeading);
+    const loginSubheading = useAppearanceStore((s) => s.loginSubheading);
+    const loginBackground = useAppearanceStore((s) => s.loginBackground);
+    const loginBgColor = useAppearanceStore((s) => s.loginBgColor);
+    const loginCardStyle = useAppearanceStore((s) => s.loginCardStyle);
+    const logoUrl = useAppearanceStore((s) => s.logoUrl);
+    const companyName = useAppearanceStore((s) => s.companyName);
+    const brandTagline = useAppearanceStore((s) => s.brandTagline);
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
@@ -57,24 +69,59 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4">
-            {/* Subtle grid pattern */}
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,.02)_1px,transparent_1px)] bg-[size:60px_60px] dark:bg-[linear-gradient(rgba(255,255,255,.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.015)_1px,transparent_1px)]" />
+        <div
+            className={cn(
+                "min-h-screen flex p-4",
+                loginCardStyle === "split" ? "flex-row" : "items-center justify-center",
+                loginBackground === "gradient" && "bg-gradient-to-br from-background via-muted/30 to-background",
+                loginBackground === "pattern" && "bg-background",
+            )}
+            style={loginBackground === "solid" ? { backgroundColor: loginBgColor || undefined } : undefined}
+        >
+            {/* Pattern overlay */}
+            {loginBackground !== "solid" && (
+                <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,.02)_1px,transparent_1px)] bg-[size:60px_60px] dark:bg-[linear-gradient(rgba(255,255,255,.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.015)_1px,transparent_1px)]" />
+            )}
 
-            <Card className="relative w-full max-w-md border border-border/50 shadow-2xl shadow-black/5 dark:shadow-black/30">
-                <CardHeader className="text-center space-y-4 pb-2">
-                    <div className="flex justify-center">
-                        <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-                            <Image src="/logo.svg" alt="NexHRMS" width={32} height={32} />
+            {/* Split layout — branding panel */}
+            {loginCardStyle === "split" && (
+                <div className="hidden md:flex w-1/2 items-center justify-center bg-primary/5 relative">
+                    <div className="text-center space-y-4 p-8">
+                        {logoUrl ? (
+                            <img src={logoUrl} alt={companyName} className="h-16 mx-auto object-contain" />
+                        ) : (
+                            <Image src="/logo.svg" alt={companyName} width={80} height={80} className="mx-auto" />
+                        )}
+                        <h2 className="text-2xl font-bold">{companyName}</h2>
+                        {brandTagline && (
+                            <p className="text-muted-foreground">{brandTagline}</p>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            <div className={cn(
+                "flex items-center justify-center",
+                loginCardStyle === "split" ? "w-full md:w-1/2 p-4 md:p-8" : "relative w-full"
+            )}>
+                <Card className="relative w-full max-w-md border border-border/50 shadow-2xl shadow-black/5 dark:shadow-black/30">
+                    <CardHeader className="text-center space-y-4 pb-2">
+                        <div className="flex justify-center">
+                            <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+                                {logoUrl ? (
+                                    <img src={logoUrl} alt={companyName} className="h-8 w-8 object-contain" />
+                                ) : (
+                                    <Image src="/logo.svg" alt={companyName} width={32} height={32} />
+                                )}
+                            </div>
                         </div>
-                    </div>
-                    <div>
-                        <CardTitle className="text-2xl font-bold tracking-tight">NexHRMS</CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            Sign in to your account to continue
-                        </p>
-                    </div>
-                </CardHeader>
+                        <div>
+                            <CardTitle className="text-2xl font-bold tracking-tight">{loginHeading || companyName}</CardTitle>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                {loginSubheading || "Sign in to your account to continue"}
+                            </p>
+                        </div>
+                    </CardHeader>
 
                 <CardContent className="space-y-6">
                     {/* Login Form */}
@@ -141,6 +188,7 @@ export default function LoginPage() {
                     </p>
                 </CardContent>
             </Card>
+            </div>
         </div>
     );
 }

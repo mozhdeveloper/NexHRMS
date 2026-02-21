@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useAttendanceStore } from "@/store/attendance.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useRolesStore } from "@/store/roles.store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +35,8 @@ export default function ShiftsPage() {
     const updateEmployee = useEmployeesStore((s) => s.updateEmployee);
     const currentUser = useAuthStore((s) => s.currentUser);
 
-    const canManage = currentUser.role === "admin" || currentUser.role === "hr";
+    const { hasPermission } = useRolesStore();
+    const canManage = hasPermission(currentUser.role, "settings:shifts");
 
     // Create Shift dialog
     const [createOpen, setCreateOpen] = useState(false);

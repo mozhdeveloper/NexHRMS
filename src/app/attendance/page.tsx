@@ -5,6 +5,7 @@ import { useAttendanceStore } from "@/store/attendance.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useProjectsStore } from "@/store/projects.store";
+import { useRolesStore } from "@/store/roles.store";
 import { sendNotification } from "@/lib/notifications";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -179,7 +180,8 @@ export default function AttendancePage() {
     const myEmployeeId = employees.find(
         (e) => e.email === currentUser.email || e.name === currentUser.name
     )?.id;
-    const isAdmin = currentUser.role === "admin" || currentUser.role === "hr" || currentUser.role === "supervisor";
+    const { hasPermission } = useRolesStore();
+    const isAdmin = hasPermission(currentUser.role, "attendance:view_all");
     const todayLog = myEmployeeId ? getTodayLog(myEmployeeId) : undefined;
     const myProject = myEmployeeId ? getProjectForEmployee(myEmployeeId) : undefined;
 

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useAuthStore } from "@/store/auth.store";
+import { useRolesStore } from "@/store/roles.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,7 +65,8 @@ export default function OrganizationPage() {
     const currentUser = useAuthStore((s) => s.currentUser);
     const employees = useEmployeesStore((s) => s.employees);
 
-    const canManage = currentUser.role === "admin" || currentUser.role === "hr";
+    const { hasPermission } = useRolesStore();
+    const canManage = hasPermission(currentUser.role, "settings:organization");
 
     const [departments, setDepartments] = useState<Department[]>(INITIAL_DEPARTMENTS);
     const [positions, setPositions] = useState<Position[]>(INITIAL_POSITIONS);

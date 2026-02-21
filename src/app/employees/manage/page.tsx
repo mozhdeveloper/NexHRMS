@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useRolesStore } from "@/store/roles.store";
 import { usePayrollStore } from "@/store/payroll.store";
 import { useLoansStore } from "@/store/loans.store";
 import { useLeaveStore } from "@/store/leave.store";
@@ -50,10 +51,11 @@ export default function EmployeesManagePage() {
     const { getActiveByEmployee } = useLoansStore();
     const { getEmployeeBalances } = useLeaveStore();
     const { projects, assignEmployee: assignToProject, removeEmployee: removeFromProject, getProjectForEmployee } = useProjectsStore();
-    const canManage = currentUser.role === "admin" || currentUser.role === "hr";
-    const canSetSalary = ["admin", "finance", "hr"].includes(currentUser.role);
-    const canDirectSet = currentUser.role === "admin" || currentUser.role === "finance";
-    const isHR = currentUser.role === "hr";
+    const { hasPermission } = useRolesStore();
+    const canManage = hasPermission(currentUser.role, "employees:edit");
+    const canSetSalary = hasPermission(currentUser.role, "employees:view_salary");
+    const canDirectSet = hasPermission(currentUser.role, "employees:approve_salary");
+    const isHR = canSetSalary && !canDirectSet; // can view/propose but not directly approve
 
     const [sortKey, setSortKey] = useState<SortKey>("name");
     const [sortDir, setSortDir] = useState<SortDir>("asc");

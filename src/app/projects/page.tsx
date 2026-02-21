@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useProjectsStore } from "@/store/projects.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useRolesStore } from "@/store/roles.store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +36,8 @@ export default function ProjectsPage() {
     const { projects, addProject, deleteProject, assignEmployee, removeEmployee, updateProject } = useProjectsStore();
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
-    const canManage = currentUser.role === "admin" || currentUser.role === "hr";
+    const { hasPermission } = useRolesStore();
+    const canManage = hasPermission(currentUser.role, "projects:manage");
 
     // Add Project Dialog
     const [addOpen, setAddOpen] = useState(false);

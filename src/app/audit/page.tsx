@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useAuditStore } from "@/store/audit.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useRolesStore } from "@/store/roles.store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -48,7 +49,8 @@ export default function AuditPage() {
     const { logs, getRecent, getByAction, getByEntity, getByPerformer } = useAuditStore();
     const currentUser = useAuthStore((s) => s.currentUser);
 
-    const canView = currentUser.role === "admin" || currentUser.role === "auditor";
+    const { hasPermission } = useRolesStore();
+    const canView = hasPermission(currentUser.role, "audit:view");
 
     const [actionFilter, setActionFilter] = useState("all");
     const [entityFilter, setEntityFilter] = useState("");

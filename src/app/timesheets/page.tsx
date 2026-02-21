@@ -5,6 +5,7 @@ import { useTimesheetStore } from "@/store/timesheet.store";
 import { useAttendanceStore } from "@/store/attendance.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useRolesStore } from "@/store/roles.store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,9 +30,10 @@ export default function TimesheetsPage() {
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
 
-    const isSupervisor = currentUser.role === "admin" || currentUser.role === "hr" || currentUser.role === "supervisor";
-    const isPayrollAdmin = currentUser.role === "admin" || currentUser.role === "finance" || currentUser.role === "payroll_admin";
-    const canApprove = isSupervisor;
+    const { hasPermission } = useRolesStore();
+    const isSupervisor = hasPermission(currentUser.role, "timesheets:view_all");
+    const isPayrollAdmin = hasPermission(currentUser.role, "payroll:generate");
+    const canApprove = hasPermission(currentUser.role, "timesheets:approve");
 
     // Helper: look up the shift assigned to an employee
     const getEmployeeShift = (empId: string) => {

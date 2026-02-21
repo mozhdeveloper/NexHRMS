@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useRolesStore } from "@/store/roles.store";
 import { useAttendanceStore } from "@/store/attendance.store";
 import { useLeaveStore } from "@/store/leave.store";
 import { usePayrollStore } from "@/store/payroll.store";
@@ -36,7 +37,8 @@ export default function EmployeeProfilePage() {
     const toggleStatus = useEmployeesStore((s) => s.toggleStatus);
     const updateEmployee = useEmployeesStore((s) => s.updateEmployee);
     const currentUser = useAuthStore((s) => s.currentUser);
-    const canEdit = currentUser.role === "admin" || currentUser.role === "hr";
+    const { hasPermission } = useRolesStore();
+    const canEdit = hasPermission(currentUser.role, "employees:edit");
     const attendanceLogs = useAttendanceStore((s) => s.logs);
     const leaveRequests = useLeaveStore((s) => s.requests);
     const payslips = usePayrollStore((s) => s.payslips);

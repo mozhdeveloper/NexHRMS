@@ -123,7 +123,39 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans-override, var(--font-geist-sans, system-ui, sans-serif));
   }
+}
+
+/* ─── Density variants ─────────────────────────────────────────────────────── */
+.density-compact {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.density-compact .card-padding {
+  padding: 0.75rem;
+}
+
+.density-relaxed {
+  font-size: 1rem;
+  line-height: 1.75rem;
+}
+.density-relaxed .card-padding {
+  padding: 1.5rem;
+}
+
+/* ─── Colored sidebar variant ──────────────────────────────────────────────── */
+.sidebar-colored {
+  --sidebar: var(--primary);
+  --sidebar-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(1 0 0 / 15%);
+  --sidebar-accent-foreground: var(--primary-foreground);
+  --sidebar-border: oklch(1 0 0 / 15%);
+}
+
+/* Invert the SVG logo so it is readable on any colored sidebar background */
+.sidebar-colored .sidebar-logo {
+  filter: brightness(0) invert(1);
 }
 
 @keyframes scanSweep {

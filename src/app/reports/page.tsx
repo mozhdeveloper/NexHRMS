@@ -5,6 +5,7 @@ import { usePayrollStore } from "@/store/payroll.store";
 import { useAttendanceStore } from "@/store/attendance.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useRolesStore } from "@/store/roles.store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +26,8 @@ export default function ReportsPage() {
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
 
-    const canView = currentUser.role === "admin" || currentUser.role === "hr" || currentUser.role === "finance";
+    const { hasPermission } = useRolesStore();
+    const canView = hasPermission(currentUser.role, "reports:view");
 
     const getEmpName = useCallback((id: string) => employees.find((e) => e.id === id)?.name || id, [employees]);
 

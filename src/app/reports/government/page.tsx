@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback } from "react";
 import { usePayrollStore } from "@/store/payroll.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useRolesStore } from "@/store/roles.store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +24,8 @@ export default function GovernmentReportsPage() {
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
 
-    const canView = ["admin", "hr", "finance"].includes(currentUser.role);
+    const { hasPermission } = useRolesStore();
+    const canView = hasPermission(currentUser.role, "reports:government");
 
     const last6Months = useMemo(() => {
         return Array.from({ length: 6 }, (_, i) => {

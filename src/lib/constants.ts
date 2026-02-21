@@ -1,4 +1,4 @@
-import type { Role } from "@/types";
+import type { Role, Permission } from "@/types";
 
 export const DEPARTMENTS = [
     "Engineering",
@@ -91,90 +91,118 @@ export const NAV_ITEMS: {
     href: string;
     icon: string;
     roles: Role[];
+    /** Permission required to see this nav item (used by new permission system) */
+    permission?: Permission;
+    /** Module flag key — if set, item is hidden when module is disabled */
+    moduleFlag?: string;
 }[] = [
         {
             label: "Dashboard",
             href: "/dashboard",
             icon: "LayoutDashboard",
             roles: ["admin", "hr", "finance", "employee", "supervisor", "payroll_admin", "auditor"],
+            permission: "page:dashboard",
         },
         {
             label: "Employees",
             href: "/employees/manage",
             icon: "Users",
             roles: ["admin", "hr", "finance", "supervisor"],
+            permission: "page:employees",
         },
         {
             label: "Projects",
             href: "/projects",
             icon: "FolderKanban",
             roles: ["admin", "hr"],
+            permission: "projects:manage",
+            moduleFlag: "projects",
         },
         {
             label: "Attendance",
             href: "/attendance",
             icon: "Clock",
             roles: ["admin", "hr", "supervisor", "employee"],
+            permission: "page:attendance",
+            moduleFlag: "attendance",
         },
         {
             label: "Leave",
             href: "/leave",
             icon: "CalendarOff",
             roles: ["admin", "hr", "supervisor", "employee"],
+            permission: "page:leave",
+            moduleFlag: "leave",
         },
         {
             label: "Payroll",
             href: "/payroll",
             icon: "Wallet",
             roles: ["admin", "finance", "payroll_admin", "employee"],
+            permission: "page:payroll",
+            moduleFlag: "payroll",
         },
         {
             label: "Loans",
             href: "/loans",
             icon: "Banknote",
             roles: ["admin", "finance", "payroll_admin"],
+            permission: "page:loans",
+            moduleFlag: "loans",
         },
         {
             label: "Reports",
             href: "/reports",
             icon: "BarChart3",
             roles: ["admin", "hr", "finance", "payroll_admin", "auditor"],
+            permission: "page:reports",
+            moduleFlag: "reports",
         },
         {
             label: "Timesheets",
             href: "/timesheets",
             icon: "ClipboardList",
             roles: ["admin", "hr", "supervisor", "payroll_admin"],
+            permission: "page:timesheets",
+            moduleFlag: "timesheets",
         },
         {
             label: "Shifts",
             href: "/settings/shifts",
             icon: "AlarmClock",
             roles: ["admin", "hr"],
+            permission: "settings:shifts",
         },
         {
             label: "Audit Log",
             href: "/audit",
             icon: "FileSearch",
             roles: ["admin", "auditor"],
+            permission: "page:audit",
+            moduleFlag: "audit",
         },
         {
             label: "Notifications",
             href: "/notifications",
             icon: "Bell",
             roles: ["admin", "hr"],
+            permission: "notifications:manage",
+            moduleFlag: "notifications",
         },
         {
             label: "Kiosk",
             href: "/kiosk",
             icon: "Building2",
             roles: ["admin", "hr"],
+            permission: "page:kiosk",
+            moduleFlag: "kiosk",
         },
         {
             label: "Settings",
             href: "/settings",
             icon: "Settings",
             roles: ["admin", "hr"],
+            permission: "page:settings",
         },
     ];
 
@@ -192,10 +220,14 @@ export const ROLE_ACCESS: Record<Role, string[]> = {
         "/settings",
         "/settings/shifts",
         "/settings/organization",
+        "/settings/roles",
+        "/settings/page-builder",
+        "/settings/dashboard-builder",
         "/notifications",
         "/timesheets",
         "/audit",
         "/kiosk",
+        "/custom",
     ],
     hr: ["/dashboard", "/employees", "/projects", "/attendance", "/leave", "/reports", "/notifications", "/timesheets", "/settings/shifts", "/kiosk"],
     finance: ["/dashboard", "/payroll", "/loans", "/reports", "/reports/government", "/employees/directory"],
@@ -203,4 +235,33 @@ export const ROLE_ACCESS: Record<Role, string[]> = {
     supervisor: ["/dashboard", "/attendance", "/leave", "/timesheets", "/employees"],
     payroll_admin: ["/dashboard", "/payroll", "/loans", "/reports", "/reports/government", "/timesheets"],
     auditor: ["/dashboard", "/audit", "/reports"],
+};
+
+/** Map a URL path to the permission needed to access it */
+export const PATH_TO_PERMISSION: Record<string, Permission> = {
+    "/dashboard": "page:dashboard",
+    "/employees": "page:employees",
+    "/employees/manage": "page:employees",
+    "/employees/directory": "page:employees",
+    "/projects": "projects:manage",
+    "/attendance": "page:attendance",
+    "/leave": "page:leave",
+    "/payroll": "page:payroll",
+    "/loans": "page:loans",
+    "/reports": "page:reports",
+    "/reports/government": "reports:government",
+    "/settings": "page:settings",
+    "/settings/shifts": "settings:shifts",
+    "/settings/organization": "settings:organization",
+    "/settings/roles": "settings:roles",
+    "/settings/page-builder": "settings:page_builder",
+    "/settings/dashboard-builder": "settings:page_builder",
+    "/settings/appearance": "settings:organization",
+    "/settings/branding": "settings:organization",
+    "/settings/modules": "settings:organization",
+    "/settings/navigation": "settings:organization",
+    "/notifications": "notifications:manage",
+    "/timesheets": "page:timesheets",
+    "/audit": "page:audit",
+    "/kiosk": "page:kiosk",
 };

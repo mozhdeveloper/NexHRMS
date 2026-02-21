@@ -503,3 +503,95 @@ export interface GovTableVersion {
   snapshotJson: string;    // JSON stringified table data
   createdAt: string;
 }
+
+// ─── Customization System: Permissions, Roles, Widgets, Pages ─
+
+export type Permission =
+  // Page access
+  | "page:dashboard" | "page:employees" | "page:attendance"
+  | "page:leave" | "page:payroll" | "page:loans" | "page:projects"
+  | "page:reports" | "page:kiosk" | "page:notifications"
+  | "page:audit" | "page:settings" | "page:timesheets"
+  // Employee actions
+  | "employees:view" | "employees:create" | "employees:edit" | "employees:delete"
+  | "employees:view_salary" | "employees:approve_salary"
+  // Attendance
+  | "attendance:view_all" | "attendance:edit" | "attendance:approve_overtime"
+  // Leave
+  | "leave:view_all" | "leave:approve" | "leave:manage_policies"
+  // Payroll
+  | "payroll:view_all" | "payroll:generate" | "payroll:lock" | "payroll:issue"
+  | "payroll:view_own"
+  // Loans
+  | "loans:view_all" | "loans:approve" | "loans:view_own"
+  // Audit
+  | "audit:view"
+  // Settings
+  | "settings:roles" | "settings:organization" | "settings:shifts"
+  | "settings:page_builder"
+  // Projects
+  | "projects:manage"
+  // Reports
+  | "reports:view" | "reports:government"
+  // Notifications
+  | "notifications:manage"
+  // Timesheets
+  | "timesheets:view_all" | "timesheets:approve";
+
+// System role slug union (never changes — always recognized)
+export type SystemRoleSlug = "admin" | "hr" | "finance" | "employee" | "supervisor" | "payroll_admin" | "auditor";
+
+export interface CustomRole {
+  id: string;
+  name: string;
+  slug: string;
+  color: string;
+  icon: string;
+  isSystem: boolean;
+  permissions: Permission[];
+  dashboardLayout?: DashboardLayout;
+  createdAt: string;
+}
+
+export interface DashboardLayout {
+  roleId: string;
+  widgets: WidgetConfig[];
+}
+
+export interface WidgetConfig {
+  id: string;
+  type: WidgetType;
+  title?: string;
+  colSpan: 1 | 2 | 3 | 4;
+  order: number;
+  config?: Record<string, unknown>;
+}
+
+export type WidgetType =
+  // KPIs
+  | "kpi_active_employees" | "kpi_present_today" | "kpi_absent_today" | "kpi_on_leave"
+  | "kpi_pending_leaves" | "kpi_outstanding_loans" | "kpi_pending_ot"
+  | "kpi_payslips_issued" | "kpi_confirmed_payslips" | "kpi_paid_payslips"
+  | "kpi_locked_runs" | "kpi_pending_adjustments"
+  | "kpi_audit_total" | "kpi_audit_today" | "kpi_unique_actions" | "kpi_unique_actors"
+  // Charts
+  | "chart_team_performance" | "chart_dept_distribution"
+  // Tables
+  | "table_employee_status" | "table_recent_audit"
+  // Personal
+  | "my_attendance_status" | "my_leave_balance" | "my_latest_payslip" | "my_leave_requests"
+  // General
+  | "events_widget" | "events_widget_readonly" | "birthdays_widget";
+
+export interface CustomPage {
+  id: string;
+  title: string;
+  slug: string;
+  icon: string;
+  description?: string;
+  allowedRoles: string[];
+  widgets: WidgetConfig[];
+  showInSidebar: boolean;
+  order: number;
+  createdAt: string;
+}

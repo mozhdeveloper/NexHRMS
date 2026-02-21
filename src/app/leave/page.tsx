@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useLeaveStore } from "@/store/leave.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useRolesStore } from "@/store/roles.store";
 import { useAttendanceStore } from "@/store/attendance.store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -105,8 +106,9 @@ export default function LeavePage() {
     const getEmpName = (id: string) => employees.find((e) => e.id === id)?.name || id;
 
     const myEmpId = employees.find((e) => e.email === currentUser.email || e.name === currentUser.name)?.id;
-    const isEmployee = currentUser.role === "employee";
-    const canApprove = currentUser.role === "admin" || currentUser.role === "hr" || currentUser.role === "supervisor";
+    const { hasPermission } = useRolesStore();
+    const isEmployee = !hasPermission(currentUser.role, "leave:view_all");
+    const canApprove = hasPermission(currentUser.role, "leave:approve");
 
     // Compute leave balances for the current user/employee
     const balances = useMemo(() => {

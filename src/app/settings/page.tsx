@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/auth.store";
+import { useRolesStore } from "@/store/roles.store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Sun, Moon, Monitor, Building2, Shield, Bell, Palette, ClipboardList, Pencil, Plus, Clock3, ExternalLink, Wallet, CalendarDays, Lock, UserPlus, Trash2, Eye, EyeOff, KeyRound, RotateCcw, TriangleAlert } from "lucide-react";
+import { Sun, Moon, Monitor, Building2, Shield, Bell, Palette, ClipboardList, Pencil, Plus, Clock3, ExternalLink, Wallet, CalendarDays, Lock, UserPlus, Trash2, Eye, EyeOff, KeyRound, RotateCcw, TriangleAlert, LayoutDashboard, FileText, Puzzle } from "lucide-react";
 import type { Role } from "@/types";
 import { toast } from "sonner";
 import {
@@ -30,6 +31,7 @@ import { useEventsStore } from "@/store/events.store";
 import { useNotificationsStore } from "@/store/notifications.store";
 import { useAttendanceStore } from "@/store/attendance.store";
 import { useAuditStore } from "@/store/audit.store";
+import { useAppearanceStore } from "@/store/appearance.store";
 import type { AttendanceRuleSet, PayFrequency } from "@/types";
 import Link from "next/link";
 
@@ -66,7 +68,8 @@ export default function SettingsPage() {
     const { settings, update } = useOrgSettings();
     const { ruleSets, updateRuleSet, addRuleSet } = useTimesheetStore();
     const { paySchedule, updatePaySchedule } = usePayrollStore();
-    const isAdmin = currentUser.role === "admin" || currentUser.role === "hr";
+    const { hasPermission } = useRolesStore();
+    const isAdmin = hasPermission(currentUser.role, "settings:organization");
     const isSuperAdmin = currentUser.role === "admin";
 
     // ─── Global Reset ─────────────────────────────────────────────────────────────
@@ -83,6 +86,8 @@ export default function SettingsPage() {
         useEventsStore.getState().resetToSeed();
         useNotificationsStore.getState().resetToSeed();
         useAuditStore.getState().resetToSeed();
+        // Reset appearance customization too
+        useAppearanceStore.getState().resetAppearance();
         setResetAllOpen(false);
         toast.success("All demo data has been reset to seed state.");
     };
@@ -266,6 +271,138 @@ export default function SettingsPage() {
                                         </div>
                                     </div>
                                     <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-purple-500 transition-colors" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                </div>
+            )}
+
+            {/* Admin Customization Cards */}
+            {isSuperAdmin && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <Link href="/settings/roles">
+                        <Card className="border border-amber-500/20 bg-amber-500/5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group">
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                                            <Shield className="h-4 w-4 text-amber-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold group-hover:text-amber-600 transition-colors">Roles &amp; Permissions</p>
+                                            <p className="text-xs text-muted-foreground">Manage roles &amp; access</p>
+                                        </div>
+                                    </div>
+                                    <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-amber-500 transition-colors" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                    <Link href="/settings/dashboard-builder">
+                        <Card className="border border-emerald-500/20 bg-emerald-500/5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group">
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-9 w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                                            <LayoutDashboard className="h-4 w-4 text-emerald-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold group-hover:text-emerald-600 transition-colors">Dashboard Builder</p>
+                                            <p className="text-xs text-muted-foreground">Customize per-role dashboards</p>
+                                        </div>
+                                    </div>
+                                    <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-emerald-500 transition-colors" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                    <Link href="/settings/page-builder">
+                        <Card className="border border-rose-500/20 bg-rose-500/5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group">
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-9 w-9 rounded-lg bg-rose-500/10 flex items-center justify-center">
+                                            <FileText className="h-4 w-4 text-rose-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold group-hover:text-rose-600 transition-colors">Page Builder</p>
+                                            <p className="text-xs text-muted-foreground">Create custom pages</p>
+                                        </div>
+                                    </div>
+                                    <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-rose-500 transition-colors" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                    <Link href="/settings/appearance">
+                        <Card className="border border-violet-500/20 bg-violet-500/5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group">
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-9 w-9 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                                            <Palette className="h-4 w-4 text-violet-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold group-hover:text-violet-600 transition-colors">Appearance</p>
+                                            <p className="text-xs text-muted-foreground">Theme, typography &amp; shell</p>
+                                        </div>
+                                    </div>
+                                    <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-violet-500 transition-colors" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                    <Link href="/settings/branding">
+                        <Card className="border border-cyan-500/20 bg-cyan-500/5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group">
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-9 w-9 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                                            <Building2 className="h-4 w-4 text-cyan-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold group-hover:text-cyan-600 transition-colors">Branding</p>
+                                            <p className="text-xs text-muted-foreground">Logo, identity &amp; login page</p>
+                                        </div>
+                                    </div>
+                                    <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-cyan-500 transition-colors" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                    <Link href="/settings/modules">
+                        <Card className="border border-teal-500/20 bg-teal-500/5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group">
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-9 w-9 rounded-lg bg-teal-500/10 flex items-center justify-center">
+                                            <Puzzle className="h-4 w-4 text-teal-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold group-hover:text-teal-600 transition-colors">Modules</p>
+                                            <p className="text-xs text-muted-foreground">Enable/disable features</p>
+                                        </div>
+                                    </div>
+                                    <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-teal-500 transition-colors" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                    <Link href="/settings/navigation">
+                        <Card className="border border-orange-500/20 bg-orange-500/5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group">
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-9 w-9 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                                            <ClipboardList className="h-4 w-4 text-orange-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold group-hover:text-orange-600 transition-colors">Navigation</p>
+                                            <p className="text-xs text-muted-foreground">Reorder &amp; customize sidebar</p>
+                                        </div>
+                                    </div>
+                                    <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-orange-500 transition-colors" />
                                 </div>
                             </CardContent>
                         </Card>

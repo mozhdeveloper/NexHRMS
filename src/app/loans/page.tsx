@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useLoansStore } from "@/store/loans.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useRolesStore } from "@/store/roles.store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +32,8 @@ export default function LoansPage() {
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
 
-    const canManage = currentUser.role === "admin" || currentUser.role === "finance" || currentUser.role === "payroll_admin";
+    const { hasPermission } = useRolesStore();
+    const canManage = hasPermission(currentUser.role, "loans:view_all");
 
     const [open, setOpen] = useState(false);
     const [formEmpId, setFormEmpId] = useState("");

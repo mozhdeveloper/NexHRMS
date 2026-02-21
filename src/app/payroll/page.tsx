@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { usePayrollStore } from "@/store/payroll.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useRolesStore } from "@/store/roles.store";
 import { useLoansStore } from "@/store/loans.store";
 import { useAttendanceStore } from "@/store/attendance.store";
 import { PH_HOLIDAY_MULTIPLIERS } from "@/lib/constants";
@@ -54,8 +55,9 @@ export default function PayrollPage() {
     const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
     const [cutoff, setCutoff] = useState<"first" | "second">("first");
 
-    const canIssue = currentUser.role === "admin" || currentUser.role === "finance" || currentUser.role === "payroll_admin";
-    const isEmployee = currentUser.role === "employee";
+    const { hasPermission } = useRolesStore();
+    const canIssue = hasPermission(currentUser.role, "payroll:generate");
+    const isEmployee = !hasPermission(currentUser.role, "payroll:view_all");
 
     const getEmpName = (id: string) => employees.find((e) => e.id === id)?.name || id;
 

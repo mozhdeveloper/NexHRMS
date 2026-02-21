@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useRolesStore } from "@/store/roles.store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -28,9 +29,10 @@ export default function DirectoryPage() {
     const approveSalaryChange = useEmployeesStore((s) => s.approveSalaryChange);
     const rejectSalaryChange = useEmployeesStore((s) => s.rejectSalaryChange);
     const currentUser = useAuthStore((s) => s.currentUser);
-    const canSetSalary = currentUser.role === "admin" || currentUser.role === "finance" || currentUser.role === "hr";
-    const canDirectSet = currentUser.role === "admin" || currentUser.role === "finance";
-    const isHR = currentUser.role === "hr";
+    const { hasPermission } = useRolesStore();
+    const canSetSalary = hasPermission(currentUser.role, "employees:view_salary");
+    const canDirectSet = hasPermission(currentUser.role, "employees:approve_salary");
+    const isHR = canSetSalary && !canDirectSet; // can view/propose but not directly approve
 
     const [search, setSearch] = useState("");
     const [dept, setDept] = useState("all");

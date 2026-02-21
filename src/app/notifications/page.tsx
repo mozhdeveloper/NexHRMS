@@ -3,6 +3,7 @@
 import { useNotificationsStore } from "@/store/notifications.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useRolesStore } from "@/store/roles.store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,8 @@ export default function NotificationsPage() {
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
 
-    const isAdmin = currentUser.role === "admin" || currentUser.role === "hr";
+    const { hasPermission } = useRolesStore();
+    const isAdmin = hasPermission(currentUser.role, "notifications:manage");
     if (!isAdmin) {
         return (
             <div className="flex flex-col items-center justify-center h-64 gap-3">

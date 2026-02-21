@@ -26,7 +26,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     }, [mounted, isAuthenticated, pathname, router]);
 
     const isLoginPage = pathname === "/login";
-    const isRoot = pathname === "/";
+    const isRoot      = pathname === "/";
+    const isKiosk     = pathname === "/kiosk";
 
     // Show nothing until mounted (prevents hydration flash)
     if (!mounted) return null;
@@ -38,7 +39,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         <TooltipProvider>
             <ThemeProvider>
                 <OnboardingModal />
-                {isLoginPage || isRoot ? children : <AppShell>{children}</AppShell>}
+                {isLoginPage || isRoot || isKiosk ? children : <AppShell>{children}</AppShell>}
             </ThemeProvider>
         </TooltipProvider>
     );

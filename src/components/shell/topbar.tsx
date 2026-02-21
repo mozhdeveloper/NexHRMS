@@ -39,6 +39,7 @@ import {
     CommandList,
 } from "@/components/ui/command";
 import { useEffect, useState } from "react";
+import { useAppearanceStore } from "@/store/appearance.store";
 
 export function Topbar() {
     const { currentUser, theme, setTheme, switchRole, logout } = useAuthStore();
@@ -47,6 +48,9 @@ export function Topbar() {
     const router = useRouter();
     const [cmdOpen, setCmdOpen] = useState(false);
     const notifCount = useNotificationsStore((s) => s.logs.length);
+    const companyName = useAppearanceStore((s) => s.companyName);
+    const showCompanyNameInTopbar = useAppearanceStore((s) => s.showCompanyNameInTopbar);
+    const accentBadgeText = useAppearanceStore((s) => s.accentBadgeText);
 
     useEffect(() => {
         const down = (e: KeyboardEvent) => {
@@ -87,6 +91,18 @@ export function Topbar() {
                 >
                     <Menu className="h-5 w-5" />
                 </Button>
+
+                {/* Company name — desktop only */}
+                {showCompanyNameInTopbar && (
+                    <div className="hidden lg:flex items-center gap-2">
+                        <span className="text-sm font-semibold truncate max-w-[200px]">{companyName}</span>
+                        {accentBadgeText && (
+                            <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary">
+                                {accentBadgeText}
+                            </Badge>
+                        )}
+                    </div>
+                )}
 
                 {/* Search — hidden on small screens, icon button to open command palette */}
                 <div className="relative flex-1 max-w-md hidden sm:block">
