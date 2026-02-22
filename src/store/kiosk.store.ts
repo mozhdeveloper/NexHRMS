@@ -47,6 +47,10 @@ export interface KioskSettings {
   // ── Security ──
   requireGeofence: boolean;
   adminPin: string; // PIN to exit kiosk mode
+
+  // ── Selfie / Photo ──
+  selfieEnabled: boolean;
+  selfieRequired: boolean;
 }
 
 const DEFAULT_SETTINGS: KioskSettings = {
@@ -81,6 +85,9 @@ const DEFAULT_SETTINGS: KioskSettings = {
 
   requireGeofence: false,
   adminPin: "000000",
+
+  selfieEnabled: false,
+  selfieRequired: false,
 };
 
 // ─── Store ────────────────────────────────────────────────────────────────────

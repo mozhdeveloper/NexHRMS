@@ -6,9 +6,10 @@ import { Eraser, Check } from "lucide-react";
 
 interface SignaturePadProps {
     onSave: (dataUrl: string) => void;
+    onCancel?: () => void;
 }
 
-export function SignaturePad({ onSave }: SignaturePadProps) {
+export function SignaturePad({ onSave, onCancel }: SignaturePadProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [hasSignature, setHasSignature] = useState(false);
@@ -123,6 +124,11 @@ export function SignaturePad({ onSave }: SignaturePadProps) {
                 />
             </div>
             <div className="flex justify-end gap-2">
+                {onCancel && (
+                    <Button variant="ghost" size="sm" onClick={onCancel}>
+                        Cancel
+                    </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={clear} disabled={!hasSignature}>
                     <Eraser className="h-3.5 w-3.5 mr-1.5" /> Clear
                 </Button>

@@ -28,15 +28,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, CheckCircle, Eye, Lock, Gift, Download, CalendarDays, RotateCcw, Send, CreditCard, FileText, Sparkles, Shield } from "lucide-react";
+import { Plus, CheckCircle, Eye, Lock, Gift, Download, CalendarDays, RotateCcw, Send, CreditCard, FileText, Sparkles, Shield, PenTool } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { computeAllPHDeductions } from "@/lib/ph-deductions";
 import { SignaturePad } from "@/components/ui/signature-pad";
+import { PayslipTable } from "@/components/payroll/payslip-table";
 import { format, endOfMonth, subMonths, getYear, getMonth } from "date-fns";
+import { dispatchNotification } from "@/lib/notifications";
 
 export default function PayrollPage() {
-    const { payslips, runs, adjustments, finalPayComputations, issuePayslip, confirmPayslip, publishPayslip, recordPayment, signPayslip, lockRun, publishRun, markRunPaid, createAdjustment, approveAdjustment, rejectAdjustment, applyAdjustment, generate13thMonth, exportBankFile, createDraftRun, validateRun, computeFinalPay, getFinalPay, resetToSeed, paySchedule } = usePayrollStore();
+    const { payslips, runs, adjustments, finalPayComputations, issuePayslip, confirmPayslip, publishPayslip, recordPayment, signPayslip, acknowledgePayslip, confirmPaidByFinance, lockRun, publishRun, markRunPaid, createAdjustment, approveAdjustment, rejectAdjustment, applyAdjustment, generate13thMonth, exportBankFile, createDraftRun, validateRun, computeFinalPay, getFinalPay, resetToSeed, paySchedule } = usePayrollStore();
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
     const { getActiveByEmployee, recordDeduction } = useLoansStore();
@@ -529,6 +531,7 @@ export default function PayrollPage() {
                 <TabsList className="w-full overflow-x-auto justify-start">
                     <TabsTrigger value="payslips">Payslips</TabsTrigger>
                     <TabsTrigger value="runs">Payroll Runs</TabsTrigger>
+                    {canIssue && <TabsTrigger value="management" className="gap-1.5"><PenTool className="h-3.5 w-3.5" /> Management</TabsTrigger>}
                     {canIssue && <TabsTrigger value="adjustments">Adjustments</TabsTrigger>}
                     {canIssue && <TabsTrigger value="final-pay">Final Pay</TabsTrigger>}
                 </TabsList>
@@ -584,12 +587,26 @@ export default function PayrollPage() {
                                                         </Button>
                                                     )}
                                                     {canIssue && ps.status === "confirmed" && (
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-violet-600 hover:text-violet-700" title="Publish" onClick={() => { publishPayslip(ps.id); toast.success("Payslip published!"); }}>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-violet-600 hover:text-violet-700" title="Publish" onClick={() => {
+                                                            publishPayslip(ps.id);
+                                                            dispatchNotification("payslip_published", {
+                                                                name: getEmpName(ps.employeeId),
+                                                                period: `${ps.periodStart} — ${ps.periodEnd}`,
+                                                            }, ps.employeeId);
+                                                            toast.success("Payslip published!");
+                                                        }}>
                                                             <Send className="h-3.5 w-3.5" />
                                                         </Button>
                                                     )}
                                                     {canIssue && ps.status === "published" && (
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:text-blue-700" title="Record Payment" onClick={() => { recordPayment(ps.id, "bank_transfer", `REF-${Date.now()}`); toast.success("Payment recorded!"); }}>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:text-blue-700" title="Record Payment" onClick={() => {
+                                                            recordPayment(ps.id, "bank_transfer", `REF-${Date.now()}`);
+                                                            dispatchNotification("payment_confirmed", {
+                                                                name: getEmpName(ps.employeeId),
+                                                                period: `${ps.periodStart} — ${ps.periodEnd}`,
+                                                            }, ps.employeeId);
+                                                            toast.success("Payment recorded!");
+                                                        }}>
                                                             <CreditCard className="h-3.5 w-3.5" />
                                                         </Button>
                                                     )}
@@ -727,6 +744,29 @@ export default function PayrollPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
+
+                {/* Payslip Management Tab (Admin) */}
+                {canIssue && (
+                    <TabsContent value="management" className="mt-4">
+                        <PayslipTable
+                            payslips={payslips}
+                            getEmpName={getEmpName}
+                            isAdmin={canIssue}
+                            onMarkPaid={(id, method, reference) => {
+                                confirmPaidByFinance(id, currentUser.name, method, reference);
+                                const ps = payslips.find(p => p.id === id);
+                                if (ps) {
+                                    dispatchNotification("payment_confirmed", {
+                                        name: getEmpName(ps.employeeId),
+                                        period: `${ps.periodStart} \u2014 ${ps.periodEnd}`,
+                                        method,
+                                    }, ps.employeeId);
+                                }
+                                toast.success("Payment confirmed");
+                            }}
+                        />
+                    </TabsContent>
+                )}
 
                 {/* Adjustments Tab */}
                 {canIssue && (
@@ -1011,19 +1051,44 @@ export default function PayrollPage() {
                                                     <CheckCircle className="h-3 w-3 text-emerald-500" />
                                                     Accepted on {new Date(viewedPayslip.signedAt).toLocaleString()}
                                                 </p>
+                                                {/* Acknowledge receipt button — available when paid + signed but not yet acknowledged */}
+                                                {isEmployee && viewedPayslip.status === "paid" && !viewedPayslip.acknowledgedAt && (
+                                                    <Button
+                                                        size="sm" className="w-full gap-1.5 mt-2"
+                                                        onClick={() => {
+                                                            const myEmp = employees.find((e) => e.email === currentUser.email || e.name === currentUser.name);
+                                                            if (myEmp) {
+                                                                acknowledgePayslip(viewedPayslip.id, myEmp.id);
+                                                                toast.success("Receipt acknowledged — thank you!");
+                                                            }
+                                                        }}
+                                                    >
+                                                        <CheckCircle className="h-3.5 w-3.5" /> I Confirm Receipt
+                                                    </Button>
+                                                )}
+                                                {viewedPayslip.acknowledgedAt && (
+                                                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-1">
+                                                        <CheckCircle className="h-3 w-3" />
+                                                        Receipt acknowledged on {new Date(viewedPayslip.acknowledgedAt).toLocaleString()}
+                                                    </p>
+                                                )}
                                             </div>
-                                        ) : isEmployee && viewedPayslip.status === "paid" ? (
+                                        ) : isEmployee && ["published", "paid"].includes(viewedPayslip.status) ? (
                                             <div className="space-y-2">
-                                                <p className="text-[10px] font-semibold uppercase text-muted-foreground">Sign to Acknowledge Payment</p>
-                                                <p className="text-xs text-muted-foreground mb-2">Draw your signature below to confirm you have received this payment.</p>
+                                                <p className="text-[10px] font-semibold uppercase text-muted-foreground">Sign to Acknowledge Payslip</p>
+                                                <p className="text-xs text-muted-foreground mb-2">Draw your signature below to confirm you have reviewed this payslip.</p>
                                                 <SignaturePad onSave={(data) => {
-                                                    usePayrollStore.getState().signPayslip(viewedPayslip.id, data);
-                                                    toast.success("Payment acknowledged — thank you!");
+                                                    signPayslip(viewedPayslip.id, data);
+                                                    dispatchNotification("payslip_signed", {
+                                                        name: getEmpName(viewedPayslip.employeeId),
+                                                        period: `${viewedPayslip.periodStart} — ${viewedPayslip.periodEnd}`,
+                                                    }, viewedPayslip.employeeId);
+                                                    toast.success("Payslip signed — thank you!");
                                                 }} />
                                             </div>
-                                        ) : isEmployee && ["published"].includes(viewedPayslip.status) ? (
+                                        ) : isEmployee ? (
                                             <div className="p-3 bg-muted/30 rounded-md text-center">
-                                                <p className="text-xs text-muted-foreground italic">Payment is being processed. You can sign once paid.</p>
+                                                <p className="text-xs text-muted-foreground italic">Payslip must be published before you can sign. Please wait for payroll processing.</p>
                                             </div>
                                         ) : (
                                             <div className="p-3 bg-muted/30 rounded-md text-center">
@@ -1060,6 +1125,16 @@ export default function PayrollPage() {
                                         {viewedPayslip.bankReferenceId && (
                                             <div className="flex justify-between text-xs text-muted-foreground">
                                                 <span>Bank Reference</span><span className="font-mono">{viewedPayslip.bankReferenceId}</span>
+                                            </div>
+                                        )}
+                                        {viewedPayslip.paidConfirmedBy && (
+                                            <div className="flex justify-between text-xs text-muted-foreground">
+                                                <span>Confirmed By</span><span>{viewedPayslip.paidConfirmedBy}</span>
+                                            </div>
+                                        )}
+                                        {viewedPayslip.paidConfirmedAt && (
+                                            <div className="flex justify-between text-xs text-muted-foreground">
+                                                <span>Payment Confirmed</span><span>{new Date(viewedPayslip.paidConfirmedAt).toLocaleDateString()}</span>
                                             </div>
                                         )}
                                         {viewedPayslip.adjustmentRef && (

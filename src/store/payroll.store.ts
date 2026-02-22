@@ -30,6 +30,11 @@ interface PayrollState {
     publishPayslip: (id: string) => void;
     recordPayment: (id: string, paymentMethod: string, bankReferenceId: string) => void;
     signPayslip: (id: string, signatureDataUrl: string) => void;
+    acknowledgePayslip: (id: string, employeeId: string) => void;
+    confirmPaidByFinance: (id: string, confirmedBy: string, method: string, reference: string) => void;
+    getPayslipsByStatus: (status: Payslip["status"]) => Payslip[];
+    getSignedPayslips: () => Payslip[];
+    getUnsignedPublished: () => Payslip[];
     // ─── Payroll runs ─────────────────────────────────
     createDraftRun: (runDate: string, payslipIds: string[], runType?: PayrollRun["runType"]) => void;
     validateRun: (runDate: string) => void;
@@ -108,11 +113,33 @@ export const usePayrollStore = create<PayrollState>()(
             signPayslip: (id, signatureDataUrl) =>
                 set((s) => ({
                     payslips: s.payslips.map((p) =>
-                        p.id === id && p.status === "paid"
-                            ? { ...p, status: "acknowledged" as const, signedAt: new Date().toISOString(), signatureDataUrl }
+                        p.id === id && (p.status === "published" || p.status === "paid")
+                            ? { ...p, signedAt: new Date().toISOString(), signatureDataUrl }
                             : p
                     ),
                 })),
+
+            acknowledgePayslip: (id, employeeId) =>
+                set((s) => ({
+                    payslips: s.payslips.map((p) =>
+                        p.id === id && p.status === "paid" && p.signedAt
+                            ? { ...p, status: "acknowledged" as const, acknowledgedAt: new Date().toISOString(), acknowledgedBy: employeeId }
+                            : p
+                    ),
+                })),
+
+            confirmPaidByFinance: (id, confirmedBy, method, reference) =>
+                set((s) => ({
+                    payslips: s.payslips.map((p) =>
+                        p.id === id && p.status === "published"
+                            ? { ...p, status: "paid" as const, paidAt: new Date().toISOString(), paidConfirmedBy: confirmedBy, paidConfirmedAt: new Date().toISOString(), paymentMethod: method, bankReferenceId: reference }
+                            : p
+                    ),
+                })),
+
+            getPayslipsByStatus: (status) => get().payslips.filter((p) => p.status === status),
+            getSignedPayslips: () => get().payslips.filter((p) => !!p.signedAt),
+            getUnsignedPublished: () => get().payslips.filter((p) => p.status === "published" && !p.signedAt),
 
             // ─── Payroll runs — draft → validated → locked → published → paid ─
             createDraftRun: (runDate, payslipIds, runType = "regular") =>

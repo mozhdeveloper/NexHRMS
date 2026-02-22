@@ -340,6 +340,11 @@ export interface Payslip {
   signatureDataUrl?: string;
   ackTextVersion?: string;
   adjustmentRef?: string;
+  // ─── Payslip Signing Workflow ──
+  acknowledgedAt?: string;
+  acknowledgedBy?: string;
+  paidConfirmedBy?: string;
+  paidConfirmedAt?: string;
 }
 
 export interface PolicySnapshot {
@@ -482,15 +487,44 @@ export interface Project {
 
 // ─── Notification System ─────────────────────────────────────
 
-export type NotificationType = "assignment" | "reassignment" | "absence";
+export type NotificationType =
+    | "assignment" | "reassignment" | "absence"
+    | "payslip_published" | "payslip_signed" | "payslip_unsigned_reminder" | "payment_confirmed"
+    | "leave_submitted" | "leave_approved" | "leave_rejected"
+    | "attendance_missing" | "geofence_violation" | "location_disabled"
+    | "loan_reminder" | "overtime_submitted"
+    | "birthday" | "contract_expiry" | "daily_summary";
+
+export type NotificationChannel = "email" | "sms" | "both" | "in_app";
+
+export type NotificationTrigger = NotificationType;
 
 export interface NotificationLog {
   id: string;
   employeeId: string;
   type: NotificationType;
+  channel: NotificationChannel;
   subject: string;
   body: string;
   sentAt: string;
+  status: "sent" | "failed" | "simulated";
+  recipientEmail?: string;
+  recipientPhone?: string;
+  errorMessage?: string;
+}
+
+export interface NotificationRule {
+  id: string;
+  trigger: NotificationTrigger;
+  enabled: boolean;
+  channel: NotificationChannel;
+  recipientRoles: string[];
+  timing: "immediate" | "scheduled";
+  scheduleTime?: string;
+  reminderDays?: number[];
+  subjectTemplate: string;
+  bodyTemplate: string;
+  smsTemplate?: string;
 }
 
 // ─── Government Table Versioning (§7) ───────────────────────
@@ -594,4 +628,80 @@ export interface CustomPage {
   showInSidebar: boolean;
   order: number;
   createdAt: string;
+}
+
+// ─── Site Survey Photo ───────────────────────────────────────
+
+export interface SiteSurveyPhoto {
+  id: string;
+  eventId: string;
+  employeeId: string;
+  photoDataUrl: string;
+  gpsLat: number;
+  gpsLng: number;
+  gpsAccuracyMeters: number;
+  reverseGeoAddress?: string;
+  capturedAt: string;
+  geofencePass?: boolean;
+  projectId?: string;
+}
+
+// ─── Break Record ────────────────────────────────────────────
+
+export interface BreakRecord {
+  id: string;
+  employeeId: string;
+  date: string;
+  breakType: "lunch" | "other";
+  startTime: string;
+  endTime?: string;
+  startLat?: number;
+  startLng?: number;
+  endLat?: number;
+  endLng?: number;
+  endGeofencePass?: boolean;
+  distanceFromSite?: number;
+  duration?: number;
+  overtime?: boolean;
+}
+
+// ─── Location Ping ───────────────────────────────────────────
+
+export interface LocationPing {
+  id: string;
+  employeeId: string;
+  timestamp: string;
+  lat: number;
+  lng: number;
+  accuracyMeters: number;
+  withinGeofence: boolean;
+  projectId?: string;
+  distanceFromSite?: number;
+  source: "auto" | "manual" | "break_end";
+}
+
+// ─── Location Tracking Config ────────────────────────────────
+
+export interface LocationTrackingConfig {
+  enabled: boolean;
+  pingIntervalMinutes: number;
+  requireLocation: boolean;
+  warnEmployeeOutOfFence: boolean;
+  alertAdminOutOfFence: boolean;
+  alertAdminLocationDisabled: boolean;
+  trackDuringBreaks: boolean;
+  retainDays: number;
+  // Selfie / Site Survey
+  requireSelfie: boolean;
+  selfieRequiredProjects: string[];
+  selfieMaxAge: number;
+  showReverseGeocode: boolean;
+  selfieCompressionQuality: number;
+  // Break / Lunch
+  lunchDuration: number;
+  lunchGeofenceRequired: boolean;
+  lunchOvertimeThreshold: number;
+  alertAdminOnGeofenceViolation: boolean;
+  allowedBreaksPerDay: number;
+  breakGracePeriod: number;
 }

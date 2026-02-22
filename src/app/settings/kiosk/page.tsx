@@ -265,6 +265,20 @@ export default function KioskSettingsPage() {
                 </div>
             </Section>
 
+            {/* ── Selfie & Photo ── */}
+            <Section icon={MapPin} title="Selfie & Photo" description="Photo capture during kiosk check-in">
+                <Row label="Enable Selfie Capture" hint="Allow camera selfie during kiosk check-in">
+                    <Switch checked={s.selfieEnabled} onCheckedChange={(v) => u({ selfieEnabled: v })} />
+                </Row>
+                <Row label="Require Selfie" hint="Block check-in if selfie is not captured">
+                    <Switch checked={s.selfieRequired} onCheckedChange={(v) => u({ selfieRequired: v })} disabled={!s.selfieEnabled} />
+                </Row>
+                <p className="text-[10px] text-muted-foreground">
+                    When enabled, employees checking in via kiosk will be prompted to take a selfie. Photos are stored with GPS coordinates for site verification.
+                    Configure additional selfie settings (quality, retention) in <span className="font-medium text-foreground">Settings &rarr; Location & GPS</span>.
+                </p>
+            </Section>
+
             {/* ── Quick reference ── */}
             <Card className="bg-muted/30 border-dashed">
                 <CardContent className="p-5 space-y-3">
