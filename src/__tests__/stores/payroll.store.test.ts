@@ -160,7 +160,20 @@ describe("Payroll Store — signPayslip", () => {
         expect(slip.status).toBe("paid");
     });
 
-    it("does not sign if status is not paid", () => {
+    it("attaches signatureDataUrl and sets signedAt when status is published", () => {
+        usePayrollStore.setState({
+            payslips: [{ ...PAYSLIP_DATA, id: "PS-SIGN-PUB", status: "published", issuedAt: "2026-03-31" }],
+            runs: [],
+            adjustments: [],
+        });
+        usePayrollStore.getState().signPayslip("PS-SIGN-PUB", "data:image/png;base64,PUB");
+        const slip = usePayrollStore.getState().payslips[0];
+        expect(slip.signatureDataUrl).toBe("data:image/png;base64,PUB");
+        expect(slip.signedAt).toBeDefined();
+        expect(slip.status).toBe("published");
+    });
+
+    it("does not sign if status is not published or paid", () => {
         usePayrollStore.setState({
             payslips: [{ ...PAYSLIP_DATA, id: "PS-NO", status: "confirmed", issuedAt: "2026-03-31" }],
             runs: [],
