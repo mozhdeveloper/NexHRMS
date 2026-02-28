@@ -12,7 +12,7 @@ import {
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { MapPin, Search, Calendar, Navigation } from "lucide-react";
+import { Search, Calendar, Navigation } from "lucide-react";
 
 export function LocationTrail() {
     const pings = useLocationStore((s) => s.pings);

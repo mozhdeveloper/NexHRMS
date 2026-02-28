@@ -4,7 +4,7 @@
  * Every dashboard sub-component from the old dashboard is registered here so
  * that the widget grid can render any configuration dynamically.
  */
-import React, { Suspense, useMemo, useState, useEffect } from "react";
+import React, { Suspense, useMemo, useState } from "react";
 import type { WidgetType, WidgetConfig, LeaveType } from "@/types";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAttendanceStore } from "@/store/attendance.store";
@@ -30,6 +30,7 @@ import {
     Tooltip as RechartsTooltip, PieChart, Pie, Cell, Legend,
 } from "recharts";
 import Link from "next/link";
+import { useRoleHref } from "@/lib/hooks/use-role-href";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -133,24 +134,21 @@ function KpiActiveEmployees() {
 
 function KpiPresentToday() {
     const logs = useAttendanceStore((s) => s.logs);
-    const [today, setToday] = useState("");
-    useEffect(() => { setToday(new Date().toISOString().split("T")[0]); }, []);
+    const [today] = useState(() => new Date().toISOString().split("T")[0]);
     const val = useMemo(() => today ? logs.filter((l) => l.date === today && l.status === "present").length : 0, [logs, today]);
     return <KpiCard label="Present Today" value={val} icon={UserCheck} color="text-emerald-500" bg="bg-emerald-500/10" />;
 }
 
 function KpiAbsentToday() {
     const logs = useAttendanceStore((s) => s.logs);
-    const [today, setToday] = useState("");
-    useEffect(() => { setToday(new Date().toISOString().split("T")[0]); }, []);
+    const [today] = useState(() => new Date().toISOString().split("T")[0]);
     const val = useMemo(() => today ? logs.filter((l) => l.date === today && l.status === "absent").length : 0, [logs, today]);
     return <KpiCard label="Absent Today" value={val} icon={UserX} color="text-red-500" bg="bg-red-500/10" />;
 }
 
 function KpiOnLeave() {
     const logs = useAttendanceStore((s) => s.logs);
-    const [today, setToday] = useState("");
-    useEffect(() => { setToday(new Date().toISOString().split("T")[0]); }, []);
+    const [today] = useState(() => new Date().toISOString().split("T")[0]);
     const val = useMemo(() => today ? logs.filter((l) => l.date === today && l.status === "on_leave").length : 0, [logs, today]);
     return <KpiCard label="On Leave" value={val} icon={CalendarOff} color="text-amber-500" bg="bg-amber-500/10" />;
 }
@@ -203,8 +201,7 @@ function KpiAuditTotal() {
 
 function KpiAuditToday() {
     const logs = useAuditStore((s) => s.logs);
-    const [today, setToday] = useState("");
-    useEffect(() => { setToday(new Date().toISOString().split("T")[0]); }, []);
+    const [today] = useState(() => new Date().toISOString().split("T")[0]);
     const val = useMemo(() => today ? logs.filter((l) => l.timestamp.startsWith(today)).length : 0, [logs, today]);
     return <KpiCard label="Actions Today" value={val} icon={Clock} color="text-emerald-500" bg="bg-emerald-500/10" />;
 }
@@ -302,8 +299,8 @@ function ChartDeptDistribution() {
 function TableEmployeeStatus() {
     const employees = useEmployeesStore((s) => s.employees);
     const logs = useAttendanceStore((s) => s.logs);
-    const [today, setToday] = useState("");
-    useEffect(() => { setToday(new Date().toISOString().split("T")[0]); }, []);
+    const rh = useRoleHref();
+    const [today] = useState(() => new Date().toISOString().split("T")[0]);
 
     const statusList = useMemo(() => {
         return employees.filter((e) => e.status === "active").slice(0, 8).map((emp) => {
@@ -327,7 +324,7 @@ function TableEmployeeStatus() {
             <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-base font-semibold">Employee Status Today</CardTitle>
-                    <Link href="/employees/manage"><Button variant="ghost" size="sm" className="text-xs">View All</Button></Link>
+                    <Link href={rh("/employees/manage")}><Button variant="ghost" size="sm" className="text-xs">View All</Button></Link>
                 </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -363,7 +360,7 @@ function TableEmployeeStatus() {
                                     </TableCell>
                                     <TableCell className="text-xs text-muted-foreground">{emp.teamLeaderName}</TableCell>
                                     <TableCell>
-                                        <Link href={`/employees/${emp.id}`}>
+                                        <Link href={rh(`/employees/${emp.id}`)}>
                                             <Button variant="ghost" size="icon" className="h-7 w-7"><Eye className="h-3.5 w-3.5" /></Button>
                                         </Link>
                                     </TableCell>
@@ -379,6 +376,7 @@ function TableEmployeeStatus() {
 
 function TableRecentAudit() {
     const logs = useAuditStore((s) => s.logs);
+    const rh = useRoleHref();
     const recent = [...logs].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 8);
 
     const actionColors: Record<string, string> = {
@@ -398,7 +396,7 @@ function TableRecentAudit() {
                         <Activity className="h-5 w-5 text-muted-foreground" />
                         <CardTitle className="text-base font-semibold">Recent Audit Activity</CardTitle>
                     </div>
-                    <Link href="/audit"><Button variant="ghost" size="sm" className="text-xs">View All</Button></Link>
+                    <Link href={rh("/audit")}><Button variant="ghost" size="sm" className="text-xs">View All</Button></Link>
                 </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -444,8 +442,7 @@ function MyAttendanceStatus() {
     const currentUser = useAuthStore((s) => s.currentUser);
     const employees = useEmployeesStore((s) => s.employees);
     const logs = useAttendanceStore((s) => s.logs);
-    const [today, setToday] = useState("");
-    useEffect(() => { setToday(new Date().toISOString().split("T")[0]); }, []);
+    const [today] = useState(() => new Date().toISOString().split("T")[0]);
 
     const empRecord = useMemo(() => employees.find((e) => e.email === currentUser.email || e.name === currentUser.name), [employees, currentUser]);
     const todayLog = useMemo(() => {
@@ -484,6 +481,7 @@ function MyLeaveBalance() {
     const currentUser = useAuthStore((s) => s.currentUser);
     const employees = useEmployeesStore((s) => s.employees);
     const leaveRequests = useLeaveStore((s) => s.requests);
+    const rh = useRoleHref();
 
     const empRecord = useMemo(() => employees.find((e) => e.email === currentUser.email || e.name === currentUser.name), [employees, currentUser]);
 
@@ -530,7 +528,7 @@ function MyLeaveBalance() {
                         </div>
                     ))}
                 </div>
-                <Link href="/leave">
+                <Link href={rh("/leave")}>
                     <Button variant="outline" size="sm" className="mt-4 w-full gap-1.5">
                         <Plus className="h-3.5 w-3.5" /> Request Leave
                     </Button>
@@ -544,6 +542,7 @@ function MyLatestPayslip() {
     const currentUser = useAuthStore((s) => s.currentUser);
     const employees = useEmployeesStore((s) => s.employees);
     const payslips = usePayrollStore((s) => s.payslips);
+    const rh = useRoleHref();
 
     const empRecord = useMemo(() => employees.find((e) => e.email === currentUser.email || e.name === currentUser.name), [employees, currentUser]);
     const latestPayslip = useMemo(() => {
@@ -573,7 +572,7 @@ function MyLatestPayslip() {
                         ) : (
                             <p className="text-sm text-muted-foreground mt-1">No payslips yet</p>
                         )}
-                        <Link href="/payroll" className="text-xs text-primary hover:underline">View payslips</Link>
+                        <Link href={rh("/payroll")} className="text-xs text-primary hover:underline">View payslips</Link>
                     </div>
                 </div>
             </CardContent>
@@ -585,6 +584,7 @@ function MyLeaveRequests() {
     const currentUser = useAuthStore((s) => s.currentUser);
     const employees = useEmployeesStore((s) => s.employees);
     const leaveRequests = useLeaveStore((s) => s.requests);
+    const rh = useRoleHref();
 
     const empRecord = useMemo(() => employees.find((e) => e.email === currentUser.email || e.name === currentUser.name), [employees, currentUser]);
     const myLeaves = useMemo(() => {
@@ -599,7 +599,7 @@ function MyLeaveRequests() {
             </CardHeader>
             <CardContent>
                 <p className="text-sm text-muted-foreground text-center py-4">No leave requests yet.</p>
-                <Link href="/leave">
+                <Link href={rh("/leave")}>
                     <Button variant="outline" size="sm" className="w-full gap-1.5">
                         <Plus className="h-3.5 w-3.5" /> Request Leave
                     </Button>
@@ -613,7 +613,7 @@ function MyLeaveRequests() {
             <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-base font-semibold">My Leave Requests</CardTitle>
-                    <Link href="/leave"><Button variant="ghost" size="sm" className="text-xs">View All</Button></Link>
+                    <Link href={rh("/leave")}><Button variant="ghost" size="sm" className="text-xs">View All</Button></Link>
                 </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -781,8 +781,7 @@ function EventsWidgetComponent({ readOnly = false }: { readOnly?: boolean }) {
 
 function BirthdaysWidgetComponent() {
     const employees = useEmployeesStore((s) => s.employees);
-    const [month, setMonth] = useState(0);
-    useEffect(() => { setMonth(new Date().getMonth()); }, []);
+    const [month, setMonth] = useState(() => new Date().getMonth());
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
     const birthdays = useMemo(() => {

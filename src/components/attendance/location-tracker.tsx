@@ -94,20 +94,22 @@ export function LocationTracker({ employeeId, employeeName, employeeEmail, activ
     useEffect(() => {
         if (!config.enabled || !active) {
             if (intervalRef.current) clearInterval(intervalRef.current);
-            setTrackingActive(false);
             return;
         }
 
-        // Initial ping
-        doPing();
-        purgeOldPings();
-        setTrackingActive(true);
+        // Defer initial ping to avoid synchronous setState in effect body
+        const initTimer = setTimeout(() => {
+            doPing();
+            purgeOldPings();
+            setTrackingActive(true);
+        }, 0);
 
         // Set interval
         const ms = config.pingIntervalMinutes * 60 * 1000;
         intervalRef.current = setInterval(doPing, ms);
 
         return () => {
+            clearTimeout(initTimer);
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
     }, [config.enabled, config.pingIntervalMinutes, active, doPing, purgeOldPings]);

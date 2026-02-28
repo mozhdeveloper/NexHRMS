@@ -14,7 +14,7 @@ export default function NotFoundPage() {
             <p className="text-muted-foreground text-sm max-w-md text-center">
                 The page you&apos;re looking for doesn&apos;t exist or has been moved.
             </p>
-            <Link href="/dashboard">
+            <Link href="/">
                 <Button className="gap-1.5 mt-2">Go to Dashboard</Button>
             </Link>
         </div>

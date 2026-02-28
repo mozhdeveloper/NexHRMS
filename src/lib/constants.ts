@@ -95,6 +95,8 @@ export const NAV_ITEMS: {
     permission?: Permission;
     /** Module flag key — if set, item is hidden when module is disabled */
     moduleFlag?: string;
+    /** If true, href is used as-is (not prefixed with role segment) */
+    absolute?: boolean;
 }[] = [
         {
             label: "Dashboard",
@@ -107,15 +109,15 @@ export const NAV_ITEMS: {
             label: "Employees",
             href: "/employees/manage",
             icon: "Users",
-            roles: ["admin", "hr", "finance", "supervisor"],
+            roles: ["admin", "hr", "finance", "supervisor", "auditor"],
             permission: "page:employees",
         },
         {
             label: "Projects",
             href: "/projects",
             icon: "FolderKanban",
-            roles: ["admin", "hr"],
-            permission: "projects:manage",
+            roles: ["admin", "hr", "supervisor"],
+            permission: "page:projects",
             moduleFlag: "projects",
         },
         {
@@ -196,6 +198,7 @@ export const NAV_ITEMS: {
             roles: ["admin", "hr"],
             permission: "page:kiosk",
             moduleFlag: "kiosk",
+            absolute: true,
         },
         {
             label: "Settings",
@@ -230,11 +233,11 @@ export const ROLE_ACCESS: Record<Role, string[]> = {
         "/custom",
     ],
     hr: ["/dashboard", "/employees", "/projects", "/attendance", "/leave", "/reports", "/notifications", "/timesheets", "/settings/shifts", "/kiosk"],
-    finance: ["/dashboard", "/payroll", "/loans", "/reports", "/reports/government", "/employees/directory"],
+    finance: ["/dashboard", "/payroll", "/loans", "/reports", "/reports/government", "/employees/directory", "/employees/manage"],
     employee: ["/dashboard", "/attendance", "/leave", "/payroll"],
-    supervisor: ["/dashboard", "/attendance", "/leave", "/timesheets", "/employees"],
+    supervisor: ["/dashboard", "/attendance", "/leave", "/timesheets", "/employees", "/projects"],
     payroll_admin: ["/dashboard", "/payroll", "/loans", "/reports", "/reports/government", "/timesheets"],
-    auditor: ["/dashboard", "/audit", "/reports"],
+    auditor: ["/dashboard", "/audit", "/reports", "/employees"],
 };
 
 /** Map a URL path to the permission needed to access it */
@@ -243,7 +246,7 @@ export const PATH_TO_PERMISSION: Record<string, Permission> = {
     "/employees": "page:employees",
     "/employees/manage": "page:employees",
     "/employees/directory": "page:employees",
-    "/projects": "projects:manage",
+    "/projects": "page:projects",
     "/attendance": "page:attendance",
     "/leave": "page:leave",
     "/payroll": "page:payroll",

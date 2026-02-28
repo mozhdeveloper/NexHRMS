@@ -4,7 +4,7 @@ import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import type {
     AttendanceLog, AttendanceFlag, AttendanceEvent, AttendanceEvidence,
-    AttendanceException, OvertimeRequest, ShiftTemplate,
+    AttendanceException, OvertimeRequest, ShiftTemplate, PenaltyRecord,
 } from "@/types";
 import { SEED_ATTENDANCE } from "@/data/seed";
 import { DEFAULT_HOLIDAYS } from "@/lib/constants";
@@ -66,6 +66,13 @@ interface AttendanceState {
     updateHoliday: (id: string, patch: Partial<Omit<Holiday, "id">>) => void;
     deleteHoliday: (id: string) => void;
     resetHolidaysToDefault: () => void;
+
+    // ─── Anti-Cheat Penalties ─────────────────────────
+    penalties: PenaltyRecord[];
+    applyPenalty: (data: Omit<PenaltyRecord, "id" | "resolved">) => void;
+    clearPenalty: (employeeId: string) => void;
+    getActivePenalty: (employeeId: string) => PenaltyRecord | undefined;
+    cleanExpiredPenalties: () => void;
 
     resetToSeed: () => void;
 }
@@ -446,6 +453,36 @@ export const useAttendanceStore = create<AttendanceState>()(
             resetHolidaysToDefault: () =>
                 set(() => ({ holidays: DEFAULT_HOLIDAYS.map((h, i) => ({ ...h, id: `HOL-${i + 1}` })) })),
 
+            // ─── Anti-Cheat Penalties ──────────────────────────────
+            penalties: [],
+            applyPenalty: (data) =>
+                set((s) => ({
+                    penalties: [
+                        ...s.penalties,
+                        { ...data, id: `PEN-${nanoid(8)}`, resolved: false },
+                    ],
+                })),
+            clearPenalty: (employeeId) =>
+                set((s) => ({
+                    penalties: s.penalties.map((p) =>
+                        p.employeeId === employeeId && !p.resolved
+                            ? { ...p, resolved: true }
+                            : p
+                    ),
+                })),
+            getActivePenalty: (employeeId) => {
+                const now = new Date().toISOString();
+                return get().penalties.find(
+                    (p) => p.employeeId === employeeId && !p.resolved && p.penaltyUntil > now
+                );
+            },
+            cleanExpiredPenalties: () =>
+                set((s) => ({
+                    penalties: s.penalties.filter(
+                        (p) => !p.resolved && p.penaltyUntil > new Date().toISOString()
+                    ),
+                })),
+
             resetToSeed: () =>
                 set(() => ({
                     events: [],
@@ -456,6 +493,7 @@ export const useAttendanceStore = create<AttendanceState>()(
                     shiftTemplates: DEFAULT_SHIFTS,
                     employeeShifts: {},
                     holidays: DEFAULT_HOLIDAYS.map((h, i) => ({ ...h, id: `HOL-${i + 1}` })),
+                    penalties: [],
                 })),
         }),
         {

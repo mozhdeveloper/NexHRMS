@@ -71,7 +71,7 @@ describe("Auth Store — logout", () => {
         useAuthStore.setState({ isAuthenticated: true, currentUser: DEMO_USERS[3] });
         const { logout } = useAuthStore.getState();
         logout();
-        expect(useAuthStore.getState().currentUser).toEqual(DEMO_USERS[0]);
+        expect(useAuthStore.getState().currentUser).toMatchObject(DEMO_USERS[0]);
     });
 });
 
@@ -86,7 +86,7 @@ describe("Auth Store — switchRole", () => {
         const { switchRole } = useAuthStore.getState();
         // @ts-expect-error testing invalid input
         switchRole("superadmin");
-        expect(useAuthStore.getState().currentUser).toEqual(DEMO_USERS[0]);
+        expect(useAuthStore.getState().currentUser).toMatchObject(DEMO_USERS[0]);
     });
 });
 

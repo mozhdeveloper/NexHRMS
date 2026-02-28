@@ -8,11 +8,24 @@ import { ScanFace, CheckCircle, Camera, CameraOff } from "lucide-react";
 interface FaceRecognitionSimulatorProps {
     onVerified: () => void;
     disabled?: boolean;
+    /** "default" for attendance page, "kiosk" for dark kiosk UI */
+    variant?: "default" | "kiosk";
+    /** Override scan countdown seconds (default 3) */
+    countdownSeconds?: number;
+    /** Automatically open camera on mount */
+    autoStart?: boolean;
 }
 
-export function FaceRecognitionSimulator({ onVerified, disabled }: FaceRecognitionSimulatorProps) {
+export function FaceRecognitionSimulator({
+    onVerified,
+    disabled,
+    variant = "default",
+    countdownSeconds = 3,
+    autoStart = false,
+}: FaceRecognitionSimulatorProps) {
+    const isKiosk = variant === "kiosk";
     const [phase, setPhase] = useState<"idle" | "camera" | "scanning" | "verified">("idle");
-    const [countdown, setCountdown] = useState(3);
+    const [countdown, setCountdown] = useState(countdownSeconds);
     const [cameraError, setCameraError] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
@@ -34,6 +47,14 @@ export function FaceRecognitionSimulator({ onVerified, disabled }: FaceRecogniti
         }
     }, []);
 
+    // Auto-start camera when enabled
+    useEffect(() => {
+        if (autoStart && phase === "idle" && !disabled) {
+            startCamera();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoStart]);
+
     // Stop camera stream on unmount
     useEffect(() => {
         return () => {
@@ -43,8 +64,8 @@ export function FaceRecognitionSimulator({ onVerified, disabled }: FaceRecogniti
 
     const startScan = useCallback(() => {
         setPhase("scanning");
-        setCountdown(3);
-    }, []);
+        setCountdown(countdownSeconds);
+    }, [countdownSeconds]);
 
     useEffect(() => {
         if (phase !== "scanning") return;
@@ -61,13 +82,13 @@ export function FaceRecognitionSimulator({ onVerified, disabled }: FaceRecogniti
     // ── Verified ─────────────────────────────────────────────────
     if (phase === "verified") {
         return (
-            <Card className="border border-emerald-500/30 bg-emerald-500/5">
+            <Card className={`border border-emerald-500/30 ${isKiosk ? "bg-emerald-500/10 border-0 rounded-2xl" : "bg-emerald-500/5"}`}>
                 <CardContent className="p-6 flex flex-col items-center gap-3">
                     <div className="h-16 w-16 rounded-full bg-emerald-500/15 flex items-center justify-center">
                         <CheckCircle className="h-8 w-8 text-emerald-500" />
                     </div>
-                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Face Verified ✅</p>
-                    <p className="text-xs text-muted-foreground">Identity confirmed (simulated)</p>
+                    <p className={`text-sm font-medium ${isKiosk ? "text-emerald-400" : "text-emerald-700 dark:text-emerald-400"}`}>Face Verified ✅</p>
+                    <p className={`text-xs ${isKiosk ? "text-white/50" : "text-muted-foreground"}`}>Identity confirmed (simulated)</p>
                 </CardContent>
             </Card>
         );
@@ -76,10 +97,10 @@ export function FaceRecognitionSimulator({ onVerified, disabled }: FaceRecogniti
     // ── Camera / Scanning ─────────────────────────────────────────
     if (phase === "camera" || phase === "scanning") {
         return (
-            <Card className="border border-border/50 overflow-hidden">
+            <Card className={`overflow-hidden ${isKiosk ? "border-0 bg-white/[0.04] rounded-2xl" : "border border-border/50"}`}>
                 <CardContent className="p-0">
                     {/* Camera viewfinder */}
-                    <div className="relative w-full bg-black" style={{ aspectRatio: "4/3" }}>
+                    <div className="relative w-full bg-black" style={{ aspectRatio: "4/3", maxHeight: "260px" }}>
                         {!cameraError ? (
                             <video
                                 ref={videoRef}
@@ -159,12 +180,12 @@ export function FaceRecognitionSimulator({ onVerified, disabled }: FaceRecogniti
                     {/* Controls */}
                     <div className="p-4 flex flex-col items-center gap-2">
                         {phase === "camera" && (
-                            <Button onClick={startScan} className="w-full gap-1.5" size="sm">
+                            <Button onClick={startScan} className={`w-full gap-1.5 ${isKiosk ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}`} size="sm">
                                 <ScanFace className="h-4 w-4" /> Scan My Face
                             </Button>
                         )}
                         {phase === "scanning" && (
-                            <p className="text-xs text-muted-foreground">Please hold still...</p>
+                            <p className={`text-xs ${isKiosk ? "text-white/50" : "text-muted-foreground"}`}>Please hold still...</p>
                         )}
                     </div>
                 </CardContent>
@@ -174,16 +195,17 @@ export function FaceRecognitionSimulator({ onVerified, disabled }: FaceRecogniti
 
     // ── Idle ──────────────────────────────────────────────────────
     return (
-        <Card className="border border-border/50">
+        <Card className={`${isKiosk ? "border-0 bg-white/[0.04] rounded-2xl" : "border border-border/50"}`}>
             <CardContent className="p-6 flex flex-col items-center gap-3">
-                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                    <Camera className="h-8 w-8 text-muted-foreground" />
+                <div className={`h-16 w-16 rounded-full flex items-center justify-center ${isKiosk ? "bg-white/[0.06]" : "bg-muted"}`}>
+                    <Camera className={`h-8 w-8 ${isKiosk ? "text-white/40" : "text-muted-foreground"}`} />
                 </div>
-                <p className="text-sm font-medium">Face Recognition</p>
-                <p className="text-xs text-muted-foreground text-center">
+                <p className={`text-sm font-medium ${isKiosk ? "text-white" : ""}`}>Face Recognition</p>
+                <p className={`text-xs text-center ${isKiosk ? "text-white/50" : "text-muted-foreground"}`}>
                     Verify your identity to proceed with check-in
                 </p>
-                <Button onClick={startCamera} disabled={disabled} className="gap-1.5 mt-1">
+                <Button onClick={startCamera} disabled={disabled}
+                    className={`gap-1.5 mt-1 ${isKiosk ? "bg-white/10 hover:bg-white/15 text-white border-0" : ""}`}>
                     <Camera className="h-4 w-4" /> Open Camera
                 </Button>
             </CardContent>

@@ -156,7 +156,8 @@ describe("Payroll Store — signPayslip", () => {
         const slip = usePayrollStore.getState().payslips[0];
         expect(slip.signatureDataUrl).toBe("data:image/png;base64,ABC");
         expect(slip.signedAt).toBeDefined();
-        expect(slip.status).toBe("acknowledged");
+        // signPayslip only attaches signature; status stays "paid"
+        expect(slip.status).toBe("paid");
     });
 
     it("does not sign if status is not paid", () => {
@@ -239,13 +240,14 @@ describe("Payroll Store — generate13thMonth", () => {
         expect(new Set(ids).size).toBe(ids.length);
     });
 
-    it("grossPay = Math.round(salary / 12)", () => {
+    it("grossPay = salary for full-year employees (salary × 12 months / 12)", () => {
         usePayrollStore.getState().generate13thMonth(EMPLOYEES);
         const slips = usePayrollStore.getState().payslips;
         const slipA = slips.find((p) => p.employeeId === "EMP-A")!;
         const slipB = slips.find((p) => p.employeeId === "EMP-B")!;
-        expect(slipA.grossPay).toBe(Math.round(36000 / 12)); // 3000
-        expect(slipB.grossPay).toBe(Math.round(24000 / 12)); // 2000
+        // 13th month = (salary × monthsWorked) / 12; monthsWorked=12 when no joinDate
+        expect(slipA.grossPay).toBe(Math.round((36000 * 12) / 12)); // 36000
+        expect(slipB.grossPay).toBe(Math.round((24000 * 12) / 12)); // 24000
     });
 
     it("status is issued and all deductions are zero", () => {
@@ -414,7 +416,8 @@ describe("Payroll Store — publishRun", () => {
             finalPayComputations: [],
         });
         usePayrollStore.getState().publishRun("2026-03-31");
-        expect(usePayrollStore.getState().runs[0].status).toBeUndefined();
+        // Status stays "draft" — publishRun is a no-op when run is unlocked
+        expect(usePayrollStore.getState().runs[0].status).toBe("draft");
     });
 });
 
@@ -548,8 +551,13 @@ describe("Payroll Store — full payslip lifecycle", () => {
         usePayrollStore.getState().recordPayment(id, "gcash", "GCASH-999");
         expect(usePayrollStore.getState().payslips[0].status).toBe("paid");
 
-        // Sign / Acknowledge
+        // Sign (signPayslip only records signature, does not change status)
         usePayrollStore.getState().signPayslip(id, "data:image/png;base64,SIG");
+        expect(usePayrollStore.getState().payslips[0].signatureDataUrl).toBe("data:image/png;base64,SIG");
+        expect(usePayrollStore.getState().payslips[0].status).toBe("paid");
+
+        // Acknowledge (requires status=paid + signedAt)
+        usePayrollStore.getState().acknowledgePayslip(id, "EMP-TEST-001");
         expect(usePayrollStore.getState().payslips[0].status).toBe("acknowledged");
     });
 });

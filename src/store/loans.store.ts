@@ -204,6 +204,10 @@ export const useLoansStore = create<LoansState>()(
             },
             resetToSeed: () => set({ loans: SEED_LOANS }),
         }),
-        { name: "nexhrms-loans", version: 2 }
+        {
+            name: "nexhrms-loans",
+            version: 2,
+            migrate: () => ({ loans: SEED_LOANS }),
+        }
     )
 );

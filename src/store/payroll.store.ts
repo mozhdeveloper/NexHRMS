@@ -439,6 +439,16 @@ export const usePayrollStore = create<PayrollState>()(
                     paySchedule: DEFAULT_PAY_SCHEDULE,
                 })),
         }),
-        { name: "nexhrms-payroll", version: 5 }
+        {
+            name: "nexhrms-payroll",
+            version: 6,
+            migrate: () => ({
+                payslips: SEED_PAYSLIPS,
+                runs: [],
+                adjustments: [],
+                finalPayComputations: [],
+                paySchedule: DEFAULT_PAY_SCHEDULE,
+            }),
+        }
     )
 );

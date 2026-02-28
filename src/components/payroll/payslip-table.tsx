@@ -16,7 +16,7 @@ import {
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Eye, PenTool, CheckCircle, CreditCard, Search, FileText } from "lucide-react";
+import { Eye, CheckCircle, CreditCard, Search, FileText } from "lucide-react";
 import { PayslipDetail } from "./payslip-detail";
 import { PayslipSignatureViewer } from "./payslip-signature-viewer";
 import { toast } from "sonner";

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendNotification, notifyProjectAssignment, notifyAbsence } from "@/lib/notifications";
+import { notifyProjectAssignment, notifyAbsence } from "@/lib/notifications";
 
 export async function POST(request: NextRequest) {
     try {

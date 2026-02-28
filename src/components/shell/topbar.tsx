@@ -51,6 +51,7 @@ export function Topbar() {
     const companyName = useAppearanceStore((s) => s.companyName);
     const showCompanyNameInTopbar = useAppearanceStore((s) => s.showCompanyNameInTopbar);
     const accentBadgeText = useAppearanceStore((s) => s.accentBadgeText);
+    const rolePrefix = `/${currentUser.role}`;
 
     useEffect(() => {
         const down = (e: KeyboardEvent) => {
@@ -139,7 +140,7 @@ export function Topbar() {
                     </Button>
 
                     {/* Notifications */}
-                    <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground" onClick={() => router.push("/notifications")}>
+                    <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground" onClick={() => router.push(`${rolePrefix}/notifications`)}>
                         <Bell className="h-5 w-5" />
                         {notifCount > 0 && (
                             <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground">
@@ -165,7 +166,10 @@ export function Topbar() {
                             {DEMO_USERS.map((u) => (
                                 <DropdownMenuItem
                                     key={u.id}
-                                    onClick={() => switchRole(u.role)}
+                                    onClick={() => {
+                                        switchRole(u.role);
+                                        router.push(`/${u.role}/dashboard`);
+                                    }}
                                     className={cn(currentUser.role === u.role && "bg-accent")}
                                 >
                                     <span className="flex items-center gap-2">
@@ -196,7 +200,7 @@ export function Topbar() {
                         <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuLabel>{currentUser.email}</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => router.push("/settings")}>
+                            <DropdownMenuItem onClick={() => router.push(`${rolePrefix}/settings`)}>
                                 Settings
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
@@ -229,7 +233,7 @@ export function Topbar() {
                             <CommandItem
                                 key={p.href}
                                 onSelect={() => {
-                                    router.push(p.href);
+                                    router.push(`${rolePrefix}${p.href}`);
                                     setCmdOpen(false);
                                 }}
                             >
@@ -242,7 +246,7 @@ export function Topbar() {
                             <CommandItem
                                 key={emp.id}
                                 onSelect={() => {
-                                    router.push(`/employees/${emp.id}`);
+                                    router.push(`${rolePrefix}/employees/${emp.id}`);
                                     setCmdOpen(false);
                                 }}
                             >

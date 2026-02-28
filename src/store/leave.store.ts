@@ -217,6 +217,10 @@ export const useLeaveStore = create<LeaveState>()(
             },
             resetToSeed: () => set({ requests: SEED_LEAVES, balances: [] }),
         }),
-        { name: "nexhrms-leave", version: 2 }
+        {
+            name: "nexhrms-leave",
+            version: 2,
+            migrate: () => ({ requests: SEED_LEAVES, balances: [] }),
+        }
     )
 );

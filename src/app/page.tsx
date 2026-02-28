@@ -1,5 +1,21 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { useAuthStore } from "@/store/auth.store";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function Home() {
-  redirect("/dashboard");
+    const router = useRouter();
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+    const role = useAuthStore((s) => s.currentUser.role);
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            router.replace(`/${role}/dashboard`);
+        } else {
+            router.replace("/login");
+        }
+    }, [isAuthenticated, role, router]);
+
+    return null;
 }

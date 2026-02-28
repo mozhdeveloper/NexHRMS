@@ -30,7 +30,7 @@ export function BreakTimer({ employeeId, employeeName, employeeEmail, disabled }
 
     // Tick timer every second while on break
     useEffect(() => {
-        if (!activeBreak) { setElapsed(0); return; }
+        if (!activeBreak) { return; }
         const tick = () => {
             const ms = Date.now() - new Date(activeBreak.startTime).getTime();
             setElapsed(Math.floor(ms / 1000));

@@ -187,6 +187,10 @@ export const useNotificationsStore = create<NotificationsState>()(
 
             resetToSeed: () => set({ logs: [], rules: [...DEFAULT_RULES], providerConfig: { ...DEFAULT_PROVIDER } }),
         }),
-        { name: "nexhrms-notifications", version: 2 }
+        {
+            name: "nexhrms-notifications",
+            version: 2,
+            migrate: () => ({ logs: [], rules: [...DEFAULT_RULES], providerConfig: { ...DEFAULT_PROVIDER } }),
+        }
     )
 );

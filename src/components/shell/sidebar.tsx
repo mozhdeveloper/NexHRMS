@@ -116,6 +116,9 @@ export function Sidebar() {
         return { systemItems, customNavItems };
     }, [role, hasPermission, customPages, modules, navOverrides]);
 
+    // Build role-prefixed paths
+    const rolePrefix = `/${role}`;
+
     // Close mobile sidebar on route change
     useEffect(() => {
         setMobileSidebarOpen(false);
@@ -135,7 +138,7 @@ export function Sidebar() {
         <>
             {/* Logo */}
             <div className="flex h-16 items-center justify-between px-4">
-                <Link href="/dashboard" className="flex items-center gap-2.5">
+                <Link href={`${rolePrefix}/dashboard`} className="flex items-center gap-2.5">
                     {logoUrl ? (
                         <img
                             src={logoUrl}
@@ -171,17 +174,18 @@ export function Sidebar() {
             <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
                 {filtered.systemItems.map((item) => {
                     const Icon = iconMap[item.icon];
-                    const exactMatch = pathname === item.href;
-                    const prefixMatch = pathname.startsWith(item.href + "/");
+                    const fullHref = item.absolute ? item.href : `${rolePrefix}${item.href}`;
+                    const exactMatch = pathname === fullHref;
+                    const prefixMatch = pathname.startsWith(fullHref + "/");
                     const moreSpecificExists = prefixMatch && filtered.systemItems.some(
-                        (other) => other.href !== item.href && (pathname === other.href || pathname.startsWith(other.href + "/")) && other.href.startsWith(item.href)
+                        (other) => other.href !== item.href && (pathname === `${rolePrefix}${other.href}` || pathname.startsWith(`${rolePrefix}${other.href}/`)) && other.href.startsWith(item.href)
                     );
                     const isActive = exactMatch || (prefixMatch && !moreSpecificExists);
                     return (
                         <Tooltip key={item.href} delayDuration={0}>
                             <TooltipTrigger asChild>
                                 <Link
-                                    href={item.href}
+                                    href={fullHref}
                                     className={cn(
                                         "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                                         isActive
@@ -210,12 +214,13 @@ export function Sidebar() {
                         )}
                         {filtered.customNavItems.map((item) => {
                             const Icon = iconMap[item.icon] || Puzzle;
-                            const isActive = pathname === item.href;
+                            const fullCustomHref = `${rolePrefix}${item.href}`;
+                            const isActive = pathname === fullCustomHref;
                             return (
                                 <Tooltip key={item.href} delayDuration={0}>
                                     <TooltipTrigger asChild>
                                         <Link
-                                            href={item.href}
+                                            href={fullCustomHref}
                                             className={cn(
                                                 "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                                                 isActive

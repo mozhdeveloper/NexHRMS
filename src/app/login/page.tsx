@@ -46,7 +46,8 @@ export default function LoginPage() {
             const success = login(email, password);
             if (success) {
                 toast.success("Welcome back!");
-                router.push("/dashboard");
+                const role = useAuthStore.getState().currentUser.role;
+                router.push(`/${role}/dashboard`);
             } else {
                 toast.error("Invalid email or password");
             }
@@ -60,7 +61,8 @@ export default function LoginPage() {
             const success = login(demoEmail, "demo1234");
             if (success) {
                 toast.success("Welcome back!");
-                router.push("/dashboard");
+                const role = useAuthStore.getState().currentUser.role;
+                router.push(`/${role}/dashboard`);
             } else {
                 toast.error("Login failed");
             }

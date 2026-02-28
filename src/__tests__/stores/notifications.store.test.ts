@@ -6,6 +6,7 @@
  *         log cap (500), and reset utilities.
  */
 import { useNotificationsStore } from "@/store/notifications.store";
+import type { NotificationType } from "@/types";
 
 const resetStore = () => {
     useNotificationsStore.getState().resetRules();
@@ -66,7 +67,7 @@ describe("Default notification rules", () => {
     ];
 
     it.each(expectedTriggers)("has rule for trigger '%s'", (trigger) => {
-        expect(useNotificationsStore.getState().getRuleByTrigger(trigger)).toBeDefined();
+        expect(useNotificationsStore.getState().getRuleByTrigger(trigger as NotificationType)).toBeDefined();
     });
 });
 

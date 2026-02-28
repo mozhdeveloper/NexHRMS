@@ -11,7 +11,7 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { SignaturePad } from "@/components/ui/signature-pad";
-import { FileText, PenTool, CheckCircle, Download, Eye } from "lucide-react";
+import { FileText, PenTool, CheckCircle } from "lucide-react";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
     issued: { label: "Issued", color: "bg-slate-500/15 text-slate-700 dark:text-slate-400" },

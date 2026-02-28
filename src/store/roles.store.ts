@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
-import type { CustomRole, Permission, DashboardLayout, WidgetConfig } from "@/types";
+import type { CustomRole, Permission, WidgetConfig } from "@/types";
 
 // ─── All available permissions ──────────────────────────────
 export const ALL_PERMISSIONS: Permission[] = [
@@ -166,7 +166,7 @@ const PAYROLL_ADMIN_PERMS: Permission[] = [
 ];
 
 const SUPERVISOR_PERMS: Permission[] = [
-    "page:dashboard", "page:employees", "page:attendance", "page:leave", "page:timesheets",
+    "page:dashboard", "page:employees", "page:attendance", "page:leave", "page:timesheets", "page:projects",
     "employees:view",
     "attendance:view_all", "attendance:approve_overtime",
     "leave:view_all", "leave:approve",
@@ -179,7 +179,7 @@ const EMPLOYEE_PERMS: Permission[] = [
 ];
 
 const AUDITOR_PERMS: Permission[] = [
-    "page:dashboard", "page:audit", "page:reports",
+    "page:dashboard", "page:audit", "page:reports", "page:employees",
     "audit:view",
     "employees:view",
     "reports:view",

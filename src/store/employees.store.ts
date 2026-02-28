@@ -169,6 +169,18 @@ export const useEmployeesStore = create<EmployeesState>()(
                     departmentFilter: "all",
                 }),
         }),
-        { name: "nexhrms-employees", version: 3 }
+        {
+            name: "nexhrms-employees",
+            version: 4,
+            migrate: () => ({
+                employees: SEED_EMPLOYEES,
+                salaryRequests: [],
+                salaryHistory: [],
+                searchQuery: "",
+                statusFilter: "all" as const,
+                workTypeFilter: "all" as const,
+                departmentFilter: "all",
+            }),
+        }
     )
 );

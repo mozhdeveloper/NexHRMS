@@ -10,8 +10,6 @@ import { useAuthStore } from "@/store/auth.store";
 import { toast } from "sonner";
 import { User, Lock, ChevronRight, CheckCircle2 } from "lucide-react";
 
-const STEPS = ["Profile", "Password"] as const;
-
 interface FormState {
     phone: string;
     department: string;

@@ -60,6 +60,7 @@ export interface Employee {
   teamLeader?: string;
   avatarUrl?: string;
   pin?: string; // employee PIN for kiosk
+  nfcId?: string; // NFC badge ID for kiosk scan
   resignedAt?: string;
   shiftId?: string;
   payFrequency?: PayFrequency; // per-employee override (falls back to company default)
@@ -128,6 +129,17 @@ export interface AttendanceException {
   resolvedBy?: string;
   notes?: string;
   createdAt: string;
+}
+
+// ─── Anti-Cheat Penalty Record ───────────────────────────────
+
+export interface PenaltyRecord {
+  id: string;
+  employeeId: string;
+  reason: string;
+  triggeredAt: string;   // ISO timestamp
+  penaltyUntil: string;  // ISO timestamp = triggeredAt + penaltyMinutes
+  resolved: boolean;     // admin can manually clear
 }
 
 /** Computed daily summary — derived from events + rule set + shift */

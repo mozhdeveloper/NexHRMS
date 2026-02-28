@@ -3,10 +3,13 @@ import { persist } from "zustand/middleware";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type KioskCheckInMethod = "qr" | "pin" | "both";
+export type KioskCheckInMethod = "pin" | "qr" | "face" | "nfc" | "all";
 export type KioskTheme = "dark" | "midnight" | "charcoal";
 export type KioskClockFormat = "12h" | "24h";
 export type KioskIdleAction = "none" | "screensaver" | "dim";
+
+export type KioskFaceRecPosition = "left" | "right" | "bottom";
+export type PenaltyApplyTo = "devtools" | "spoofing" | "both";
 
 export interface KioskSettings {
   // ── General ──
@@ -15,8 +18,12 @@ export interface KioskSettings {
   welcomeMessage: string;
   footerMessage: string;
 
-  // ── Check-in methods ──
-  checkInMethod: KioskCheckInMethod;
+  // ── Check-in methods (granular toggles) ──
+  checkInMethod: KioskCheckInMethod; // backward-compat, used as preset
+  enablePin: boolean;
+  enableQr: boolean;
+  enableFace: boolean;
+  enableNfc: boolean;
   allowCheckOut: boolean;
 
   // ── PIN settings ──
@@ -27,6 +34,9 @@ export interface KioskSettings {
   // ── QR / Token settings ──
   tokenRefreshInterval: number; // seconds 10-120
   tokenLength: number; // 6-12 chars
+
+  // ── NFC settings ──
+  nfcSimulatedDelay: number; // ms, how long to simulate NFC tap
 
   // ── Display ──
   kioskTheme: KioskTheme;
@@ -51,15 +61,32 @@ export interface KioskSettings {
   // ── Selfie / Photo ──
   selfieEnabled: boolean;
   selfieRequired: boolean;
+
+  // ── Face Recognition (Kiosk) ──
+  faceRecEnabled: boolean;
+  faceRecRequired: boolean;     // must complete face scan
+  faceRecAutoStart: boolean;    // auto-activate camera on kiosk load
+  faceRecCountdown: number;     // seconds (1-10) for scan countdown
+  faceRecPosition: KioskFaceRecPosition; // panel position
+
+  // ── Anti-Cheat Penalty ──
+  devOptionsPenaltyEnabled: boolean;
+  devOptionsPenaltyMinutes: number;        // 5-480
+  devOptionsPenaltyApplyTo: PenaltyApplyTo;
+  devOptionsPenaltyNotifyAdmin: boolean;
 }
 
 const DEFAULT_SETTINGS: KioskSettings = {
   kioskEnabled: true,
   kioskTitle: "Attendance Kiosk",
-  welcomeMessage: "Scan QR or enter your PIN",
+  welcomeMessage: "Choose a method to check in or out",
   footerMessage: "Unauthorized access is prohibited",
 
-  checkInMethod: "both",
+  checkInMethod: "all",
+  enablePin: true,
+  enableQr: true,
+  enableFace: true,
+  enableNfc: true,
   allowCheckOut: true,
 
   pinLength: 6,
@@ -68,6 +95,8 @@ const DEFAULT_SETTINGS: KioskSettings = {
 
   tokenRefreshInterval: 30,
   tokenLength: 8,
+
+  nfcSimulatedDelay: 1500,
 
   kioskTheme: "dark",
   clockFormat: "24h",
@@ -88,6 +117,17 @@ const DEFAULT_SETTINGS: KioskSettings = {
 
   selfieEnabled: false,
   selfieRequired: false,
+
+  faceRecEnabled: true,
+  faceRecRequired: false,
+  faceRecAutoStart: true,
+  faceRecCountdown: 3,
+  faceRecPosition: "bottom",
+
+  devOptionsPenaltyEnabled: true,
+  devOptionsPenaltyMinutes: 30,
+  devOptionsPenaltyApplyTo: "both",
+  devOptionsPenaltyNotifyAdmin: true,
 };
 
 // ─── Store ────────────────────────────────────────────────────────────────────
