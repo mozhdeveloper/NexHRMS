@@ -1,21 +1,18 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useMessagingStore } from "@/store/messaging.store";
 import { useTasksStore } from "@/store/tasks.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getInitials, formatDate } from "@/lib/format";
-import {
-    MessageSquare, Send, Hash, Megaphone, Mail, Smartphone, Globe,
-} from "lucide-react";
+import { MessageSquare, Send, Hash, Megaphone, Mail, Smartphone, Globe, ArrowLeft } from "lucide-react";
 import type { MessageChannel } from "@/types";
 
 const CHANNEL_ICONS: Record<MessageChannel, typeof Mail> = {
@@ -44,19 +41,18 @@ export default function EmployeeMessagesView() {
 
     const myChannels = useMemo(
         () => getChannelsForEmployee(currentUser.id),
-        [getChannelsForEmployee, currentUser.id]
+        [getChannelsForEmployee, currentUser.id],
     );
 
     const myAnnouncements = useMemo(
         () => getAnnouncementsForEmployee(
             currentUser.id,
             groups.map((g) => ({ id: g.id, memberEmployeeIds: g.memberEmployeeIds })),
-            tasks.map((t) => ({ id: t.id, assignedTo: t.assignedTo }))
+            tasks.map((t) => ({ id: t.id, assignedTo: t.assignedTo })),
         ),
-        [getAnnouncementsForEmployee, currentUser.id, groups, tasks]
+        [getAnnouncementsForEmployee, currentUser.id, groups, tasks],
     );
 
-    // ── Channel chat state ───────────────────────────────────
     const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
     const [chatMessage, setChatMessage] = useState("");
     const chatEndRef = useRef<HTMLDivElement>(null);
@@ -64,7 +60,7 @@ export default function EmployeeMessagesView() {
     const selectedChannel = myChannels.find((c) => c.id === selectedChannelId);
     const channelMsgs = useMemo(
         () => (selectedChannelId ? getChannelMessages(selectedChannelId) : []),
-        [selectedChannelId, getChannelMessages]
+        [selectedChannelId, getChannelMessages],
     );
 
     useEffect(() => {
@@ -80,94 +76,129 @@ export default function EmployeeMessagesView() {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [channelMsgs.length]);
 
-    const handleSendChat = () => {
+    const handleSend = () => {
         if (!chatMessage.trim() || !selectedChannelId) return;
         sendMessage({ channelId: selectedChannelId, employeeId: currentUser.id, message: chatMessage.trim() });
         setChatMessage("");
     };
 
-    const getEmpName = (id: string) => employees.find((e) => e.id === id)?.name || id;
-
+    const getEmpName = (id: string) => employees.find((e) => e.id === id)?.name ?? id;
     const totalUnread = myChannels.reduce((sum, ch) => sum + getUnreadCount(ch.id, currentUser.id), 0);
-    const unreadAnnouncements = myAnnouncements.filter((a) => !a.readBy.includes(currentUser.id)).length;
+    const unreadAnn = myAnnouncements.filter((a) => !a.readBy.includes(currentUser.id)).length;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 pb-6">
             <div>
-                <h1 className="text-2xl font-bold tracking-tight">Messages</h1>
-                <p className="text-sm text-muted-foreground mt-0.5">{myChannels.length} channels · {myAnnouncements.length} announcements</p>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Messages</h1>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                    {myChannels.length} channel{myChannels.length !== 1 ? "s" : ""} &middot; {myAnnouncements.length} announcement{myAnnouncements.length !== 1 ? "s" : ""}
+                </p>
             </div>
 
             <Tabs defaultValue="channels">
-                <TabsList>
-                    <TabsTrigger value="channels" className="gap-1.5">
+                <TabsList className="w-full sm:w-auto">
+                    <TabsTrigger value="channels" className="flex-1 sm:flex-none gap-1.5 text-xs sm:text-sm">
                         Channels
-                        {totalUnread > 0 && <Badge variant="default" className="text-[10px] h-5 min-w-5 justify-center">{totalUnread}</Badge>}
+                        {totalUnread > 0 && (
+                            <Badge variant="default" className="text-[10px] h-4 min-w-4 justify-center px-1">{totalUnread}</Badge>
+                        )}
                     </TabsTrigger>
-                    <TabsTrigger value="announcements" className="gap-1.5">
-                        Announcements
-                        {unreadAnnouncements > 0 && <Badge variant="default" className="text-[10px] h-5 min-w-5 justify-center">{unreadAnnouncements}</Badge>}
+                    <TabsTrigger value="announcements" className="flex-1 sm:flex-none gap-1.5 text-xs sm:text-sm">
+                        <span className="hidden sm:inline">Announcements</span>
+                        <span className="sm:hidden">Announce</span>
+                        {unreadAnn > 0 && (
+                            <Badge variant="default" className="text-[10px] h-4 min-w-4 justify-center px-1">{unreadAnn}</Badge>
+                        )}
                     </TabsTrigger>
                 </TabsList>
 
-                {/* ── Channels Tab ────────────────────────────── */}
-                <TabsContent value="channels" className="mt-4">
-                    <div className="grid lg:grid-cols-[260px_1fr] gap-4 h-[550px]">
-                        <Card className="border border-border/50">
-                            <CardContent className="p-0">
-                                <ScrollArea className="h-[550px]">
-                                    <div className="p-2 space-y-0.5">
-                                        {myChannels.length === 0 ? (
-                                            <div className="p-4 text-center text-muted-foreground text-sm">No channels</div>
-                                        ) : myChannels.map((ch) => {
-                                            const unread = getUnreadCount(ch.id, currentUser.id);
-                                            return (
-                                                <button
-                                                    key={ch.id}
-                                                    onClick={() => setSelectedChannelId(ch.id)}
-                                                    className={`w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-left transition-colors ${
-                                                        selectedChannelId === ch.id
-                                                            ? "bg-primary/10 text-primary"
-                                                            : "hover:bg-muted/50"
-                                                    }`}
-                                                >
-                                                    <Hash className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                                    <span className="text-sm font-medium truncate flex-1">{ch.name.replace("#", "")}</span>
-                                                    {unread > 0 && (
-                                                        <Badge variant="default" className="text-[10px] h-5 min-w-5 justify-center">{unread}</Badge>
-                                                    )}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </ScrollArea>
-                            </CardContent>
-                        </Card>
+                {/* ── Channels tab with mobile panel-swap ─────────────────── */}
+                <TabsContent value="channels" className="mt-3">
+                    <Card className="border border-border/50 overflow-hidden"
+                          style={{ height: "clamp(420px, calc(100svh - 220px), 640px)" }}>
+                        <div className="h-full lg:grid lg:grid-cols-[260px_1fr] lg:divide-x lg:divide-border/50">
 
-                        <Card className="border border-border/50 flex flex-col">
-                            {selectedChannel ? (
-                                <>
-                                    <CardHeader className="pb-2 border-b">
-                                        <CardTitle className="text-base">{selectedChannel.name}</CardTitle>
-                                        <p className="text-xs text-muted-foreground">{selectedChannel.memberEmployeeIds.length} members</p>
-                                    </CardHeader>
-                                    <CardContent className="flex-1 p-0 flex flex-col overflow-hidden">
-                                        <ScrollArea className="flex-1 p-4">
-                                            <div className="space-y-3">
+                            {/* Channel list — full page on mobile when no channel selected */}
+                            <div className={`flex flex-col h-full ${selectedChannelId ? "hidden lg:flex" : "flex"}`}>
+                                <div className="px-4 py-3 border-b shrink-0">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Channels</p>
+                                </div>
+                                <ScrollArea className="flex-1 min-h-0">
+                                    {myChannels.length === 0 ? (
+                                        <div className="p-8 text-center text-muted-foreground">
+                                            <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                                            <p className="text-sm">No channels yet</p>
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-border/50">
+                                            {myChannels.map((ch) => {
+                                                const unread = getUnreadCount(ch.id, currentUser.id);
+                                                return (
+                                                    <button
+                                                        key={ch.id}
+                                                        onClick={() => setSelectedChannelId(ch.id)}
+                                                        className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-muted/50 active:bg-muted transition-colors touch-manipulation"
+                                                    >
+                                                        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                                            <Hash className="h-4 w-4 text-primary" />
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-medium truncate">{ch.name.replace("#", "")}</p>
+                                                            <p className="text-xs text-muted-foreground">{ch.memberEmployeeIds.length} members</p>
+                                                        </div>
+                                                        {unread > 0 && (
+                                                            <Badge variant="default" className="text-[10px] h-5 min-w-5 justify-center shrink-0">{unread}</Badge>
+                                                        )}
+                                                        <ArrowLeft className="h-4 w-4 text-muted-foreground rotate-180 shrink-0" />
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </ScrollArea>
+                            </div>
+
+                            {/* Chat panel — full page on mobile when channel is selected */}
+                            <div className={`flex flex-col h-full min-h-0 ${selectedChannelId ? "flex" : "hidden lg:flex"}`}>
+                                {selectedChannel ? (
+                                    <>
+                                        {/* Chat header */}
+                                        <div className="flex items-center gap-3 px-4 py-3 border-b shrink-0">
+                                            <button
+                                                className="lg:hidden h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted -ml-1 shrink-0"
+                                                onClick={() => setSelectedChannelId(null)}
+                                                aria-label="Back to channels"
+                                            >
+                                                <ArrowLeft className="h-4 w-4" />
+                                            </button>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-sm font-semibold truncate">{selectedChannel.name}</p>
+                                                <p className="text-xs text-muted-foreground">{selectedChannel.memberEmployeeIds.length} members</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Messages */}
+                                        <ScrollArea className="flex-1 min-h-0">
+                                            <div className="p-4 space-y-4">
+                                                {channelMsgs.length === 0 && (
+                                                    <p className="text-center text-xs text-muted-foreground py-6">No messages yet. Say hello!</p>
+                                                )}
                                                 {channelMsgs.map((msg) => {
                                                     const isMine = msg.employeeId === currentUser.id;
                                                     return (
                                                         <div key={msg.id} className={`flex gap-2.5 ${isMine ? "flex-row-reverse" : ""}`}>
-                                                            <Avatar className="h-7 w-7 shrink-0">
+                                                            <Avatar className="h-8 w-8 shrink-0">
                                                                 <AvatarFallback className="text-[9px] bg-muted">{getInitials(getEmpName(msg.employeeId))}</AvatarFallback>
                                                             </Avatar>
-                                                            <div className={`max-w-[70%] ${isMine ? "text-right" : ""}`}>
-                                                                <div className="flex items-center gap-2 mb-0.5">
+                                                            <div className={`max-w-[75%] sm:max-w-[65%] space-y-0.5 flex flex-col ${isMine ? "items-end" : "items-start"}`}>
+                                                                <div className={`flex items-center gap-1.5 ${isMine ? "flex-row-reverse" : ""}`}>
                                                                     {!isMine && <span className="text-xs font-medium">{getEmpName(msg.employeeId)}</span>}
                                                                     <span className="text-[10px] text-muted-foreground">{formatDate(msg.createdAt)}</span>
                                                                 </div>
-                                                                <div className={`inline-block rounded-lg px-3 py-2 text-sm ${
-                                                                    isMine ? "bg-primary text-primary-foreground" : "bg-muted"
+                                                                <div className={`rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
+                                                                    isMine
+                                                                        ? "bg-primary text-primary-foreground rounded-tr-sm"
+                                                                        : "bg-muted rounded-tl-sm"
                                                                 }`}>
                                                                     {msg.message}
                                                                 </div>
@@ -178,38 +209,46 @@ export default function EmployeeMessagesView() {
                                                 <div ref={chatEndRef} />
                                             </div>
                                         </ScrollArea>
-                                        <div className="p-3 border-t flex gap-2">
+
+                                        {/* Input bar */}
+                                        <div className="p-3 border-t flex gap-2 shrink-0 bg-background">
                                             <Input
                                                 value={chatMessage}
                                                 onChange={(e) => setChatMessage(e.target.value)}
                                                 placeholder="Type a message..."
-                                                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendChat()}
+                                                className="text-base"
+                                                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
                                             />
-                                            <Button size="sm" onClick={handleSendChat} disabled={!chatMessage.trim()}>
+                                            <button
+                                                onClick={handleSend}
+                                                disabled={!chatMessage.trim()}
+                                                className="h-10 w-10 shrink-0 rounded-md bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 hover:bg-primary/90 transition-colors"
+                                                aria-label="Send"
+                                            >
                                                 <Send className="h-4 w-4" />
-                                            </Button>
+                                            </button>
                                         </div>
-                                    </CardContent>
-                                </>
-                            ) : (
-                                <CardContent className="flex-1 flex items-center justify-center">
-                                    <div className="text-center text-muted-foreground">
-                                        <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                                        <p className="text-sm">Select a channel to view messages</p>
+                                    </>
+                                ) : (
+                                    <div className="flex-1 flex items-center justify-center">
+                                        <div className="text-center text-muted-foreground">
+                                            <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                                            <p className="text-sm">Select a channel to start chatting</p>
+                                        </div>
                                     </div>
-                                </CardContent>
-                            )}
-                        </Card>
-                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </Card>
                 </TabsContent>
 
-                {/* ── Announcements Tab ───────────────────────── */}
-                <TabsContent value="announcements" className="space-y-3 mt-4">
+                {/* ── Announcements tab ────────────────────────────────────── */}
+                <TabsContent value="announcements" className="space-y-2.5 mt-3">
                     {myAnnouncements.length === 0 ? (
                         <Card className="border border-border/50">
-                            <CardContent className="p-8 text-center text-muted-foreground">
-                                <Megaphone className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                                <p className="text-sm">No announcements for you</p>
+                            <CardContent className="p-10 text-center text-muted-foreground">
+                                <Megaphone className="h-9 w-9 mx-auto mb-2 opacity-30" />
+                                <p className="text-sm">No announcements for you yet</p>
                             </CardContent>
                         </Card>
                     ) : (
@@ -219,21 +258,28 @@ export default function EmployeeMessagesView() {
                             return (
                                 <Card
                                     key={ann.id}
-                                    className={`border transition-colors cursor-pointer ${isRead ? "border-border/50" : "border-primary/30 bg-primary/5"}`}
+                                    className={`border transition-colors cursor-pointer touch-manipulation active:scale-[0.99] ${
+                                        isRead ? "border-border/50" : "border-primary/40 bg-primary/5"
+                                    }`}
                                     onClick={() => { if (!isRead) markAnnouncementRead(ann.id, currentUser.id); }}
                                 >
                                     <CardContent className="p-4 space-y-2">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <h3 className="text-sm font-semibold">{ann.subject}</h3>
-                                            {!isRead && <Badge variant="default" className="text-[10px]">New</Badge>}
-                                            <Badge variant="outline" className="text-[10px] gap-1">
-                                                <ChannelIcon className="h-3 w-3" /> {CHANNEL_LABELS[ann.channel]}
+                                        <div className="flex items-start gap-2">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap mb-1">
+                                                    <h3 className="text-sm font-semibold">{ann.subject}</h3>
+                                                    {!isRead && <Badge variant="default" className="text-[10px] shrink-0">New</Badge>}
+                                                </div>
+                                                <p className="text-sm text-muted-foreground leading-relaxed">{ann.body}</p>
+                                            </div>
+                                            <Badge variant="outline" className="text-[10px] gap-1 shrink-0 mt-0.5">
+                                                <ChannelIcon className="h-3 w-3" />
+                                                <span className="hidden sm:inline">{CHANNEL_LABELS[ann.channel]}</span>
                                             </Badge>
                                         </div>
-                                        <p className="text-sm text-muted-foreground">{ann.body}</p>
-                                        <div className="text-xs text-muted-foreground">
-                                            From <strong>{getEmpName(ann.sentBy)}</strong> · {formatDate(ann.sentAt)}
-                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                            From <strong>{getEmpName(ann.sentBy)}</strong> &middot; {formatDate(ann.sentAt)}
+                                        </p>
                                     </CardContent>
                                 </Card>
                             );
