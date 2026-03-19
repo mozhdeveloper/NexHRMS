@@ -30,9 +30,9 @@ import { useRoleHref } from "@/lib/hooks/use-role-href";
 import Link from "next/link";
 import {
     ListTodo, Plus, Users, FolderKanban, Clock, CheckCircle2, XCircle,
-    AlertTriangle, ArrowUpRight, Search, Filter, Trash2, Eye,
+    AlertTriangle, ArrowUpRight, Search, Filter, Trash2, Eye, Pencil,
 } from "lucide-react";
-import type { TaskStatus, TaskPriority, AnnouncementPermission } from "@/types";
+import type { Task, TaskStatus, TaskPriority, AnnouncementPermission } from "@/types";
 
 const STATUS_CONFIG: Record<TaskStatus, { label: string; color: string; icon: typeof CheckCircle2 }> = {
     open: { label: "Open", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400", icon: Clock },
@@ -52,7 +52,7 @@ const PRIORITY_CONFIG: Record<TaskPriority, { label: string; color: string }> = 
 
 export default function AdminTasksView() {
     const {
-        groups, tasks, addGroup, addTask, deleteTask, deleteGroup, changeStatus, getStats,
+        groups, tasks, addGroup, addTask, updateTask, deleteTask, deleteGroup, changeStatus, getStats,
     } = useTasksStore();
     const employees = useEmployeesStore((s) => s.employees);
     const projects = useProjectsStore((s) => s.projects);
@@ -111,6 +111,19 @@ export default function AdminTasksView() {
     const [tCompletion, setTCompletion] = useState(false);
     const [tTags, setTTags] = useState("");
 
+    // ── Edit Task Dialog ─────────────────────────────────────
+    const [editTaskOpen, setEditTaskOpen] = useState(false);
+    const [editTaskId, setEditTaskId] = useState("");
+    const [etTitle, setEtTitle] = useState("");
+    const [etDesc, setEtDesc] = useState("");
+    const [etGroupId, setEtGroupId] = useState("");
+    const [etPriority, setEtPriority] = useState<TaskPriority>("medium");
+    const [etDue, setEtDue] = useState("");
+    const [etAssigned, setEtAssigned] = useState<string[]>([]);
+    const [etCompletion, setEtCompletion] = useState(false);
+    const [etTags, setEtTags] = useState("");
+    const [etStatus, setEtStatus] = useState<TaskStatus>("open");
+
     const handleCreateTask = () => {
         if (!tTitle || !tGroupId) { toast.error("Title and group are required"); return; }
         addTask({
@@ -131,6 +144,37 @@ export default function AdminTasksView() {
         setTaskOpen(false);
     };
 
+    const handleOpenEditTask = (task: Task) => {
+        setEditTaskId(task.id);
+        setEtTitle(task.title);
+        setEtDesc(task.description || "");
+        setEtGroupId(task.groupId);
+        setEtPriority(task.priority);
+        setEtDue(task.dueDate || "");
+        setEtAssigned([...task.assignedTo]);
+        setEtCompletion(task.completionRequired ?? false);
+        setEtTags(task.tags?.join(", ") || "");
+        setEtStatus(task.status);
+        setEditTaskOpen(true);
+    };
+
+    const handleUpdateTask = () => {
+        if (!etTitle || !etGroupId) { toast.error("Title and group are required"); return; }
+        updateTask(editTaskId, {
+            groupId: etGroupId,
+            title: etTitle,
+            description: etDesc || "",
+            priority: etPriority,
+            status: etStatus,
+            dueDate: etDue || undefined,
+            assignedTo: etAssigned,
+            completionRequired: etCompletion,
+            tags: etTags ? etTags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
+        });
+        toast.success(`Task "${etTitle}" updated`);
+        setEditTaskOpen(false);
+    };
+
     const getEmpName = (id: string) => employees.find((e) => e.id === id)?.name || id;
     const getGroupName = (id: string) => groups.find((g) => g.id === id)?.name || id;
 
@@ -147,7 +191,7 @@ export default function AdminTasksView() {
                         <DialogTrigger asChild>
                             <Button variant="outline" className="gap-1.5"><Users className="h-4 w-4" /> New Group</Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                        <DialogContent className="max-w-lg w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
                             <DialogHeader><DialogTitle>Create Task Group</DialogTitle></DialogHeader>
                             <div className="space-y-4 pt-2">
                                 <div>
@@ -204,7 +248,7 @@ export default function AdminTasksView() {
                         <DialogTrigger asChild>
                             <Button className="gap-1.5"><Plus className="h-4 w-4" /> New Task</Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                        <DialogContent className="max-w-lg w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
                             <DialogHeader><DialogTitle>Create Task</DialogTitle></DialogHeader>
                             <div className="space-y-4 pt-2">
                                 <div>
@@ -215,7 +259,7 @@ export default function AdminTasksView() {
                                     <label className="text-sm font-medium">Description</label>
                                     <Textarea value={tDesc} onChange={(e) => setTDesc(e.target.value)} placeholder="Task details..." className="mt-1" rows={3} />
                                 </div>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
                                         <label className="text-sm font-medium">Group *</label>
                                         <Select value={tGroupId} onValueChange={setTGroupId}>
@@ -272,6 +316,91 @@ export default function AdminTasksView() {
                     </Dialog>
                 </div>
             </div>
+
+            {/* ── Edit Task Dialog ──────────────────────────── */}
+            <Dialog open={editTaskOpen} onOpenChange={setEditTaskOpen}>
+                <DialogContent className="max-w-lg w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
+                    <DialogHeader><DialogTitle>Edit Task</DialogTitle></DialogHeader>
+                    <div className="space-y-4 pt-2">
+                        <div>
+                            <label className="text-sm font-medium">Title *</label>
+                            <Input value={etTitle} onChange={(e) => setEtTitle(e.target.value)} placeholder="e.g. Site inspection" className="mt-1" />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium">Description</label>
+                            <Textarea value={etDesc} onChange={(e) => setEtDesc(e.target.value)} placeholder="Task details..." className="mt-1" rows={3} />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-sm font-medium">Group *</label>
+                                <Select value={etGroupId} onValueChange={setEtGroupId}>
+                                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select group" /></SelectTrigger>
+                                    <SelectContent>
+                                        {groups.map((g) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium">Priority</label>
+                                <Select value={etPriority} onValueChange={(v) => setEtPriority(v as TaskPriority)}>
+                                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="low">Low</SelectItem>
+                                        <SelectItem value="medium">Medium</SelectItem>
+                                        <SelectItem value="high">High</SelectItem>
+                                        <SelectItem value="urgent">Urgent</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-sm font-medium">Status</label>
+                                <Select value={etStatus} onValueChange={(v) => setEtStatus(v as TaskStatus)}>
+                                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="open">Open</SelectItem>
+                                        <SelectItem value="in_progress">In Progress</SelectItem>
+                                        <SelectItem value="submitted">Submitted</SelectItem>
+                                        <SelectItem value="verified">Verified</SelectItem>
+                                        <SelectItem value="rejected">Rejected</SelectItem>
+                                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium">Due Date</label>
+                                <Input type="date" value={etDue} onChange={(e) => setEtDue(e.target.value)} className="mt-1" />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Switch checked={etCompletion} onCheckedChange={setEtCompletion} />
+                            <label className="text-sm font-medium">Require photo/GPS proof</label>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium">Tags (comma-separated)</label>
+                            <Input value={etTags} onChange={(e) => setEtTags(e.target.value)} placeholder="inspection, safety" className="mt-1" />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium">Assign To</label>
+                            <ScrollArea className="h-40 rounded border mt-1 p-2">
+                                {employees.filter((e) => e.status === "active").map((emp) => (
+                                    <div key={emp.id} className="flex items-center gap-2 py-1">
+                                        <Checkbox
+                                            checked={etAssigned.includes(emp.id)}
+                                            onCheckedChange={(checked) =>
+                                                setEtAssigned((prev) => checked ? [...prev, emp.id] : prev.filter((id) => id !== emp.id))
+                                            }
+                                        />
+                                        <span className="text-sm">{emp.name}</span>
+                                    </div>
+                                ))}
+                            </ScrollArea>
+                        </div>
+                        <Button onClick={handleUpdateTask} className="w-full">Save Changes</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {/* KPI Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -335,7 +464,70 @@ export default function AdminTasksView() {
                         </Select>
                     </div>
 
-                    <Card className="border border-border/50">
+                    {/* ── Mobile card list (< md) ────────────────────── */}
+                    <div className="md:hidden space-y-2">
+                        {filteredTasks.length === 0 ? (
+                            <Card className="border border-border/50">
+                                <CardContent className="p-8 text-center text-sm text-muted-foreground">
+                                    <ListTodo className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                                    No tasks found
+                                </CardContent>
+                            </Card>
+                        ) : filteredTasks.map((task) => {
+                            const sc = STATUS_CONFIG[task.status];
+                            const pc = PRIORITY_CONFIG[task.priority];
+                            const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !["verified", "cancelled"].includes(task.status);
+                            return (
+                                <Card key={task.id} className="border border-border/50">
+                                    <CardContent className="p-3 space-y-2">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <Link href={roleHref(`/tasks/${task.id}`)} className="min-w-0 flex-1 hover:underline">
+                                                <p className="text-sm font-medium leading-snug">{task.title}</p>
+                                                <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{task.id} · {getGroupName(task.groupId)}</p>
+                                            </Link>
+                                            <div className="flex gap-0.5 shrink-0">
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                                                    <Link href={roleHref(`/tasks/${task.id}`)}><Eye className="h-3.5 w-3.5" /></Link>
+                                                </Button>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenEditTask(task)}>
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-500/10" onClick={() => { deleteTask(task.id); toast.success("Task deleted"); }}>
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                            <Badge variant="secondary" className={`text-[10px] ${sc.color}`}>{sc.label}</Badge>
+                                            <Badge variant="secondary" className={`text-[10px] ${pc.color}`}>{pc.label}</Badge>
+                                            {isOverdue && <Badge variant="secondary" className="text-[10px] bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">Overdue</Badge>}
+                                            {task.completionRequired && <Badge variant="outline" className="text-[10px]">📸 Proof</Badge>}
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex -space-x-1.5">
+                                                {task.assignedTo.length === 0 && <span className="text-xs text-muted-foreground">Unassigned</span>}
+                                                {task.assignedTo.slice(0, 4).map((empId) => (
+                                                    <Avatar key={empId} className="h-5 w-5 border-2 border-card">
+                                                        <AvatarFallback className="text-[7px] bg-muted">{getInitials(getEmpName(empId))}</AvatarFallback>
+                                                    </Avatar>
+                                                ))}
+                                                {task.assignedTo.length > 4 && <span className="text-xs text-muted-foreground pl-1">+{task.assignedTo.length - 4}</span>}
+                                            </div>
+                                            {task.dueDate && (
+                                                <span className={`text-xs ${isOverdue ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
+                                                    {isOverdue && <AlertTriangle className="inline h-3 w-3 mr-0.5" />}
+                                                    {formatDate(task.dueDate)}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
+                    </div>
+
+                    {/* ── Desktop table (≥ md) ─────────────────────────── */}
+                    <Card className="hidden md:block border border-border/50">
                         <CardContent className="p-0">
                             <div className="overflow-x-auto">
                                 <Table>
@@ -401,6 +593,9 @@ export default function AdminTasksView() {
                                                         <div className="flex items-center gap-1">
                                                             <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
                                                                 <Link href={roleHref(`/tasks/${task.id}`)}><Eye className="h-3.5 w-3.5" /></Link>
+                                                            </Button>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Edit task" onClick={() => handleOpenEditTask(task)}>
+                                                                <Pencil className="h-3.5 w-3.5" />
                                                             </Button>
                                                             {task.status === "submitted" && (
                                                                 <Button
