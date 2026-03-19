@@ -64,15 +64,21 @@ export default function TaskDetailPage() {
     const report = useMemo(() => getCompletionReport(taskId), [taskId, completionReports]);
     const group = task ? groups.find((g) => g.id === task.groupId) : undefined;
 
+    // Resolve HR employee record by email (DemoUser "U004" ↔ Employee "EMP026")
+    const myEmployeeId = useMemo(
+        () => employees.find((e) => e.email === currentUser.email || e.name === currentUser.name)?.id ?? currentUser.id,
+        [employees, currentUser.email, currentUser.name, currentUser.id],
+    );
+
     const canVerify = hasPermission(currentUser.role, "tasks:verify");
     const canAnnounce = hasPermission(currentUser.role, "messages:send_announcement");
-    const isAssigned = task?.assignedTo.includes(currentUser.id);
+    const isAssigned = task?.assignedTo.includes(myEmployeeId);
 
     // ── Comment state ────────────────────────────────────────
     const [commentText, setCommentText] = useState("");
     const handleAddComment = () => {
         if (!commentText.trim()) return;
-        addComment({ taskId, employeeId: currentUser.id, message: commentText.trim() });
+        addComment({ taskId, employeeId: myEmployeeId, message: commentText.trim() });
         setCommentText("");
         toast.success("Comment added");
     };
@@ -126,7 +132,7 @@ export default function TaskDetailPage() {
         if (task.completionRequired && !photoData) { toast.error("Photo proof is required"); return; }
         submitCompletion({
             taskId: task.id,
-            employeeId: currentUser.id,
+            employeeId: myEmployeeId,
             photoDataUrl: photoData || undefined,
             gpsLat: gpsData?.lat,
             gpsLng: gpsData?.lng,
@@ -163,7 +169,7 @@ export default function TaskDetailPage() {
             channel: notifyChannel,
             scope: "task_assignees",
             targetTaskId: task.id,
-            sentBy: currentUser.id,
+            sentBy: myEmployeeId,
         });
         toast.success("Announcement sent to task assignees");
         setNotifySubject(""); setNotifyBody(""); setNotifyOpen(false);
@@ -384,7 +390,7 @@ export default function TaskDetailPage() {
                                 {/* Verify / Reject buttons for admins */}
                                 {canVerify && !report.verifiedBy && !report.rejectionReason && (
                                     <div className="flex gap-2 pt-2">
-                                        <Button size="sm" className="gap-1.5" onClick={() => { verifyCompletion(report.id, currentUser.id); toast.success("Task verified!"); }}>
+                                        <Button size="sm" className="gap-1.5" onClick={() => { verifyCompletion(report.id, myEmployeeId); toast.success("Task verified!"); }}>
                                             <CheckCircle2 className="h-4 w-4" /> Verify
                                         </Button>
                                         <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>

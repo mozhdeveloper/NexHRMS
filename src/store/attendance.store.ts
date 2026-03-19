@@ -73,6 +73,8 @@ interface AttendanceState {
     clearPenalty: (employeeId: string) => void;
     getActivePenalty: (employeeId: string) => PenaltyRecord | undefined;
     cleanExpiredPenalties: () => void;
+    /** Clears today's attendance log for one employee — use for simulation/testing. */
+    resetTodayLog: (employeeId: string) => void;
 
     resetToSeed: () => void;
 }
@@ -482,6 +484,15 @@ export const useAttendanceStore = create<AttendanceState>()(
                         (p) => !p.resolved && p.penaltyUntil > new Date().toISOString()
                     ),
                 })),
+
+            resetTodayLog: (employeeId) => {
+                const today = new Date().toISOString().split("T")[0];
+                set((s) => ({
+                    logs: s.logs.filter(
+                        (l) => !(l.employeeId === employeeId && l.date === today)
+                    ),
+                }));
+            },
 
             resetToSeed: () =>
                 set(() => ({

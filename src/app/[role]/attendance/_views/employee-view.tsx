@@ -18,7 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import {
     Clock, LogIn, LogOut, Download, MapPin, CheckCircle, XCircle,
-    Navigation, ShieldCheck, Timer, Plus, ShieldAlert, Gauge, CalendarDays,
+    Navigation, ShieldCheck, Timer, Plus, ShieldAlert, Gauge, CalendarDays, RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { isWithinGeofence } from "@/lib/geofence";
@@ -94,7 +94,7 @@ const otStatusColor: Record<string, string> = {
    EMPLOYEE VIEW — immersive personal attendance dashboard
    ═══════════════════════════════════════════════════════════════ */
 export default function EmployeeView() {
-    const { logs, checkIn, checkOut, getTodayLog, overtimeRequests, submitOvertimeRequest, holidays, applyPenalty, getActivePenalty, cleanExpiredPenalties } = useAttendanceStore();
+    const { logs, checkIn, checkOut, getTodayLog, overtimeRequests, submitOvertimeRequest, holidays, applyPenalty, getActivePenalty, cleanExpiredPenalties, resetTodayLog } = useAttendanceStore();
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
     const getProjectForEmployee = useProjectsStore((s) => s.getProjectForEmployee);
@@ -574,10 +574,23 @@ export default function EmployeeView() {
                 )}
 
                 {/* ── Footer ───────────────────────────────────────────── */}
-                <div className="flex items-center justify-center pb-4">
+                <div className="flex items-center justify-center gap-2 pb-4">
                     <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground h-8" onClick={handleExportCSV}>
                         <Download className="h-3.5 w-3.5" /> Export My Logs
                     </Button>
+                    {myEmployeeId && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1.5 text-xs text-orange-500 hover:text-orange-600 hover:bg-orange-500/10 h-8"
+                            onClick={() => {
+                                resetTodayLog(myEmployeeId);
+                                toast.success("Today's attendance reset — ready to simulate again.");
+                            }}
+                        >
+                            <RotateCcw className="h-3.5 w-3.5" /> Reset Today (Sim)
+                        </Button>
+                    )}
                 </div>
             </div>
 

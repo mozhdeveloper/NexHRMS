@@ -22,7 +22,6 @@ export const DEMO_USERS: DemoUser[] = [
     { id: "U002", name: "Jordan Lee", role: "hr", email: "hr@nexhrms.com" },
     { id: "U003", name: "Morgan Chen", role: "finance", email: "finance@nexhrms.com" },
     { id: "U004", name: "Sam Torres", role: "employee", email: "employee@nexhrms.com" },
-    { id: "U005", name: "Olivia Harper", role: "employee", email: "olivia@nexhrms.com" },
     { id: "U006", name: "Pat Reyes", role: "supervisor", email: "supervisor@nexhrms.com" },
     { id: "U007", name: "Dana Cruz", role: "payroll_admin", email: "payroll@nexhrms.com" },
     { id: "U008", name: "Rene Santos", role: "auditor", email: "auditor@nexhrms.com" },

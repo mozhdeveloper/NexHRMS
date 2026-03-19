@@ -120,9 +120,16 @@ export default function EmployeeTasksView() {
     const currentUser = useAuthStore((s) => s.currentUser);
     const roleHref = useRoleHref();
 
+    // Resolve the HR employee record by email so tasks assigned to "EMP026"
+    // are found even though the DemoUser id is "U004".
+    const myEmployeeId = useMemo(
+        () => employees.find((e) => e.email === currentUser.email || e.name === currentUser.name)?.id ?? currentUser.id,
+        [employees, currentUser.email, currentUser.name, currentUser.id],
+    );
+
     const myTasks = useMemo(
-        () => getTasksForEmployee(currentUser.id),
-        [getTasksForEmployee, currentUser.id],
+        () => getTasksForEmployee(myEmployeeId),
+        [getTasksForEmployee, myEmployeeId],
     );
 
     const activeTasks = myTasks.filter((t) => ["open", "in_progress", "rejected"].includes(t.status));
