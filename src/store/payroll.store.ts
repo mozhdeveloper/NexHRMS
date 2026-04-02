@@ -113,7 +113,7 @@ export const usePayrollStore = create<PayrollState>()(
             signPayslip: (id, signatureDataUrl) =>
                 set((s) => ({
                     payslips: s.payslips.map((p) =>
-                        p.id === id && (p.status === "published" || p.status === "paid")
+                        p.id === id && ["issued", "published", "paid"].includes(p.status)
                             ? { ...p, signedAt: new Date().toISOString(), signatureDataUrl }
                             : p
                     ),

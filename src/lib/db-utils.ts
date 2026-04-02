@@ -45,12 +45,42 @@ export function toDbRow(obj: Record<string, unknown>): Record<string, unknown> {
   return keysToSnake(obj);
 }
 
-/** Pass-through: employees.role uses lowercase after migration 017 */
+/**
+ * Valid system roles per DB CHECK constraint.
+ * Job titles (Frontend Developer, etc.) are NOT valid DB roles.
+ */
+const VALID_DB_ROLES = new Set([
+  "admin",
+  "hr",
+  "finance",
+  "employee",
+  "supervisor",
+  "payroll_admin",
+  "auditor",
+]);
+
+/**
+ * Map a role string to a valid DB role.
+ * - If already a valid system role, return as-is (lowercased).
+ * - If a job title or invalid value, default to "employee".
+ */
 export function roleToDbFormat(role: string): string {
+  if (!role) return "employee";
+  const lower = role.toLowerCase();
+  if (VALID_DB_ROLES.has(lower)) return lower;
+  // Job titles like "Frontend Developer" are not valid DB roles → default to "employee"
+  console.warn(`[db-utils] Invalid role "${role}" mapped to "employee" for DB storage`);
+  return "employee";
+}
+
+/** Pass-through: employees.role is already lowercase in DB */
+export function roleFromDb(role: string): string {
   return role;
 }
 
-/** Pass-through: employees.role uses lowercase after migration 017 */
-export function roleFromDb(role: string): string {
-  return role;
+/**
+ * Check if a role is a valid system role (not a job title).
+ */
+export function isValidSystemRole(role: string): boolean {
+  return VALID_DB_ROLES.has(role?.toLowerCase() ?? "");
 }

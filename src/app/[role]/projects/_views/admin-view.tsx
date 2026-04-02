@@ -163,7 +163,7 @@ export default function AdminProjectsView() {
                             </div>
                             <div>
                                 <label className="text-sm font-medium mb-2 block">Geofence Location *</label>
-                                <MapSelector lat={lat} lng={lng} radius={radius} onLatChange={setLat} onLngChange={setLng} onRadiusChange={setRadius} onAddressChange={setLocationAddress} />
+                                <MapSelector key={addOpen ? "add-map" : "add-map-closed"} lat={lat} lng={lng} radius={radius} onLatChange={setLat} onLngChange={setLng} onRadiusChange={setRadius} onAddressChange={setLocationAddress} />
                             </div>
                             <div>
                                 <label className="text-sm font-medium">Verification Method</label>
@@ -322,6 +322,7 @@ export default function AdminProjectsView() {
                         <div>
                             <label className="text-sm font-medium mb-2 block">Geofence Location *</label>
                             <MapSelector
+                                key={editOpen ? "edit-map" : "edit-map-closed"}
                                 lat={editLat}
                                 lng={editLng}
                                 radius={editRadius}

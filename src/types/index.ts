@@ -67,6 +67,35 @@ export interface EmployeeDocument {
   fileType?: string;
 }
 
+// ─── Job Title ───────────────────────────────────────────────
+
+export interface JobTitle {
+  id: string;
+  name: string;
+  description?: string;
+  department?: string;
+  isActive: boolean;
+  isLead: boolean;
+  color: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Department ──────────────────────────────────────────────
+
+export interface Department {
+  id: string;
+  name: string;
+  description?: string;
+  headId?: string;        // employee ID of department head
+  color: string;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ─── Pay Schedule Configuration ──────────────────────────────
 
 export interface PayScheduleConfig {

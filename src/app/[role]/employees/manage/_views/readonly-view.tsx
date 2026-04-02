@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Search, Mail, MapPin, Phone } from "lucide-react";
 import { getInitials } from "@/lib/format";
-import { DEPARTMENTS } from "@/lib/constants";
+import { useDepartmentsStore } from "@/store/departments.store";
 import Link from "next/link";
 import { useRoleHref } from "@/lib/hooks/use-role-href";
 
@@ -25,6 +25,7 @@ export default function ReadonlyEmployeesView() {
     const employees = useEmployeesStore((s) => s.employees);
     const { getProjectForEmployee } = useProjectsStore();
     const rh = useRoleHref();
+    const departments = useDepartmentsStore((s) => s.departments);
     const [search, setSearch] = useState("");
     const [dept, setDept] = useState("all");
     const [status, setStatus] = useState("all");
@@ -53,7 +54,7 @@ export default function ReadonlyEmployeesView() {
                     <SelectTrigger className="w-full sm:w-[160px]"><SelectValue placeholder="Department" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Departments</SelectItem>
-                        {DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                        {departments.filter((d) => d.isActive).map((d) => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
                     </SelectContent>
                 </Select>
                 <Select value={status} onValueChange={setStatus}>

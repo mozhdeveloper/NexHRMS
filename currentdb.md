@@ -176,6 +176,18 @@ CREATE TABLE public.dashboard_layouts (
   CONSTRAINT dashboard_layouts_pkey PRIMARY KEY (role_id),
   CONSTRAINT dashboard_layouts_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles_custom(id)
 );
+CREATE TABLE public.departments (
+  id text NOT NULL,
+  name text NOT NULL UNIQUE,
+  description text,
+  head_id text,
+  color text NOT NULL DEFAULT '#6366f1'::text,
+  is_active boolean NOT NULL DEFAULT true,
+  created_by text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT departments_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.employee_documents (
   id text NOT NULL,
   employee_id text NOT NULL,
@@ -279,6 +291,19 @@ CREATE TABLE public.holidays (
   is_custom boolean NOT NULL DEFAULT false,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT holidays_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.job_titles (
+  id text NOT NULL,
+  name text NOT NULL UNIQUE,
+  description text,
+  department text,
+  is_active boolean NOT NULL DEFAULT true,
+  is_lead boolean NOT NULL DEFAULT false,
+  color text NOT NULL DEFAULT '#6366f1'::text,
+  created_by text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT job_titles_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.kiosk_devices (
   id text NOT NULL,

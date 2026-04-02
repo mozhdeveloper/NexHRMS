@@ -122,6 +122,24 @@ async function deleteRow(table: string, id: string) {
   return !error;
 }
 
+/**
+ * Check if employees exist in the database.
+ * Returns the set of IDs that DO exist.
+ * Used to prevent FK constraint violations when inserting junction table records.
+ */
+async function getExistingEmployeeIds(ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  const { data, error } = await supabase()
+    .from("employees")
+    .select("id")
+    .in("id", ids);
+  if (error) {
+    console.warn("[db] getExistingEmployeeIds:", error.message);
+    return new Set(); // Fail-safe: return empty set, caller will skip inserts
+  }
+  return new Set((data ?? []).map((r: { id: string }) => r.id));
+}
+
 // ─── Employees ──────────────────────────────────────────────────
 
 function employeeFromDb(row: Record<string, unknown>): Employee {
@@ -285,6 +303,12 @@ export const attendanceDb = {
   },
 
   async upsertEmployeeShift(employeeId: string, shiftId: string): Promise<boolean> {
+    // Check if employee exists in DB first to avoid FK constraint error
+    const existingIds = await getExistingEmployeeIds([employeeId]);
+    if (!existingIds.has(employeeId)) {
+      console.warn(`[db] upsertEmployeeShift: Employee ${employeeId} not found in DB, skipping shift assignment`);
+      return false;
+    }
     const { error } = await supabase()
       .from("employee_shifts")
       .upsert({ employee_id: employeeId, shift_id: shiftId, assigned_at: new Date().toISOString() }, { onConflict: "employee_id" });
@@ -583,10 +607,21 @@ export const projectsDb = {
 
     const toAdd = [...targetIds].filter((id) => !existingIds.has(id));
     if (toAdd.length > 0) {
-      const { error: insErr } = await supabase()
-        .from("project_assignments")
-        .insert(toAdd.map((eid) => ({ project_id: project.id, employee_id: eid })));
-      if (insErr) console.error("[db] project_assignments.insert:", insErr.message);
+      // Filter to only employees that exist in DB to avoid FK constraint errors
+      const validEmployeeIds = await getExistingEmployeeIds(toAdd);
+      const safeToAdd = toAdd.filter((id) => validEmployeeIds.has(id));
+      
+      if (safeToAdd.length < toAdd.length) {
+        const skipped = toAdd.filter((id) => !validEmployeeIds.has(id));
+        console.warn(`[db] project_assignments: Skipping ${skipped.length} employee(s) not in DB:`, skipped);
+      }
+      
+      if (safeToAdd.length > 0) {
+        const { error: insErr } = await supabase()
+          .from("project_assignments")
+          .insert(safeToAdd.map((eid) => ({ project_id: project.id, employee_id: eid })));
+        if (insErr) console.error("[db] project_assignments.insert:", insErr.message);
+      }
     }
 
     return true;

@@ -14,7 +14,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Search, Mail, MapPin, Phone, Cake, DollarSign, Pencil } from "lucide-react";
 import { getInitials, formatCurrency } from "@/lib/format";
-import { DEPARTMENTS } from "@/lib/constants";
+import { useDepartmentsStore } from "@/store/departments.store";
 import Link from "next/link";
 import { useRoleHref } from "@/lib/hooks/use-role-href";
 import { toast } from "sonner";
@@ -29,6 +29,7 @@ export default function FinanceEmployeesView() {
     const { employees, updateEmployee, salaryRequests, approveSalaryChange, rejectSalaryChange } = useEmployeesStore();
     const currentUser = useAuthStore((s) => s.currentUser);
     const rh = useRoleHref();
+    const departments = useDepartmentsStore((s) => s.departments);
 
     const [search, setSearch] = useState("");
     const [dept, setDept] = useState("all");
@@ -79,7 +80,7 @@ export default function FinanceEmployeesView() {
                 </div>
                 <Select value={dept} onValueChange={setDept}>
                     <SelectTrigger className="w-full sm:w-[160px]"><SelectValue placeholder="Department" /></SelectTrigger>
-                    <SelectContent><SelectItem value="all">All Departments</SelectItem>{DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                    <SelectContent><SelectItem value="all">All Departments</SelectItem>{departments.filter((d) => d.isActive).map((d) => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}</SelectContent>
                 </Select>
                 <Select value={status} onValueChange={setStatus}>
                     <SelectTrigger className="w-full sm:w-[130px]"><SelectValue /></SelectTrigger>

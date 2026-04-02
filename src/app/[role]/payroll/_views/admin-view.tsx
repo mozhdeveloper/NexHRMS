@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { usePayrollStore } from "@/store/payroll.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
@@ -253,6 +253,60 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
 
     const viewTitle = mode === "admin" ? "Payroll Management" : mode === "finance" ? "Payroll & Finance" : "Payroll Administration";
 
+    // ─── Batch action state ──────────────────────────────────────
+    const [batchProcessing, setBatchProcessing] = useState(false);
+
+    // ─── Status summary counts ───────────────────────────────────
+    const statusCounts = useMemo(() => {
+        const counts = { issued: 0, confirmed: 0, published: 0, paid: 0, acknowledged: 0, signed: 0 };
+        payslips.forEach((p) => {
+            if (p.status in counts) counts[p.status as keyof typeof counts]++;
+            if (p.signedAt) counts.signed++;
+        });
+        return counts;
+    }, [payslips]);
+
+    // ─── Batch handlers ──────────────────────────────────────────
+    // Use store-first pattern (matching single-action buttons).
+    // The write-through subscriber in sync.service.ts persists to Supabase.
+    const handleBatchConfirm = useCallback(() => {
+        const issuedSlips = filteredPayslips.filter((p) => p.status === "issued" && !isRunLocked(p.issuedAt));
+        if (issuedSlips.length === 0) { toast.error("No issued payslips to confirm"); return; }
+        setBatchProcessing(true);
+        issuedSlips.forEach((ps) => {
+            confirmPayslip(ps.id);
+            useAuditStore.getState().log({ entityType: "payslip", entityId: ps.id, action: "payroll_locked", performedBy: currentUser.id });
+        });
+        toast.success(`Confirmed ${issuedSlips.length} payslip${issuedSlips.length > 1 ? "s" : ""}`);
+        setBatchProcessing(false);
+    }, [filteredPayslips, confirmPayslip, currentUser.id]);
+
+    const handleBatchPublish = useCallback(() => {
+        const confirmedSlips = filteredPayslips.filter((p) => p.status === "confirmed");
+        if (confirmedSlips.length === 0) { toast.error("No confirmed payslips to publish"); return; }
+        setBatchProcessing(true);
+        confirmedSlips.forEach((ps) => {
+            publishPayslip(ps.id);
+            useAuditStore.getState().log({ entityType: "payslip", entityId: ps.id, action: "payroll_published", performedBy: currentUser.id });
+            dispatchNotification("payslip_published", { name: getEmpName(ps.employeeId), period: `${ps.periodStart} — ${ps.periodEnd}` }, ps.employeeId);
+        });
+        toast.success(`Published ${confirmedSlips.length} payslip${confirmedSlips.length > 1 ? "s" : ""}`);
+        setBatchProcessing(false);
+    }, [filteredPayslips, publishPayslip, currentUser.id]);
+
+    const handleBatchRecordPayment = useCallback(() => {
+        const publishedSlips = filteredPayslips.filter((p) => p.status === "published");
+        if (publishedSlips.length === 0) { toast.error("No published payslips to mark paid"); return; }
+        setBatchProcessing(true);
+        publishedSlips.forEach((ps) => {
+            recordPayment(ps.id, "bank_transfer", `BATCH-REF-${Date.now()}-${ps.id}`);
+            useAuditStore.getState().log({ entityType: "payslip", entityId: ps.id, action: "payment_recorded", performedBy: currentUser.id });
+            dispatchNotification("payment_confirmed", { name: getEmpName(ps.employeeId), period: `${ps.periodStart} — ${ps.periodEnd}` }, ps.employeeId);
+        });
+        toast.success(`Recorded payment for ${publishedSlips.length} payslip${publishedSlips.length > 1 ? "s" : ""}`);
+        setBatchProcessing(false);
+    }, [filteredPayslips, recordPayment, currentUser.id]);
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -410,6 +464,57 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
 
                 {/* Payslips Tab */}
                 <TabsContent value="payslips" className="mt-4 space-y-3">
+                    {/* Status Summary Cards */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                        {([
+                            { key: "issued", label: "Issued", color: "text-amber-600 dark:text-amber-400" },
+                            { key: "confirmed", label: "Confirmed", color: "text-cyan-600 dark:text-cyan-400" },
+                            { key: "published", label: "Published", color: "text-violet-600 dark:text-violet-400" },
+                            { key: "paid", label: "Paid", color: "text-blue-600 dark:text-blue-400" },
+                            { key: "acknowledged", label: "Acknowledged", color: "text-emerald-600 dark:text-emerald-400" },
+                            { key: "signed", label: "Signed", color: "text-emerald-600 dark:text-emerald-400" },
+                        ] as const).map(({ key, label, color }) => (
+                            <Card key={key} className="border border-border/50">
+                                <CardContent className="p-3 text-center">
+                                    <p className="text-[10px] uppercase font-semibold text-muted-foreground">{label}</p>
+                                    <p className={`text-xl font-bold mt-0.5 ${color}`}>{statusCounts[key]}</p>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+
+                    {/* Batch Actions */}
+                    {canIssue && (
+                        <div className="flex flex-wrap items-center gap-2 p-3 bg-muted/30 border border-border/50 rounded-lg">
+                            <span className="text-xs font-medium text-muted-foreground mr-2">Batch Actions:</span>
+                            <Button
+                                variant="outline" size="sm" className="h-8 text-xs gap-1.5 text-cyan-600 border-cyan-200 dark:border-cyan-800 hover:bg-cyan-50 dark:hover:bg-cyan-950/30"
+                                disabled={batchProcessing || statusCounts.issued === 0}
+                                onClick={handleBatchConfirm}
+                            >
+                                <CheckCircle className="h-3.5 w-3.5" />
+                                Confirm All Issued ({statusCounts.issued})
+                            </Button>
+                            <Button
+                                variant="outline" size="sm" className="h-8 text-xs gap-1.5 text-violet-600 border-violet-200 dark:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-950/30"
+                                disabled={batchProcessing || statusCounts.confirmed === 0}
+                                onClick={handleBatchPublish}
+                            >
+                                <Send className="h-3.5 w-3.5" />
+                                Publish All Confirmed ({statusCounts.confirmed})
+                            </Button>
+                            <Button
+                                variant="outline" size="sm" className="h-8 text-xs gap-1.5 text-blue-600 border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                                disabled={batchProcessing || statusCounts.published === 0}
+                                onClick={handleBatchRecordPayment}
+                            >
+                                <CreditCard className="h-3.5 w-3.5" />
+                                Record Payment All ({statusCounts.published})
+                            </Button>
+                            {batchProcessing && <span className="text-xs text-muted-foreground animate-pulse ml-2">Processing...</span>}
+                        </div>
+                    )}
+
                     {/* Search & Filter Bar */}
                     <div className="flex flex-col sm:flex-row gap-2">
                         <div className="relative flex-1">
@@ -436,7 +541,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                     <TableHeader><TableRow>
                                         <TableHead className="text-xs">Employee</TableHead><TableHead className="text-xs">Period</TableHead>
                                         <TableHead className="text-xs">Gross</TableHead><TableHead className="text-xs">Deductions</TableHead>
-                                        <TableHead className="text-xs">Net Pay</TableHead><TableHead className="text-xs">Status</TableHead><TableHead className="text-xs">Signed</TableHead><TableHead className="text-xs w-28"></TableHead>
+                                        <TableHead className="text-xs">Net Pay</TableHead><TableHead className="text-xs">Status</TableHead><TableHead className="text-xs">Employee Action</TableHead><TableHead className="text-xs w-28"></TableHead>
                                     </TableRow></TableHeader>
                                     <TableBody>
                                         {paginatedPayslips.length === 0 ? (
@@ -459,11 +564,20 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                     }`}>{ps.status}</Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {ps.signedAt ? (
-                                                        <button onClick={() => setViewSlip(ps.id)} className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:underline" title={`Signed ${new Date(ps.signedAt).toLocaleString()}`}>
+                                                    {ps.acknowledgedAt ? (
+                                                        <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400" title={`Acknowledged ${new Date(ps.acknowledgedAt).toLocaleString()}`}>
+                                                            <CheckCircle className="h-3.5 w-3.5" />
+                                                            <span className="text-[10px] font-medium">Acknowledged</span>
+                                                        </span>
+                                                    ) : ps.signedAt ? (
+                                                        <button onClick={() => setViewSlip(ps.id)} className="flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline" title={`Signed ${new Date(ps.signedAt).toLocaleString()}`}>
                                                             <PenTool className="h-3.5 w-3.5" />
-                                                            <span className="text-[10px] font-medium">Signed</span>
+                                                            <span className="text-[10px] font-medium">View Sig</span>
                                                         </button>
+                                                    ) : ["issued", "published", "paid"].includes(ps.status) ? (
+                                                        <span className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                                            <Clock className="h-3 w-3" /> Pending
+                                                        </span>
                                                     ) : (
                                                         <span className="text-[10px] text-muted-foreground">—</span>
                                                     )}

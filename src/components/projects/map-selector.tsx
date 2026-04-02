@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { MapPin, Navigation, Loader2, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+// leaflet/dist/leaflet.css is imported globally in app/globals.css
 
 // Custom SVG pin icon — no external image dependency
 const mapPinIcon = typeof window !== "undefined"
@@ -66,14 +66,23 @@ function MapRecenter({ center }: { center: [number, number] }) {
       isFirstRender.current = false;
       return;
     }
+    // Guard: if the container was removed from the DOM (e.g. dialog closed mid-animation)
+    // don't call setView — Leaflet would throw "_leaflet_pos of undefined".
+    let container: HTMLElement | null = null;
+    try { container = map.getContainer(); } catch { return; }
+    if (!container || !container.isConnected) return;
     try {
       map.setView(center, 16, { animate: true });
     } catch {
       // Map panes not ready yet — MapContainer center prop already set the position
     }
-    // Stop any in-flight animation when the component unmounts (e.g. dialog close)
-    // to prevent Leaflet reading _leaflet_pos on a detached DOM element.
-    return () => { try { map.stop(); } catch { /* map already destroyed */ } };
+    // Stop any in-flight animation synchronously on unmount (e.g. dialog close)
+    // so Leaflet never reads _leaflet_pos on a detached DOM element.
+    return () => {
+      try {
+        map.stop();
+      } catch { /* map already destroyed */ }
+    };
   }, [center, map]);
   return null;
 }

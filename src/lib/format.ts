@@ -33,3 +33,85 @@ export function getInitials(name: string): string {
         .toUpperCase()
         .slice(0, 2);
 }
+
+// ─── Phone Validation (PH Format) ────────────────────────────────
+
+/**
+ * Philippine phone number formats:
+ * - Mobile: +63 9XX XXX XXXX or 09XX XXX XXXX
+ * - Landline: +63 2 XXXX XXXX (Metro Manila) or +63 XX XXX XXXX (provincial)
+ */
+const PH_MOBILE_REGEX = /^(?:\+63|0)9\d{9}$/;
+const PH_LANDLINE_REGEX = /^(?:\+63|0)(?:2\d{7,8}|[3-8]\d{7,9})$/;
+const INTERNATIONAL_REGEX = /^\+[1-9]\d{6,14}$/;
+
+export interface PhoneValidationResult {
+  valid: boolean;
+  formatted?: string;
+  type?: "mobile" | "landline" | "international";
+  warning?: string;
+}
+
+/**
+ * Validate and format a phone number.
+ * Accepts PH format (+63/0) or international format (+XX).
+ */
+export function validatePhone(phone: string | undefined | null): PhoneValidationResult {
+  if (!phone || phone.trim() === "") {
+    return { valid: true }; // Empty is OK (optional field)
+  }
+
+  // Remove spaces, dashes, parentheses
+  const cleaned = phone.replace(/[\s\-()]/g, "");
+
+  // Check PH mobile
+  if (PH_MOBILE_REGEX.test(cleaned)) {
+    const normalized = cleaned.startsWith("0") ? "+63" + cleaned.slice(1) : cleaned;
+    return {
+      valid: true,
+      formatted: normalized,
+      type: "mobile",
+    };
+  }
+
+  // Check PH landline
+  if (PH_LANDLINE_REGEX.test(cleaned)) {
+    const normalized = cleaned.startsWith("0") ? "+63" + cleaned.slice(1) : cleaned;
+    return {
+      valid: true,
+      formatted: normalized,
+      type: "landline",
+    };
+  }
+
+  // Check international
+  if (INTERNATIONAL_REGEX.test(cleaned)) {
+    return {
+      valid: true,
+      formatted: cleaned,
+      type: "international",
+    };
+  }
+
+  // Invalid format
+  return {
+    valid: false,
+    warning: "Invalid phone format. Use +63 9XX XXX XXXX for PH mobile or +XX for international.",
+  };
+}
+
+/**
+ * Format a phone number for display (with spaces).
+ */
+export function formatPhoneDisplay(phone: string | undefined | null): string {
+  if (!phone) return "";
+  const result = validatePhone(phone);
+  if (!result.valid || !result.formatted) return phone;
+
+  const num = result.formatted;
+  if (result.type === "mobile" && num.startsWith("+63")) {
+    // +63 9XX XXX XXXX
+    return `+63 ${num.slice(3, 6)} ${num.slice(6, 9)} ${num.slice(9)}`;
+  }
+  return num;
+}

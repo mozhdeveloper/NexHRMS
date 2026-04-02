@@ -21,8 +21,9 @@ import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { getInitials, formatCurrency, formatDate } from "@/lib/format";
-import { DEPARTMENTS, ROLES, LOCATIONS } from "@/lib/constants";
+import { getInitials, formatCurrency, formatDate, validatePhone } from "@/lib/format";
+import { ROLES, LOCATIONS } from "@/lib/constants";
+import { useDepartmentsStore } from "@/store/departments.store";
 import { Mail, MapPin, Phone, Briefcase, Calendar, DollarSign, FileText, Pencil, Banknote, UserMinus, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuditStore } from "@/store/audit.store";
@@ -67,6 +68,7 @@ export default function AdminProfileView() {
     const allLoans = useLoansStore((s) => s.loans);
     const getActiveByEmployee = useLoansStore((s) => s.getActiveByEmployee);
     const getEmployeeBalances = useLeaveStore((s) => s.getEmployeeBalances);
+    const activeDepartments = useDepartmentsStore((s) => s.departments.filter((d) => d.isActive));
 
     const employee = employees.find((e) => e.id === id);
     const empAttendance = useMemo(() => attendanceLogs.filter((l) => l.employeeId === id).slice(0, 20), [attendanceLogs, id]);
@@ -107,8 +109,20 @@ export default function AdminProfileView() {
             toast.error("Name and email are required");
             return;
         }
+        
+        // Validate phone if provided
+        let formattedPhone: string | undefined;
+        if (editPhone) {
+            const phoneResult = validatePhone(editPhone);
+            if (!phoneResult.valid) {
+                toast.error(phoneResult.warning || "Invalid phone format. Use +63 9XX XXX XXXX for PH mobile.");
+                return;
+            }
+            formattedPhone = phoneResult.formatted;
+        }
+        
         updateEmployee(employee.id, {
-            name: editName, email: editEmail, phone: editPhone || undefined,
+            name: editName, email: editEmail, phone: formattedPhone,
             role: editRole, department: editDept, workType: editWorkType,
             salary: Number(editSalary) || employee.salary, location: editLocation,
             payFrequency: editPayFreq !== "company" ? editPayFreq as PayFrequency : undefined,
@@ -410,7 +424,7 @@ export default function AdminProfileView() {
                                 <Select value={editRole} onValueChange={setEditRole}><SelectTrigger className="mt-1"><SelectValue /></SelectTrigger><SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent></Select>
                             </div>
                             <div><label className="text-sm font-medium">Department</label>
-                                <Select value={editDept} onValueChange={setEditDept}><SelectTrigger className="mt-1"><SelectValue /></SelectTrigger><SelectContent>{DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select>
+                                <Select value={editDept} onValueChange={setEditDept}><SelectTrigger className="mt-1"><SelectValue /></SelectTrigger><SelectContent>{activeDepartments.map((d) => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}</SelectContent></Select>
                             </div>
                         </div>
                         <div className="grid grid-cols-3 gap-3">

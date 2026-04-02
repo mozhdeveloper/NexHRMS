@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Search, Mail, MapPin, Phone, Cake, DollarSign, Pencil } from "lucide-react";
 import { getInitials, formatCurrency } from "@/lib/format";
-import { DEPARTMENTS } from "@/lib/constants";
+import { useDepartmentsStore } from "@/store/departments.store";
 import Link from "next/link";
 import { useRoleHref } from "@/lib/hooks/use-role-href";
 import { toast } from "sonner";
@@ -33,6 +33,7 @@ export default function DirectoryPage() {
     const currentUser = useAuthStore((s) => s.currentUser);
     const { hasPermission } = useRolesStore();
     const rh = useRoleHref();
+    const departments = useDepartmentsStore((s) => s.departments);
     const canSetSalary = hasPermission(currentUser.role, "employees:view_salary");
     const canDirectSet = hasPermission(currentUser.role, "employees:approve_salary");
     const isHR = canSetSalary && !canDirectSet; // can view/propose but not directly approve
@@ -119,7 +120,7 @@ export default function DirectoryPage() {
                     <SelectTrigger className="w-full sm:w-[160px]"><SelectValue placeholder="Department" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Departments</SelectItem>
-                        {DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                        {departments.filter((d) => d.isActive).map((d) => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
                     </SelectContent>
                 </Select>
                 <Select value={status} onValueChange={setStatus}>
