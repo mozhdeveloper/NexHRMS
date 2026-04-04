@@ -241,7 +241,7 @@ async function validateLocation(
 
     // Check geofence
     const radius = project.location_radius || 100; // Default 100m
-    const withinGeofence = isWithinGeofence(
+    const geofenceResult = isWithinGeofence(
       location.lat,
       location.lng,
       project.location_lat,
@@ -249,8 +249,8 @@ async function validateLocation(
       radius
     );
 
-    if (!withinGeofence) {
-      return { valid: false, message: "Outside geofence" };
+    if (!geofenceResult.within) {
+      return { valid: false, message: `Outside geofence (${geofenceResult.distanceMeters}m from site, allowed: ${radius}m)` };
     }
 
     return { valid: true, message: "Location validated" };

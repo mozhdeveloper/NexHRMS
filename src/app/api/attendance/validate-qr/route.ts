@@ -124,6 +124,25 @@ export async function POST(request: NextRequest) {
                 console.error("[validate-qr] attendance_events insert:", evtError.message);
             } else {
                 eventWritten = true;
+
+                // 1b. Record attendance evidence for audit trail
+                const evidenceId = `EVI-${nanoid(8)}`;
+                const { error: eviError } = await supabase.from("attendance_evidence").insert({
+                    id: evidenceId,
+                    event_id: eventId,
+                    gps_lat: location?.lat ?? null,
+                    gps_lng: location?.lng ?? null,
+                    gps_accuracy_meters: location?.accuracy ?? null,
+                    geofence_pass: true, // If we got here, geofence passed (or wasn't required)
+                    qr_token_id: result.qrType === "dynamic" ? qrPayload : null,
+                    device_integrity_result: null, // QR scan doesn't verify device integrity
+                    face_verified: null, // QR scan doesn't verify face
+                    mock_location_detected: false, // Assume not mock unless detected
+                });
+
+                if (eviError) {
+                    console.error("[validate-qr] attendance_evidence insert:", eviError.message);
+                }
             }
 
             // 2. Upsert daily log (computed summary)
