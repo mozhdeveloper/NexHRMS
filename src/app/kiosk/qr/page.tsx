@@ -232,15 +232,32 @@ export default function QRKioskPage() {
 
     const startQrScanner = useCallback(async () => {
         setQrCameraError(false);
+        setQrScanning(true);
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 } },
-            });
+            // Try environment camera first; fall back to any camera (for desktops)
+            let stream: MediaStream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 } },
+                });
+            } catch {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 640 }, height: { ideal: 480 } },
+                });
+            }
             qrStreamRef.current = stream;
+
             if (qrVideoRef.current) {
                 qrVideoRef.current.srcObject = stream;
+                // Ensure video plays — required on some browsers/deployments
+                await new Promise<void>((resolve) => {
+                    const v = qrVideoRef.current!;
+                    const onReady = () => {
+                        v.play().catch(() => {}).finally(resolve);
+                    };
+                    if (v.readyState >= 2) { onReady(); } else { v.onloadedmetadata = onReady; }
+                });
             }
-            setQrScanning(true);
 
             if ("BarcodeDetector" in window) {
                 // Native BarcodeDetector (Chrome/Edge)
@@ -276,9 +293,9 @@ export default function QRKioskPage() {
                     }
                 }, 400);
             }
-        } catch {
+        } catch (err) {
+            console.error("[QR] Camera error:", err);
             setQrCameraError(true);
-            setQrScanning(true);
         }
     }, [processQrPayload]);
 
