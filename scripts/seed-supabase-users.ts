@@ -45,7 +45,8 @@ const DEMO_ACCOUNTS = [
   { name: "Pat Reyes",    email: "supervisor@sdsi.com", role: "supervisor",    department: "Engineering" },
   { name: "Dana Cruz",    email: "payroll@sdsi.com",    role: "payroll_admin", department: "Finance" },
   { name: "Rene Santos",  email: "auditor@sdsi.com",    role: "auditor",       department: "Compliance" },
-  { name: "Jamie Reyes",  email: "qr@sdsi.com",         role: "employee",      department: "Engineering" },
+  { name: "Jamie Reyes",  email: "qr@sdsi.com",         role: "employee",      department: "Operations" },
+  { name: "Riley Santos", email: "qr2@sdsi.com",        role: "employee",      department: "Operations" },
 ];
 
 // ─── employees table records for accounts that are role="employee" ────────────
@@ -55,6 +56,8 @@ const DEMO_EMPLOYEE_RECORDS: Record<string, {
   job_title: string; work_type: string; salary: number; join_date: string;
   productivity: number; location: string; phone: string; birthday: string;
   pin: string; status: string;
+  address?: string; emergency_contact?: string;
+  work_days?: string[]; pay_frequency?: string; whatsapp_number?: string;
 }> = {
   "employee@sdsi.com": {
     id: "EMP026",
@@ -76,17 +79,43 @@ const DEMO_EMPLOYEE_RECORDS: Record<string, {
     id: "EMP027",
     name: "Jamie Reyes",
     email: "qr@sdsi.com",
-    department: "Engineering",
+    department: "Operations",
     job_title: "Field Technician",
-    work_type: "WFO",
-    salary: 75000,
-    join_date: "2024-06-01",
-    productivity: 85,
-    location: "Manila",
-    phone: "+63-555-0127",
-    birthday: "1996-08-15",
-    pin: "777777",
+    work_type: "ONSITE",
+    salary: 45000,
+    join_date: "2025-03-15",
+    productivity: 88,
+    location: "Marikina, Metro Manila",
+    phone: "+63-917-1234567",
+    birthday: "1998-05-22",
+    pin: "",
     status: "active",
+    address: "123 Shoe Ave, Marikina City, Metro Manila",
+    emergency_contact: "Maria Reyes - +63-918-7654321",
+    work_days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    pay_frequency: "semi_monthly",
+    whatsapp_number: "+63-917-1234567",
+  },
+  "qr2@sdsi.com": {
+    id: "EMP028",
+    name: "Riley Santos",
+    email: "qr2@sdsi.com",
+    department: "Operations",
+    job_title: "Field Technician",
+    work_type: "ONSITE",
+    salary: 42000,
+    join_date: "2025-06-01",
+    productivity: 82,
+    location: "Quezon City, Metro Manila",
+    phone: "+63-918-9876543",
+    birthday: "1999-11-08",
+    pin: "",
+    status: "active",
+    address: "456 Commonwealth Ave, Quezon City, Metro Manila",
+    emergency_contact: "Carlos Santos - +63-919-1112222",
+    work_days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    pay_frequency: "semi_monthly",
+    whatsapp_number: "+63-918-9876543",
   },
 };
 
@@ -195,8 +224,13 @@ async function seedUsers() {
       location: empData.location,
       phone: empData.phone,
       birthday: empData.birthday,
-      pin: empData.pin,
+      ...(empData.pin ? { pin: empData.pin } : {}),
       profile_id: profileId,
+      ...(empData.address ? { address: empData.address } : {}),
+      ...(empData.emergency_contact ? { emergency_contact: empData.emergency_contact } : {}),
+      ...(empData.work_days ? { work_days: empData.work_days } : {}),
+      ...(empData.pay_frequency ? { pay_frequency: empData.pay_frequency } : {}),
+      ...(empData.whatsapp_number ? { whatsapp_number: empData.whatsapp_number } : {}),
     }, { onConflict: "id" });
 
     if (empErr) {
