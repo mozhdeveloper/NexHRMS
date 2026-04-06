@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useAttendanceStore } from "@/store/attendance.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAppearanceStore } from "@/store/appearance.store";
 import { useKioskStore } from "@/store/kiosk.store";
@@ -25,7 +24,6 @@ import jsQR from "jsqr";
 export default function QRKioskPage() {
     const router = useRouter();
     const ks = useKioskStore((s) => s.settings);
-    const { checkIn, checkOut } = useAttendanceStore();
     const employees = useEmployeesStore((s) => s.employees);
     const companyName = useAppearanceStore((s) => s.companyName);
     const logoUrl = useAppearanceStore((s) => s.logoUrl);
@@ -54,6 +52,7 @@ export default function QRKioskPage() {
     const [qrScanning, setQrScanning] = useState(false);
     const [qrCameraError, setQrCameraError] = useState(false);
     const [qrProcessing, setQrProcessing] = useState(false);
+    const processingLockRef = useRef(false); // Synchronous lock to prevent duplicate scans
     const qrVideoRef = useRef<HTMLVideoElement>(null);
     const qrStreamRef = useRef<MediaStream | null>(null);
     const qrScanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -154,25 +153,25 @@ export default function QRKioskPage() {
     }, [mode]);
 
     const clockEmployee = useCallback((empId: string, empName: string) => {
+        // checkWorkDay for analytics (local only)
         if (mode === "in") checkWorkDay(empId);
 
-        // Daily log (backward-compatible computed view) + event ledger.
-        // checkIn/checkOut both append to the events ledger internally.
-        const project = getProjectForEmployee(empId);
-        if (mode === "in") {
-            checkIn(empId, project?.id);
-        } else {
-            checkOut(empId, project?.id);
-        }
+        // NOTE: DB write already happened in /api/attendance/validate-qr
+        // We no longer call store checkIn/checkOut here to avoid double-writes
 
-        // Activity log
+        // Activity log (local kiosk UI only)
         addToKioskLog(empName);
         triggerFeedback(mode === "in" ? "success-in" : "success-out", empName);
-    }, [mode, checkIn, checkOut, checkWorkDay, getProjectForEmployee, addToKioskLog, triggerFeedback]);
+    }, [mode, checkWorkDay, addToKioskLog, triggerFeedback]);
 
     const processQrPayload = useCallback(async (payload: string) => {
-        if (qrProcessing) return;
+        // Use ref-based lock (synchronous) to prevent duplicate scans
+        if (processingLockRef.current || qrProcessing) return;
+        processingLockRef.current = true;
         setQrProcessing(true);
+
+        // Stop scanner immediately to prevent more scans while processing
+        stopQrScanner();
 
         try {
             const response = await fetch("/api/attendance/validate-qr", {
@@ -209,13 +208,10 @@ export default function QRKioskPage() {
                 if (project?.verificationMethod === "face_only") {
                     setErrorMessage(`${emp.name}'s project requires face verification. Use the Face kiosk.`);
                     triggerFeedback("error");
-                    setQrProcessing(false);
                     return;
                 }
-                stopQrScanner();
                 clockEmployee(emp.id, emp.name);
             } else if (empId) {
-                stopQrScanner();
                 clockEmployee(empId, `Employee ${empId}`);
             } else {
                 setErrorMessage("Employee not found");
@@ -227,6 +223,7 @@ export default function QRKioskPage() {
             triggerFeedback("error");
         } finally {
             setQrProcessing(false);
+            processingLockRef.current = false;
         }
     }, [employees, qrProcessing, deviceId, stopQrScanner, clockEmployee, getProjectForEmployee, triggerFeedback]);
 

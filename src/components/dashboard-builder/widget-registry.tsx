@@ -4,7 +4,7 @@
  * Every dashboard sub-component from the old dashboard is registered here so
  * that the widget grid can render any configuration dynamically.
  */
-import React, { Suspense, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import type { WidgetType, WidgetConfig, LeaveType } from "@/types";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAttendanceStore } from "@/store/attendance.store";
@@ -455,26 +455,55 @@ function TableRecentAudit() {
 
 // Personal widgets
 function MyAttendanceStatus() {
-    const currentUser = useAuthStore((s) => s.currentUser);
-    const employees = useEmployeesStore((s) => s.employees);
-    const logs = useAttendanceStore((s) => s.logs);
-    const [today] = useState(() => new Date().toISOString().split("T")[0]);
+    const [status, setStatus] = useState<"loading" | "present" | "absent" | "on_leave">("loading");
+    const [checkIn, setCheckIn] = useState<string | null>(null);
+    const [checkOut, setCheckOut] = useState<string | null>(null);
+    const [weekStats, setWeekStats] = useState({ presentDays: 0, totalHours: 0, lateDays: 0 });
 
-    const empRecord = useMemo(() => employees.find((e) => e.profileId === currentUser.id || e.email === currentUser.email || e.name === currentUser.name), [employees, currentUser]);
-    const todayLog = useMemo(() => {
-        if (!empRecord || !today) return undefined;
-        return logs.find((l) => l.employeeId === empRecord.id && l.date === today);
-    }, [logs, empRecord, today]);
+    // Fetch fresh attendance data from API on mount + every 30s
+    useEffect(() => {
+        let mounted = true;
+        const fetchStatus = async () => {
+            try {
+                const res = await fetch("/api/attendance/my-status");
+                if (!res.ok) throw new Error("Failed to fetch");
+                const data = await res.json();
+                if (!mounted) return;
+                
+                if (data.log) {
+                    setStatus(data.log.status || "present");
+                    setCheckIn(data.log.checkIn || null);
+                    setCheckOut(data.log.checkOut || null);
+                } else {
+                    setStatus("absent");
+                    setCheckIn(null);
+                    setCheckOut(null);
+                }
+                if (data.weekStats) {
+                    setWeekStats(data.weekStats);
+                }
+            } catch {
+                // Keep current state on error
+                if (status === "loading") setStatus("absent");
+            }
+        };
+        fetchStatus();
+        const interval = setInterval(fetchStatus, 30000); // Refresh every 30s
+        return () => { mounted = false; clearInterval(interval); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-    const currentStatus = todayLog?.status || "absent";
     const statusStyle: Record<string, string> = {
+        loading: "border-muted bg-muted/10 text-muted-foreground",
         present: "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
         absent: "border-red-400 bg-red-500/10 text-red-700 dark:text-red-400",
         on_leave: "border-amber-400 bg-amber-500/10 text-amber-700 dark:text-amber-400",
     };
 
+    const displayStatus = status === "loading" ? "Loading..." : status.replace("_", " ");
+
     return (
-        <Card className={`border-2 ${statusStyle[currentStatus]} h-full`}>
+        <Card className={`border-2 ${statusStyle[status]} h-full`}>
             <CardContent className="p-5">
                 <div className="flex items-center gap-3">
                     <div className="p-3 rounded-xl bg-white/20 dark:bg-black/20">
@@ -482,12 +511,28 @@ function MyAttendanceStatus() {
                     </div>
                     <div>
                         <p className="text-xs font-medium opacity-70">Today&apos;s Status</p>
-                        <p className="text-xl font-bold capitalize mt-0.5">{currentStatus.replace("_", " ")}</p>
-                        {todayLog?.checkIn && (
-                            <p className="text-xs opacity-70 mt-0.5">In: {todayLog.checkIn}{todayLog.checkOut ? `  Out: ${todayLog.checkOut}` : ""}</p>
+                        <p className="text-xl font-bold capitalize mt-0.5">{displayStatus}</p>
+                        {checkIn && (
+                            <p className="text-xs opacity-70 mt-0.5">In: {checkIn}{checkOut ? `  Out: ${checkOut}` : ""}</p>
                         )}
                     </div>
                 </div>
+                {status !== "loading" && (
+                    <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+                        <div>
+                            <p className="text-lg font-bold">{weekStats.presentDays}<span className="text-muted-foreground font-normal">/5</span></p>
+                            <p className="text-muted-foreground">Days Present</p>
+                        </div>
+                        <div>
+                            <p className="text-lg font-bold">{weekStats.totalHours}</p>
+                            <p className="text-muted-foreground">Hours Worked</p>
+                        </div>
+                        <div>
+                            <p className="text-lg font-bold">{weekStats.lateDays}</p>
+                            <p className="text-muted-foreground">Late Days</p>
+                        </div>
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
