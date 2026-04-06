@@ -14,6 +14,7 @@ import { useRolesStore } from "@/store/roles.store";
 import { usePageBuilderStore } from "@/store/page-builder.store";
 import { useAppearanceStore } from "@/store/appearance.store";
 import { useMessagingStore } from "@/store/messaging.store";
+import { useNotificationsStore } from "@/store/notifications.store";
 import { NAV_ITEMS } from "@/lib/constants";
 import {
     LayoutDashboard,
@@ -96,8 +97,18 @@ export function Sidebar() {
     const getTotalUnreadForEmployee = useMessagingStore((s) => s.getTotalUnreadForEmployee);
     const totalUnreadMsgs = getTotalUnreadForEmployee(currentUserId);
 
-    // Check if employee is assigned to a face-recognition project
+    // Unread notifications badge
     const employees = useEmployeesStore((s) => s.employees);
+    const getUnreadCountForEmployee = useNotificationsStore((s) => s.getUnreadCountForEmployee);
+    const currentEmployeeId = useMemo(() => {
+        const emp = employees.find(
+            (e) => e.profileId === currentUser.id || e.email === currentUser.email || e.name === currentUser.name
+        );
+        return emp?.id;
+    }, [employees, currentUser]);
+    const totalUnreadNotifications = currentEmployeeId ? getUnreadCountForEmployee(currentEmployeeId) : 0;
+
+    // Check if employee is assigned to a face-recognition project
     const getProjectForEmployee = useProjectsStore((s) => s.getProjectForEmployee);
     const hasFaceProject = useMemo(() => {
         if (role !== "employee" && role !== "supervisor") return false;
@@ -236,6 +247,11 @@ export function Sidebar() {
                                     {showLabel && item.href === "/messages" && totalUnreadMsgs > 0 && (
                                         <span className="ml-auto text-[10px] font-semibold bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 min-w-[18px] text-center leading-none">
                                             {totalUnreadMsgs}
+                                        </span>
+                                    )}
+                                    {showLabel && item.href === "/notifications" && totalUnreadNotifications > 0 && (
+                                        <span className="ml-auto text-[10px] font-semibold bg-destructive text-destructive-foreground rounded-full px-1.5 py-0.5 min-w-[18px] text-center leading-none">
+                                            {totalUnreadNotifications}
                                         </span>
                                     )}
                                 </Link>

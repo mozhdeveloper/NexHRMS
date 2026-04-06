@@ -49,11 +49,17 @@ export function Topbar() {
     const employees = useEmployeesStore((s) => s.employees);
     const router = useRouter();
     const [cmdOpen, setCmdOpen] = useState(false);
-    const notifCount = useNotificationsStore((s) => s.logs.length);
+    const getUnreadCountForEmployee = useNotificationsStore((s) => s.getUnreadCountForEmployee);
     const companyName = useAppearanceStore((s) => s.companyName);
     const showCompanyNameInTopbar = useAppearanceStore((s) => s.showCompanyNameInTopbar);
     const accentBadgeText = useAppearanceStore((s) => s.accentBadgeText);
     const rolePrefix = `/${currentUser.role}`;
+
+    // Get current employee ID for notification count
+    const currentEmployeeId = employees.find(
+        (e) => e.profileId === currentUser.id || e.email === currentUser.email || e.name === currentUser.name
+    )?.id;
+    const notifCount = currentEmployeeId ? getUnreadCountForEmployee(currentEmployeeId) : 0;
 
     useEffect(() => {
         const down = (e: KeyboardEvent) => {

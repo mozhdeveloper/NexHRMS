@@ -55,6 +55,12 @@ interface NotificationsState {
     getLogsByType: (type: NotificationType) => NotificationLog[];
     getLogsByEmployee: (employeeId: string) => NotificationLog[];
 
+    // Read tracking (for in-app notifications)
+    markAsRead: (notificationId: string) => void;
+    markAllAsRead: (employeeId: string) => void;
+    getUnreadCountForEmployee: (employeeId: string) => number;
+    getUnreadNotificationsForEmployee: (employeeId: string) => NotificationLog[];
+
     // Rule management
     updateRule: (ruleId: string, patch: Partial<NotificationRule>) => void;
     toggleRule: (ruleId: string) => void;
@@ -98,6 +104,29 @@ export const useNotificationsStore = create<NotificationsState>()(
 
             getLogsByType: (type) => get().logs.filter((l) => l.type === type),
             getLogsByEmployee: (employeeId) => get().logs.filter((l) => l.employeeId === employeeId),
+
+            // ─── Read Tracking ─────────────────────────
+            markAsRead: (notificationId) =>
+                set((s) => ({
+                    logs: s.logs.map((l) =>
+                        l.id === notificationId ? { ...l, read: true, readAt: new Date().toISOString() } : l
+                    ),
+                })),
+
+            markAllAsRead: (employeeId) =>
+                set((s) => ({
+                    logs: s.logs.map((l) =>
+                        l.employeeId === employeeId && !l.read
+                            ? { ...l, read: true, readAt: new Date().toISOString() }
+                            : l
+                    ),
+                })),
+
+            getUnreadCountForEmployee: (employeeId) =>
+                get().logs.filter((l) => l.employeeId === employeeId && !l.read).length,
+
+            getUnreadNotificationsForEmployee: (employeeId) =>
+                get().logs.filter((l) => l.employeeId === employeeId && !l.read),
 
             // ─── Rules ─────────────────────────────────
             updateRule: (ruleId, patch) =>
@@ -189,7 +218,7 @@ export const useNotificationsStore = create<NotificationsState>()(
         }),
         {
             name: "soren-notifications",
-            version: 2,
+            version: 3,
             migrate: () => ({ logs: [], rules: [...DEFAULT_RULES], providerConfig: { ...DEFAULT_PROVIDER } }),
         }
     )

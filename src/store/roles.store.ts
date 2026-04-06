@@ -176,6 +176,7 @@ const HR_PERMS: Permission[] = [
 
 const FINANCE_PERMS: Permission[] = [
     "page:dashboard", "page:payroll", "page:loans", "page:reports", "page:employees", "page:settings", "page:messages",
+    "page:notifications",
     "employees:view", "employees:view_salary", "employees:approve_salary",
     "payroll:view_all", "payroll:generate", "payroll:lock", "payroll:issue",
     "loans:view_all", "loans:approve",
@@ -186,6 +187,7 @@ const FINANCE_PERMS: Permission[] = [
 
 const PAYROLL_ADMIN_PERMS: Permission[] = [
     "page:dashboard", "page:payroll", "page:loans", "page:reports", "page:timesheets", "page:settings", "page:messages",
+    "page:notifications",
     "employees:view", "employees:view_salary",
     "payroll:view_all", "payroll:generate", "payroll:lock", "payroll:issue",
     "loans:view_all",
@@ -197,6 +199,7 @@ const PAYROLL_ADMIN_PERMS: Permission[] = [
 
 const SUPERVISOR_PERMS: Permission[] = [
     "page:dashboard", "page:employees", "page:attendance", "page:leave", "page:timesheets", "page:projects",
+    "page:notifications",
     "employees:view",
     "attendance:view_all", "attendance:approve_overtime",
     "leave:view_all", "leave:approve",
@@ -207,6 +210,7 @@ const SUPERVISOR_PERMS: Permission[] = [
 
 const EMPLOYEE_PERMS: Permission[] = [
     "page:dashboard", "page:attendance", "page:leave", "page:payroll", "page:loans",
+    "page:notifications",
     "payroll:view_own",
     "loans:view_own",
     "page:tasks", "tasks:view",
@@ -215,6 +219,7 @@ const EMPLOYEE_PERMS: Permission[] = [
 
 const AUDITOR_PERMS: Permission[] = [
     "page:dashboard", "page:audit", "page:reports", "page:employees", "page:loans",
+    "page:notifications",
     "audit:view",
     "employees:view",
     "reports:view", "reports:government",
@@ -526,7 +531,8 @@ export const useRolesStore = create<RolesState>()(
         }),
         {
             name: "soren-roles",
-            version: 1,
+            version: 2,
+            migrate: () => ({ roles: buildSystemRoles() }),
         }
     )
 );

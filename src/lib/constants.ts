@@ -213,8 +213,8 @@ export const NAV_ITEMS: {
             label: "Notifications",
             href: "/notifications",
             icon: "Bell",
-            roles: ["admin", "hr"],
-            permission: "notifications:manage",
+            roles: ["admin", "hr", "finance", "employee", "supervisor", "payroll_admin", "auditor"],
+            permission: "page:notifications",
             moduleFlag: "notifications",
         },
         {
@@ -285,11 +285,11 @@ export const ROLE_ACCESS: Record<Role, string[]> = {
         "/profile",
     ],
     hr: ["/dashboard", "/employees", "/projects", "/tasks", "/messages", "/attendance", "/leave", "/reports", "/notifications", "/timesheets", "/settings/shifts", "/kiosk", "/profile"],
-    finance: ["/dashboard", "/payroll", "/loans", "/reports", "/reports/government", "/employees/directory", "/employees/manage", "/profile"],
-    employee: ["/dashboard", "/attendance", "/leave", "/payroll", "/tasks", "/messages", "/face-enrollment", "/profile"],
-    supervisor: ["/dashboard", "/attendance", "/leave", "/timesheets", "/employees", "/projects", "/tasks", "/messages", "/face-enrollment", "/profile"],
-    payroll_admin: ["/dashboard", "/payroll", "/loans", "/reports", "/reports/government", "/timesheets", "/profile"],
-    auditor: ["/dashboard", "/audit", "/reports", "/employees", "/profile"],
+    finance: ["/dashboard", "/payroll", "/loans", "/reports", "/reports/government", "/employees/directory", "/employees/manage", "/notifications", "/profile"],
+    employee: ["/dashboard", "/attendance", "/leave", "/payroll", "/tasks", "/messages", "/notifications", "/face-enrollment", "/profile"],
+    supervisor: ["/dashboard", "/attendance", "/leave", "/timesheets", "/employees", "/projects", "/tasks", "/messages", "/notifications", "/face-enrollment", "/profile"],
+    payroll_admin: ["/dashboard", "/payroll", "/loans", "/reports", "/reports/government", "/timesheets", "/notifications", "/profile"],
+    auditor: ["/dashboard", "/audit", "/reports", "/employees", "/notifications", "/profile"],
 };
 
 /** Map a URL path to the permission needed to access it */
@@ -317,7 +317,7 @@ export const PATH_TO_PERMISSION: Record<string, Permission> = {
     "/settings/branding": "settings:organization",
     "/settings/modules": "settings:organization",
     "/settings/navigation": "settings:organization",
-    "/notifications": "notifications:manage",
+    "/notifications": "page:notifications",
     "/timesheets": "page:timesheets",
     "/audit": "page:audit",
     "/kiosk": "page:kiosk",

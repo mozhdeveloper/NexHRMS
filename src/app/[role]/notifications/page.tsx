@@ -4,16 +4,17 @@ import { useNotificationsStore } from "@/store/notifications.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useRolesStore } from "@/store/roles.store";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Bell, Trash2, Mail, MessageSquare, Settings } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { Bell, Trash2, Mail, MessageSquare, Settings, Check, CheckCheck, Clock } from "lucide-react";
+import { format, parseISO, formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import { useRoleHref } from "@/lib/hooks/use-role-href";
+import { useMemo } from "react";
 
 const typeColors: Record<string, string> = {
     assignment: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
@@ -65,29 +66,130 @@ const channelIcons: Record<string, string> = {
 };
 
 export default function NotificationsPage() {
-    const { logs, clearLogs } = useNotificationsStore();
+    const { logs, clearLogs, markAsRead, markAllAsRead, getLogsByEmployee } = useNotificationsStore();
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
 
     const { hasPermission } = useRolesStore();
     const rh = useRoleHref();
     const isAdmin = hasPermission(currentUser.role, "notifications:manage");
-    if (!isAdmin) {
-        return (
-            <div className="flex flex-col items-center justify-center h-64 gap-3">
-                <Bell className="h-10 w-10 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">You don&apos;t have access to this page.</p>
-            </div>
+
+    // Get current employee ID for filtering
+    const currentEmployeeId = useMemo(() => {
+        const emp = employees.find(
+            (e) => e.profileId === currentUser.id || e.email === currentUser.email || e.name === currentUser.name
         );
-    }
+        return emp?.id;
+    }, [employees, currentUser]);
+
+    // Filter notifications for non-admin users
+    const displayLogs = useMemo(() => {
+        if (isAdmin) return logs;
+        if (!currentEmployeeId) return [];
+        return logs.filter((l) => l.employeeId === currentEmployeeId);
+    }, [logs, isAdmin, currentEmployeeId]);
+
+    const unreadCount = useMemo(() => {
+        return displayLogs.filter((l) => !l.read).length;
+    }, [displayLogs]);
 
     const getEmpName = (id: string) => employees.find((e) => e.id === id)?.name || id;
-    const getEmpEmail = (id: string) => employees.find((e) => e.id === id)?.email || "\u2014";
 
     const formatSentAt = (iso: string) => {
         try { return format(parseISO(iso), "MMM dd, yyyy \u00B7 hh:mm a"); }
         catch { return iso; }
     };
+
+    const formatRelativeTime = (iso: string) => {
+        try { return formatDistanceToNow(parseISO(iso), { addSuffix: true }); }
+        catch { return iso; }
+    };
+
+    // Employee View - Card-based notification list
+    if (!isAdmin) {
+        return (
+            <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight">My Notifications</h1>
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                            {displayLogs.length} notification{displayLogs.length !== 1 ? "s" : ""}
+                            {unreadCount > 0 && ` · ${unreadCount} unread`}
+                        </p>
+                    </div>
+                    {unreadCount > 0 && currentEmployeeId && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={() => markAllAsRead(currentEmployeeId)}
+                        >
+                            <CheckCheck className="h-4 w-4" /> Mark All Read
+                        </Button>
+                    )}
+                </div>
+
+                {displayLogs.length === 0 ? (
+                    <Card className="border border-border/50">
+                        <CardContent className="flex flex-col items-center justify-center py-16">
+                            <Bell className="h-12 w-12 mb-3 text-muted-foreground/40" />
+                            <p className="text-sm text-muted-foreground">No notifications yet</p>
+                            <p className="text-xs text-muted-foreground/60 mt-1">
+                                You&apos;ll see updates about payslips, leave requests, and more here
+                            </p>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <div className="space-y-3">
+                        {displayLogs.map((log) => (
+                            <Card
+                                key={log.id}
+                                className={`border transition-colors cursor-pointer hover:bg-muted/50 ${!log.read ? "bg-primary/5 border-primary/20" : "border-border/50"}`}
+                                onClick={() => !log.read && markAsRead(log.id)}
+                            >
+                                <CardContent className="p-4">
+                                    <div className="flex items-start gap-3">
+                                        <div className={`p-2 rounded-full ${typeColors[log.type] || "bg-muted"}`}>
+                                            <Bell className="h-4 w-4" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Badge variant="secondary" className={`text-[10px] ${typeColors[log.type] || ""}`}>
+                                                    {typeLabels[log.type] || log.type}
+                                                </Badge>
+                                                {!log.read && (
+                                                    <span className="h-2 w-2 rounded-full bg-primary" />
+                                                )}
+                                            </div>
+                                            <h3 className="font-medium text-sm">{log.subject}</h3>
+                                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{log.body}</p>
+                                            <p className="text-xs text-muted-foreground/60 mt-2 flex items-center gap-1">
+                                                <Clock className="h-3 w-3" />
+                                                {formatRelativeTime(log.sentAt)}
+                                            </p>
+                                        </div>
+                                        {!log.read && (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 shrink-0"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    markAsRead(log.id);
+                                                }}
+                                            >
+                                                <Check className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">

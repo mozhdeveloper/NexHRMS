@@ -612,6 +612,10 @@ export interface NotificationLog {
   recipientEmail?: string;
   recipientPhone?: string;
   errorMessage?: string;
+  /** Whether the notification has been read (for in-app notifications) */
+  read?: boolean;
+  /** ISO timestamp when the notification was read */
+  readAt?: string;
 }
 
 export interface NotificationRule {
