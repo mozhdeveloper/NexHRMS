@@ -14,6 +14,13 @@ const nextConfig: NextConfig = {
           { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.openstreetmap.org; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://dashscope.aliyuncs.com https://nominatim.openstreetmap.org; frame-ancestors 'none'" },
         ],
       },
+      {
+        // Cache face-api models aggressively — they're immutable ~12MB files
+        source: "/models/face-api/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
     ];
   },
 };

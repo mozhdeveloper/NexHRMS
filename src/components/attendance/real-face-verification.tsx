@@ -123,32 +123,64 @@ export function RealFaceVerification({
             // Request wake lock to prevent screen dimming
             wakeLockRef.current = await requestWakeLock();
 
-            // Mobile-adaptive camera constraints
-            const constraints: MediaStreamConstraints = {
-                video: {
-                    facingMode: "user",
-                    width: { ideal: isMobile ? 480 : 640 },
-                    height: { ideal: isMobile ? 640 : 480 },
-                },
-                audio: false,
-            };
-
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            // Mobile-adaptive camera constraints — try user-facing first, fallback to any
+            let stream: MediaStream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "user",
+                        width: { ideal: isMobile ? 480 : 640 },
+                        height: { ideal: isMobile ? 640 : 480 },
+                    },
+                    audio: false,
+                });
+            } catch {
+                // Fallback: some mobile browsers reject specific constraints
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: false,
+                });
+            }
             streamRef.current = stream;
 
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                // Wait for video metadata to be loaded before enabling controls
-                videoRef.current.onloadedmetadata = () => {
-                    videoRef.current?.play().then(() => {
+            // Wait for React to render the video element if ref isn't available yet
+            const attachStream = () => {
+                const video = videoRef.current;
+                if (!video) return false;
+                video.srcObject = stream;
+                const onReady = () => {
+                    video.play().then(() => {
                         setVideoReady(true);
                         setPhase("camera");
                     }).catch(() => {
-                        // Autoplay blocked — user interaction needed
+                        // Autoplay blocked — still transition so user can tap to play
                         setVideoReady(true);
                         setPhase("camera");
                     });
                 };
+                if (video.readyState >= 2) {
+                    onReady();
+                } else {
+                    video.onloadedmetadata = onReady;
+                }
+                return true;
+            };
+
+            // Try immediately, retry a few times if video ref isn't mounted yet
+            if (!attachStream()) {
+                let retries = 0;
+                const retryInterval = setInterval(() => {
+                    retries++;
+                    if (attachStream() || retries >= 20) {
+                        clearInterval(retryInterval);
+                        if (retries >= 20 && !videoRef.current) {
+                            console.error("[face-verify] Video element never mounted");
+                            setError("Camera initialization failed.");
+                            setErrorHint("Please refresh the page and try again.");
+                            setPhase("failed");
+                        }
+                    }
+                }, 100);
             }
         } catch (err) {
             const permErr = err instanceof DOMException;

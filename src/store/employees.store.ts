@@ -186,7 +186,7 @@ export const useEmployeesStore = create<EmployeesState>()(
         }),
         {
             name: "soren-employees",
-            version: 5,
+            version: 6,
             migrate: () => ({
                 employees: SEED_EMPLOYEES,
                 salaryRequests: [],
