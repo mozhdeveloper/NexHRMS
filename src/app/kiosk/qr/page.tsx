@@ -146,11 +146,20 @@ export default function QRKioskPage() {
         const timeNow = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
         const newEntry = { name, type: mode, time: timeNow };
         setKioskLog((prev) => {
-            const updated = [newEntry, ...prev];
+            // Prevent duplicate: same name + same type + same time = skip
+            const isDuplicate = prev.length > 0 && prev[0].name === name && prev[0].type === mode && prev[0].time === timeNow;
+            if (isDuplicate) return prev;
+            
+            const updated = [newEntry, ...prev].slice(0, 100); // Keep max 100 entries
             try { sessionStorage.setItem("kiosk-qr-activity-log", JSON.stringify(updated)); } catch { /* full */ }
             return updated;
         });
     }, [mode]);
+
+    const clearKioskLog = useCallback(() => {
+        setKioskLog([]);
+        try { sessionStorage.removeItem("kiosk-qr-activity-log"); } catch { /* ignore */ }
+    }, []);
 
     const clockEmployee = useCallback((empId: string, empName: string) => {
         // checkWorkDay for analytics (local only)
@@ -307,12 +316,13 @@ export default function QRKioskPage() {
                 const data = await res.json();
                 processQrPayload(data.payload);
             } else {
-                const emp = employees.find((e) => e.id === "EMP027");
-                clockEmployee("EMP027", emp?.name || "Jamie Reyes");
+                // Show error instead of fake clock-in
+                setErrorMessage("Demo employee not found");
+                triggerFeedback("error");
             }
         } catch {
-            const emp = employees.find((e) => e.id === "EMP027");
-            clockEmployee("EMP027", emp?.name || "Jamie Reyes");
+            setErrorMessage("Failed to generate demo QR");
+            triggerFeedback("error");
         }
     };
 
@@ -557,6 +567,15 @@ export default function QRKioskPage() {
                         <span className={cn("ml-auto text-[10px] tabular-nums", textFaintClass)}>
                             {kioskLog.length} {kioskLog.length === 1 ? "entry" : "entries"}
                         </span>
+                        {kioskLog.length > 0 && (
+                            <button
+                                onClick={clearKioskLog}
+                                className={cn("p-1 rounded hover:bg-white/10 transition-colors", textFaintClass)}
+                                title="Clear activity log"
+                            >
+                                <XCircle className="h-3.5 w-3.5" />
+                            </button>
+                        )}
                     </div>
                     <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
                         {kioskLog.length === 0 ? (

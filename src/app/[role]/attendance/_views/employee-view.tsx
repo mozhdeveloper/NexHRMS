@@ -357,12 +357,15 @@ export default function EmployeeView() {
         toast.success("Checked out — see you tomorrow!");
     }, [myEmployeeId, myProject, checkOut]);
 
-    const handleCheckOutQr = useCallback(() => {
+    const handleCheckOutQr = useCallback(async () => {
         if (!myEmployeeId) return;
-        checkOut(myEmployeeId, myProject?.id);
+        // Note: Kiosk already wrote to DB via /api/attendance/validate-qr
+        // We just refresh data from DB to sync the UI
         setCheckOutStep("done");
         toast.success("QR check-out confirmed!");
-    }, [myEmployeeId, myProject, checkOut]);
+        // Refresh attendance data from server
+        try { await forceRehydrate(); } catch { /* ignore */ }
+    }, [myEmployeeId]);
 
     const handleFaceVerified = useCallback(() => {
         if (!myEmployeeId) return;
@@ -385,21 +388,15 @@ export default function EmployeeView() {
         setStep("done"); toast.success("Check-in successful!");
     }, [myEmployeeId, myProject, userLocation, selfieDataUrl, geoResult, checkIn, addPhoto]);
 
-    // QR scan completion — record check-in on the employee's side too,
-    // so their dashboard reflects the attendance immediately.
-    const handleQrCheckedIn = useCallback(() => {
+    // QR scan completion — kiosk already wrote to DB via /api/attendance/validate-qr
+    // We just refresh data from DB to sync the UI
+    const handleQrCheckedIn = useCallback(async () => {
         if (!myEmployeeId) return;
-        checkIn(myEmployeeId, myProject?.id);
-        const todayStr = new Date().toISOString().split("T")[0];
-        const updatedLogs = useAttendanceStore.getState().logs.map((l) => {
-            if (l.employeeId === myEmployeeId && l.date === todayStr && l.checkIn) {
-                return { ...l, locationSnapshot: userLocation || undefined };
-            }
-            return l;
-        });
-        useAttendanceStore.setState({ logs: updatedLogs });
-        setStep("done"); toast.success("QR check-in confirmed!");
-    }, [myEmployeeId, myProject, userLocation, checkIn]);
+        setStep("done");
+        toast.success("QR check-in confirmed!");
+        // Refresh attendance data from server to get the check-in the kiosk just recorded
+        try { await forceRehydrate(); } catch { /* ignore */ }
+    }, [myEmployeeId]);
 
     // ─── Computed ─────────────────────────────────────────────────
     const greeting = useMemo(() => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"; }, []);
