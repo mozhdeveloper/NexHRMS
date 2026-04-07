@@ -47,6 +47,27 @@ function dedupeById(employees: Employee[]): Employee[] {
     });
 }
 
+// Helper to deduplicate employees by email — for each duplicate email group,
+// prefer the record that has a profileId (linked auth account), else keep first.
+function dedupeByEmail(employees: Employee[]): Employee[] {
+    const emailMap = new Map<string, Employee>();
+    for (const e of employees) {
+        const key = e.email.toLowerCase();
+        const existing = emailMap.get(key);
+        if (!existing) {
+            emailMap.set(key, e);
+        } else if (!existing.profileId && e.profileId) {
+            // Prefer the record that is linked to a real auth account
+            emailMap.set(key, e);
+        }
+    }
+    return Array.from(emailMap.values());
+}
+
+function dedupeAll(employees: Employee[]): Employee[] {
+    return dedupeByEmail(dedupeById(employees));
+}
+
 export const useEmployeesStore = create<EmployeesState>()(
     persist(
         (set, get) => ({
@@ -123,7 +144,7 @@ export const useEmployeesStore = create<EmployeesState>()(
             deduplicateEmployees: () => {
                 const { employees } = get();
                 const before = employees.length;
-                const deduped = dedupeById(employees);
+                const deduped = dedupeAll(employees);
                 if (deduped.length < before) {
                     set({ employees: deduped });
                 }
@@ -218,22 +239,25 @@ export const useEmployeesStore = create<EmployeesState>()(
         }),
         {
             name: "soren-employees",
-            version: 8,
+            version: 9,
             migrate: (persisted, fromVersion) => {
                 const state = persisted as Partial<EmployeesState> & { employees?: Employee[] };
-                const seedIds = new Set(SEED_EMPLOYEES.map((e) => e.id));
-                // v7→v8: reset productivity to 0 for non-seed employees that had the hardcoded 80 default
-                const employees = (state.employees ?? SEED_EMPLOYEES).map((e) =>
-                    !seedIds.has(e.id) && e.productivity === 80
-                        ? { ...e, productivity: 0 }
-                        : e
-                );
                 if (fromVersion < 7) {
                     return { employees: SEED_EMPLOYEES, salaryRequests: [], salaryHistory: [], documents: {}, searchQuery: "", statusFilter: "all" as const, workTypeFilter: "all" as const, departmentFilter: "all" };
                 }
+                const seedIds = new Set(SEED_EMPLOYEES.map((e) => e.id));
+                // v7→v8: reset productivity to 0 for non-seed employees with hardcoded 80
+                // v8→v9: deduplicate by email (keeps profileId-linked record)
+                const employees = dedupeAll(
+                    (state.employees ?? SEED_EMPLOYEES).map((e) =>
+                        !seedIds.has(e.id) && e.productivity === 80
+                            ? { ...e, productivity: 0 }
+                            : e
+                    )
+                );
                 return { ...state, employees };
             },
-            // Auto-deduplicate employees on store rehydration
+            // Auto-deduplicate by both ID and email on every rehydration
             merge: (persisted, current) => {
                 const persistedState = persisted as Partial<EmployeesState> | undefined;
                 const currentState = current as EmployeesState;
@@ -241,8 +265,7 @@ export const useEmployeesStore = create<EmployeesState>()(
                 return {
                     ...currentState,
                     ...persistedState,
-                    // Deduplicate employees by ID
-                    employees: dedupeById(persistedState.employees ?? currentState.employees),
+                    employees: dedupeAll(persistedState.employees ?? currentState.employees),
                 };
             },
         }

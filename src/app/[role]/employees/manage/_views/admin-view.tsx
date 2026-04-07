@@ -1109,39 +1109,42 @@ export default function AdminEmployeesView() {
                         <Select value={dirStatus} onValueChange={setDirStatus}><SelectTrigger className="w-full sm:w-[130px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Status</SelectItem><SelectItem value="active">Active</SelectItem><SelectItem value="inactive">Inactive</SelectItem></SelectContent></Select>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-stretch">
                         {dirFiltered.map((emp) => (
-                            <div key={emp.id} className="relative">
-                                <Link href={rh(`/employees/${emp.id}`)}>
-                                    <Card className="border border-border/50 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group">
-                                        <CardContent className="p-5">
+                            <div key={emp.id} className="relative h-full">
+                                <Link href={rh(`/employees/${emp.id}`)} className="block h-full">
+                                    <Card className="border border-border/50 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group h-full flex flex-col">
+                                        <CardContent className="p-5 flex flex-col flex-1">
+                                            {/* Header */}
                                             <div className="flex items-start gap-3">
-                                                <Avatar className="h-12 w-12"><AvatarFallback className="bg-primary/10 text-primary font-semibold">{getInitials(emp.name)}</AvatarFallback></Avatar>
+                                                <Avatar className="h-12 w-12 shrink-0"><AvatarFallback className="bg-primary/10 text-primary font-semibold">{getInitials(emp.name)}</AvatarFallback></Avatar>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2">
                                                         <h3 className="text-sm font-semibold truncate group-hover:text-primary transition-colors">{emp.name}</h3>
                                                         <Badge variant="secondary" className={`text-[9px] shrink-0 ${emp.status === "active" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-red-500/15 text-red-700 dark:text-red-400"}`}>{emp.status}</Badge>
                                                     </div>
-                                                    <p className="text-xs text-muted-foreground mt-0.5">{emp.role}</p>
+                                                    <p className="text-xs text-muted-foreground mt-0.5 capitalize">{emp.role}</p>
                                                 </div>
                                             </div>
-                                            <div className="mt-4 space-y-2">
-                                                <div className="flex items-center gap-2 text-xs text-muted-foreground"><Mail className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{emp.email}</span></div>
-                                                <div className="flex items-center gap-2 text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5 shrink-0" /><span>{emp.location}</span></div>
-                                                {emp.phone && <div className="flex items-center gap-2 text-xs text-muted-foreground"><Phone className="h-3.5 w-3.5 shrink-0" /><span>{emp.phone}</span></div>}
-                                                {emp.birthday && <div className="flex items-center gap-2 text-xs text-muted-foreground"><Cake className="h-3.5 w-3.5 shrink-0" /><span>{new Date(emp.birthday).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span></div>}
-                                                {canSetSalary && (
-                                                    <div className="flex items-center justify-between pt-1 border-t border-border/40 mt-2">
-                                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                            <DollarSign className="h-3.5 w-3.5 shrink-0" />
-                                                            <span className="font-mono font-medium text-foreground">{formatCurrency(emp.salary)}<span className="text-muted-foreground font-normal">/mo</span></span>
-                                                        </div>
-                                                        <button onClick={(e) => openSalaryDialog(e, emp.id, emp.salary)} className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline">
-                                                            <Pencil className="h-2.5 w-2.5" /> {isHR ? "Propose" : "Set"}
-                                                        </button>
-                                                    </div>
-                                                )}
+                                            {/* Fixed-height info rows — always rendered for uniform card size */}
+                                            <div className="mt-4 flex-1 flex flex-col gap-2">
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0"><Mail className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{emp.email}</span></div>
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground"><Phone className="h-3.5 w-3.5 shrink-0" /><span className="text-muted-foreground/60">{emp.phone || "—"}</span></div>
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5 shrink-0" /><span className="text-muted-foreground/60">{emp.location || "—"}</span></div>
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground"><Cake className="h-3.5 w-3.5 shrink-0" /><span className="text-muted-foreground/60">{emp.birthday ? new Date(emp.birthday).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}</span></div>
                                             </div>
+                                            {/* Salary footer — always at bottom */}
+                                            {canSetSalary && (
+                                                <div className="flex items-center justify-between pt-3 border-t border-border/40 mt-3">
+                                                    <div className="flex items-center gap-1.5 text-xs">
+                                                        <DollarSign className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                                        <span className="font-mono font-medium text-foreground">{formatCurrency(emp.salary)}<span className="text-muted-foreground font-normal">/mo</span></span>
+                                                    </div>
+                                                    <button onClick={(e) => openSalaryDialog(e, emp.id, emp.salary)} className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline">
+                                                        <Pencil className="h-2.5 w-2.5" /> {isHR ? "Propose" : "Set"}
+                                                    </button>
+                                                </div>
+                                            )}
                                         </CardContent>
                                     </Card>
                                 </Link>
