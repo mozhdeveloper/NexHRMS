@@ -791,14 +791,14 @@ export default function AdminTasksView() {
                                             {columnTasks.length}
                                         </Badge>
                                     </div>
-                                    <div className="space-y-2 min-h-[100px]">
+                                    <div className="space-y-3 min-h-[100px]">
                                         {columnTasks.map((task) => {
                                             const pc = PRIORITY_CONFIG[task.priority];
                                             const overdue = isOverdue(task);
                                             return (
                                                 <Link key={task.id} href={roleHref(`/tasks/${task.id}`)}>
                                                     <Card className="border border-border/50 hover:border-border transition-colors cursor-pointer">
-                                                        <CardContent className="p-3 space-y-2">
+                                                        <CardContent className="p-3.5 space-y-2.5">
                                                             <div className="flex items-start justify-between gap-1">
                                                                 <p className="text-sm font-medium leading-snug line-clamp-2">
                                                                     {task.title}
