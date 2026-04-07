@@ -15,6 +15,7 @@ import {
     SEED_TASKS,
     SEED_COMPLETION_REPORTS,
     SEED_TASK_COMMENTS,
+    SEED_TASK_TAGS,
 } from "@/data/seed";
 import { useAuditStore } from "@/store/audit.store";
 import { useNotificationsStore } from "@/store/notifications.store";
@@ -70,7 +71,7 @@ export const useTasksStore = create<TasksState>()(
             tasks: SEED_TASKS,
             completionReports: SEED_COMPLETION_REPORTS,
             comments: SEED_TASK_COMMENTS,
-            taskTags: [],
+            taskTags: SEED_TASK_TAGS,
 
             // ── Groups ────────────────────────────────────────
             addGroup: (data) => {
@@ -319,9 +320,21 @@ export const useTasksStore = create<TasksState>()(
                     tasks: SEED_TASKS,
                     completionReports: SEED_COMPLETION_REPORTS,
                     comments: SEED_TASK_COMMENTS,
-                    taskTags: [],
+                    taskTags: SEED_TASK_TAGS,
                 }),
         }),
-        { name: "soren-tasks", version: 1 }
+        { name: "soren-tasks", version: 2,
+            migrate: (persisted) => {
+                const state = persisted as Partial<{ groups: unknown; tasks: unknown; completionReports: unknown; comments: unknown; taskTags: unknown[] }>;
+                // v1→v2: inject seed tags for existing users who had empty taskTags
+                const existingTags = state.taskTags ?? [];
+                const seedTagIds = new Set(SEED_TASK_TAGS.map((t) => t.id));
+                const mergedTags = [
+                    ...SEED_TASK_TAGS,
+                    ...existingTags.filter((t): t is typeof SEED_TASK_TAGS[0] => !seedTagIds.has((t as { id: string }).id)),
+                ];
+                return { ...state, taskTags: mergedTags };
+            },
+        }
     )
 );

@@ -11,6 +11,7 @@ import type {
     Task,
     TaskCompletionReport,
     TaskComment,
+    TaskTag,
     Announcement,
     TextChannel,
     ChannelMessage,
@@ -253,6 +254,17 @@ export const SEED_TASK_COMMENTS: TaskComment[] = [
     { id: "TC-002", taskId: "TSK-001", employeeId: "EMP006", message: "Great. Make sure to document the fire exit compliance on each floor.", createdAt: "2026-02-20T09:30:00Z" },
     { id: "TC-003", taskId: "TSK-003", employeeId: "EMP007", message: "I'll handle the electrical equipment. Sophia, can you check the heavy machinery?", createdAt: "2026-03-02T10:00:00Z" },
     { id: "TC-004", taskId: "TSK-006", employeeId: "EMP006", message: "Please retake the photos with better lighting. The current ones are not usable for the audit report.", createdAt: "2026-02-27T16:30:00Z" },
+];
+
+// ─── Task Tags ───────────────────────────────────────────────
+export const SEED_TASK_TAGS: TaskTag[] = [
+    { id: "TAG-001", name: "inspection",  color: "#6366f1", createdBy: "EMP006", createdAt: "2026-01-15T08:00:00Z" },
+    { id: "TAG-002", name: "safety",      color: "#ef4444", createdBy: "EMP006", createdAt: "2026-01-15T08:00:00Z" },
+    { id: "TAG-003", name: "delivery",    color: "#f59e0b", createdBy: "EMP006", createdAt: "2026-01-15T08:00:00Z" },
+    { id: "TAG-004", name: "equipment",   color: "#0ea5e9", createdBy: "EMP006", createdAt: "2026-01-15T08:00:00Z" },
+    { id: "TAG-005", name: "report",      color: "#10b981", createdBy: "EMP006", createdAt: "2026-01-15T08:00:00Z" },
+    { id: "TAG-006", name: "inventory",   color: "#8b5cf6", createdBy: "EMP006", createdAt: "2026-01-15T08:00:00Z" },
+    { id: "TAG-007", name: "audit",       color: "#f97316", createdBy: "EMP006", createdAt: "2026-01-15T08:00:00Z" },
 ];
 
 // ─── Text Channels ───────────────────────────────────────────

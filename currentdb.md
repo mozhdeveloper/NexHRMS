@@ -585,16 +585,16 @@ CREATE TABLE public.payroll_adjustments (
   status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'approved'::text, 'applied'::text, 'rejected'::text])),
   CONSTRAINT payroll_adjustments_pkey PRIMARY KEY (id),
   CONSTRAINT payroll_adjustments_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES public.employees(id),
-  CONSTRAINT fk_pa_run FOREIGN KEY (payroll_run_id) REFERENCES public.payroll_runs(id),
-  CONSTRAINT fk_pa_payslip FOREIGN KEY (reference_payslip_id) REFERENCES public.payslips(id)
+  CONSTRAINT fk_pa_payslip FOREIGN KEY (reference_payslip_id) REFERENCES public.payslips(id),
+  CONSTRAINT fk_pa_run FOREIGN KEY (payroll_run_id) REFERENCES public.payroll_runs(id)
 );
 CREATE TABLE public.payroll_run_payslips (
   run_id text NOT NULL,
   payslip_id text NOT NULL,
   added_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT payroll_run_payslips_pkey PRIMARY KEY (run_id, payslip_id),
-  CONSTRAINT payroll_run_payslips_run_id_fkey FOREIGN KEY (run_id) REFERENCES public.payroll_runs(id),
-  CONSTRAINT payroll_run_payslips_payslip_id_fkey FOREIGN KEY (payslip_id) REFERENCES public.payslips(id)
+  CONSTRAINT payroll_run_payslips_payslip_id_fkey FOREIGN KEY (payslip_id) REFERENCES public.payslips(id),
+  CONSTRAINT payroll_run_payslips_run_id_fkey FOREIGN KEY (run_id) REFERENCES public.payroll_runs(id)
 );
 CREATE TABLE public.payroll_runs (
   id text NOT NULL,
