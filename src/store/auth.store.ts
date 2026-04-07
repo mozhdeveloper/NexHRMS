@@ -189,19 +189,11 @@ export const useAuthStore = create<AuthState>()(
         }),
         {
             name: "soren-auth",
-            version: 4,
+            version: 5,
             migrate: (persisted: unknown, version: number) => {
-                const state = persisted as Record<string, unknown>;
-                if (version < 3) {
-                    return { ...state, accounts: buildSeedAccounts() };
-                }
-                if (version < 4) {
-                    // v3 → v4: ensure profileComplete is set on currentUser
-                    const cu = state.currentUser as Record<string, unknown> | undefined;
-                    if (cu && cu.profileComplete === undefined) {
-                        cu.profileComplete = true;
-                    }
-                    return state as unknown as AuthState;
+                // Any version < 5: rebuild from seed to pick up new demo accounts
+                if (version < 5) {
+                    return { accounts: buildSeedAccounts(), currentUser: buildSeedAccounts()[0], isAuthenticated: false };
                 }
                 return persisted as AuthState;
             },

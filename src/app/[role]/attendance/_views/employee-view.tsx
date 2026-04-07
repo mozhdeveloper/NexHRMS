@@ -487,9 +487,9 @@ export default function EmployeeView() {
                     );
                 })()}
 
-                {/* ── Face Enrollment Reminder (show unless project explicitly uses QR/manual only) ── */}
-                {myProject && myProject.verificationMethod !== "qr_only" && myProject.verificationMethod !== "manual_only" && (
-                    <EnrollmentReminder compact />
+                {/* ── Face Enrollment Reminder (face_only / face_or_qr / unassigned employees) ── */}
+                {myProject?.verificationMethod !== "qr_only" && myProject?.verificationMethod !== "manual_only" && myEmployeeId && (
+                    <EnrollmentReminder employeeId={myEmployeeId} />
                 )}
 
                 {/* ── Status Hero Card ──────────────────────────────────── */}

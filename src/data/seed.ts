@@ -27,6 +27,8 @@ export const DEMO_USERS: DemoUser[] = [
     { id: "U008", name: "Rene Santos", role: "auditor", email: "auditor@sdsi.com" },
     { id: "U009", name: "Jamie Reyes", role: "employee", email: "qr@sdsi.com" },
     { id: "U010", name: "Riley Santos", role: "employee", email: "qr2@sdsi.com" },
+    // Face recognition test account — dedicated for biometric attendance testing
+    { id: "U011", name: "Alex Reyes", role: "employee", email: "face@sdsi.com" },
 ];
 
 // ─── Employees ───────────────────────────────────────────────
@@ -56,12 +58,14 @@ export const SEED_EMPLOYEES: Employee[] = [
     { id: "EMP023", name: "Luna Adams", email: "luna@company.com", role: "UI/UX Designer", department: "Design", status: "active", workType: "WFO", salary: 82000, joinDate: "2023-06-05", productivity: 77, location: "Tokyo", phone: "+81-555-0123", birthday: "1997-05-14", teamLeader: "EMP011" },
     { id: "EMP024", name: "Leo Campbell", email: "leo@company.com", role: "QA Engineer", department: "Engineering", status: "active", workType: "WFH", salary: 87000, joinDate: "2022-12-10", productivity: 86, location: "Manila", phone: "+63-555-0124", birthday: "1994-10-31" },
     { id: "EMP025", name: "Aria Evans", email: "aria@company.com", role: "HR Specialist", department: "Human Resources", status: "active", workType: "HYBRID", salary: 74000, joinDate: "2023-08-01", productivity: 80, location: "Singapore", phone: "+65-555-0125", birthday: "1995-12-20" },
-    // Sam Torres (Employee demo user mapped to an EMP record)
-    { id: "EMP026", name: "Sam Torres", email: "employee@sdsi.com", role: "Frontend Developer", department: "Engineering", status: "active", workType: "WFO", salary: 88000, joinDate: "2024-01-10", productivity: 82, location: "Manila", phone: "+63-555-0126", birthday: "1995-04-20", teamLeader: "EMP010", profileId: "U004" },
+    // Sam Torres (Employee demo user — face recognition test account)
+    { id: "EMP026", name: "Sam Torres", email: "employee@sdsi.com", role: "Frontend Developer", department: "Engineering", status: "active", workType: "WFO", salary: 88000, joinDate: "2024-01-10", productivity: 82, location: "Manila", phone: "+63-917-5550126", birthday: "1995-04-20", teamLeader: "EMP010", profileId: "U004", workDays: ["Mon", "Tue", "Wed", "Thu", "Fri"], payFrequency: "semi_monthly", whatsappNumber: "+63-917-5550126", preferredChannel: "in_app", address: "88 Rizal Avenue, Malate, Manila, Metro Manila", emergencyContact: "Maria Torres (Mother) - +63-918-5550001", pin: "262626", nfcId: "NFC-026" },
     // Jamie Reyes (QR demo user 1) — uses QR code at kiosk, no employee PIN
     { id: "EMP027", name: "Jamie Reyes", email: "qr@sdsi.com", role: "Field Technician", department: "Operations", status: "active", workType: "ONSITE", salary: 45000, joinDate: "2025-03-15", productivity: 88, location: "Marikina, Metro Manila", phone: "+63-917-1234567", birthday: "1998-05-22", profileId: "U009", workDays: ["Mon", "Tue", "Wed", "Thu", "Fri"], payFrequency: "semi_monthly", whatsappNumber: "+63-917-1234567", preferredChannel: "in_app", address: "123 Shoe Ave, Marikina City, Metro Manila", emergencyContact: "Maria Reyes - +63-918-7654321" },
     // Riley Santos (QR demo user 2) — uses QR code at kiosk, no employee PIN
     { id: "EMP028", name: "Riley Santos", email: "qr2@sdsi.com", role: "Field Technician", department: "Operations", status: "active", workType: "ONSITE", salary: 42000, joinDate: "2025-06-01", productivity: 82, location: "Quezon City, Metro Manila", phone: "+63-918-9876543", birthday: "1999-11-08", profileId: "U010", workDays: ["Mon", "Tue", "Wed", "Thu", "Fri"], payFrequency: "semi_monthly", whatsappNumber: "+63-918-9876543", preferredChannel: "in_app", address: "456 Commonwealth Ave, Quezon City, Metro Manila", emergencyContact: "Carlos Santos - +63-919-1112222" },
+    // Alex Reyes — dedicated face recognition test account
+    { id: "EMP029", name: "Alex Reyes", email: "face@sdsi.com", role: "Security Officer", department: "Operations", status: "active", workType: "ONSITE", salary: 52000, joinDate: "2025-01-15", productivity: 90, location: "Makati, Metro Manila", phone: "+63-917-5550029", birthday: "1993-07-14", profileId: "U011", workDays: ["Mon", "Tue", "Wed", "Thu", "Fri"], payFrequency: "semi_monthly", whatsappNumber: "+63-917-5550029", preferredChannel: "in_app", address: "29 Dela Rosa Street, Legazpi Village, Makati City, Metro Manila", emergencyContact: "Rosa Reyes (Mother) - +63-918-5550029", pin: "290290", nfcId: "NFC-029" },
 ];
 
 // ─── Seed Projects ───────────────────────────────────────────
@@ -69,9 +73,11 @@ export const SEED_PROJECTS: Project[] = [
     {
         id: "PRJ001",
         name: "Metro Tower Construction",
-        description: "High-rise office building construction project in Makati CBD.",
+        description: "High-rise office building construction project in Makati CBD. Uses face recognition for attendance.",
         location: { lat: 14.5547, lng: 121.0244, radius: 200 },
         assignedEmployeeIds: ["EMP001", "EMP002", "EMP004", "EMP026"],
+        verificationMethod: "face_only",
+        requireGeofence: true,
         createdAt: "2025-11-01T00:00:00Z",
     },
     {
@@ -106,6 +112,16 @@ export const SEED_PROJECTS: Project[] = [
         assignedEmployeeIds: ["EMP027", "EMP028"],
         verificationMethod: "qr_only",
         createdAt: "2026-02-01T00:00:00Z",
+    },
+    {
+        id: "PRJ006",
+        name: "Makati Security Post – Face Check-in",
+        description: "Makati CBD security post using face recognition for attendance. Demo account for testing biometric check-in. Address: Dela Rosa Street, Legazpi Village, Makati City.",
+        location: { lat: 14.5567, lng: 121.0178, radius: 300 },
+        assignedEmployeeIds: ["EMP029"],
+        verificationMethod: "face_only",
+        requireGeofence: true,
+        createdAt: "2026-01-15T00:00:00Z",
     },
 ];
 

@@ -21,16 +21,21 @@ interface EnrollmentReminderProps {
     adminView?: boolean;
     /** Compact mode for dashboard widgets */
     compact?: boolean;
+    /** Pass employee ID directly to avoid relying on store lookup */
+    employeeId?: string;
 }
 
-export function EnrollmentReminder({ adminView = false, compact = false }: EnrollmentReminderProps) {
+export function EnrollmentReminder({ adminView = false, compact = false, employeeId: employeeIdProp }: EnrollmentReminderProps) {
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
 
-    // Find current employee
-    const myEmployee = employees.find(
-        (e) => e.profileId === currentUser.id || e.email === currentUser.email || e.name === currentUser.name
-    );
+    // Use passed employeeId directly, or fall back to store lookup
+    const myEmployee = employeeIdProp
+        ? employees.find((e) => e.id === employeeIdProp)
+        : employees.find(
+            (e) => e.profileId === currentUser.id || e.email === currentUser.email || e.name === currentUser.name
+        );
+    const resolvedEmployeeId = employeeIdProp ?? myEmployee?.id;
 
     // Build the enrollment link based on user role (avoids kiosk PIN gate)
     const enrollPath = `/${currentUser.role}/face-enrollment`;
@@ -39,21 +44,21 @@ export function EnrollmentReminder({ adminView = false, compact = false }: Enrol
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!myEmployee?.id) { setLoading(false); return; }
+        if (!resolvedEmployeeId) { setLoading(false); return; }
 
-        fetch(`/api/face-recognition/enroll?action=status&employeeId=${myEmployee.id}`)
+        fetch(`/api/face-recognition/enroll?action=status&employeeId=${encodeURIComponent(resolvedEmployeeId)}`)
             .then((r) => r.json())
             .then((data) => setIsEnrolled(data.enrolled ?? false))
             .catch(() => setIsEnrolled(false))
             .finally(() => setLoading(false));
-    }, [myEmployee?.id]);
+    }, [resolvedEmployeeId]);
 
     if (loading) {
         return compact ? null : (
             <Card className="border border-border/40">
                 <CardContent className="p-4 flex items-center gap-2 text-muted-foreground text-sm">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Checking enrollment status...
+                    Checking face enrollment status...
                 </CardContent>
             </Card>
         );

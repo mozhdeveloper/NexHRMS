@@ -67,7 +67,7 @@ export const useProjectsStore = create<ProjectsState>()(
         }),
         {
             name: "soren-projects",
-            version: 2,
+            version: 3,
             migrate: () => ({ projects: SEED_PROJECTS }),
         }
     )

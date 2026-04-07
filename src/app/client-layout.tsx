@@ -3,7 +3,6 @@
 import { ThemeProvider } from "@/components/shell/theme-provider";
 import { AppShell } from "@/components/shell/app-shell";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { OnboardingModal } from "@/components/auth/onboarding-modal";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
 import { useEffect, useState } from "react";
@@ -88,7 +87,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     return (
         <TooltipProvider>
             <ThemeProvider>
-                <OnboardingModal />
                 {skipShell ? children : <AppShell>{children}</AppShell>}
             </ThemeProvider>
         </TooltipProvider>
