@@ -136,7 +136,7 @@ export function Topbar() {
                 {/* Spacer on mobile */}
                 <div className="flex-1 sm:hidden" />
 
-                <div className="flex items-center gap-1 sm:gap-2">
+                <div className="flex items-center gap-1 sm:gap-2 ml-auto">
                     {/* Theme toggle */}
                     <Button
                         variant="ghost"
