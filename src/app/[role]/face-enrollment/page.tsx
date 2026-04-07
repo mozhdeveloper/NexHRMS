@@ -72,14 +72,15 @@ export default function FaceEnrollmentPage() {
     const myProject = myEmployee ? getProjectForEmployee(myEmployee.id) : undefined;
 
     // Admin should not access face enrollment — redirect to dashboard
-    // Also redirect if employee is not assigned to a face recognition project
     useEffect(() => {
         if (currentUser.role === "admin") {
             router.replace(`/admin`);
             return;
         }
-        // Only show if employee is assigned to a face-related project
-        if (myProject && myProject.verificationMethod !== "face_only") {
+        // Redirect only if employee is assigned to a project that explicitly
+        // uses a non-face verification method (qr_only or manual_only).
+        // Allow enrollment when verificationMethod is undefined (face is default) or "face_only".
+        if (myProject && (myProject.verificationMethod === "qr_only" || myProject.verificationMethod === "manual_only")) {
             router.replace(`/${currentUser.role}/attendance`);
         }
     }, [currentUser.role, router, myProject]);

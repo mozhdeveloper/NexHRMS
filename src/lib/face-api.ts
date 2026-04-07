@@ -69,6 +69,14 @@ export async function detectFace(
     await loadFaceModels();
   }
 
+  // Guard: video element must be playing with valid dimensions
+  if (input instanceof HTMLVideoElement) {
+    if (!input.videoWidth || !input.videoHeight || input.readyState < 2) {
+      console.debug("[face-api] detectFace: video not ready (readyState=%d, %dx%d)", input.readyState, input.videoWidth, input.videoHeight);
+      return null;
+    }
+  }
+
   const result = await faceapi
     .detectSingleFace(input, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.6 }))
     .withFaceLandmarks()
@@ -152,6 +160,13 @@ export async function detectAllFaces(
     await loadFaceModels();
   }
 
+  // Guard: video element must be playing with valid dimensions
+  if (input instanceof HTMLVideoElement) {
+    if (!input.videoWidth || !input.videoHeight || input.readyState < 2) {
+      return [];
+    }
+  }
+
   const results = await faceapi
     .detectAllFaces(input, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
     .withFaceLandmarks()
@@ -211,6 +226,14 @@ export async function detectFaceQuick(
 ): Promise<FaceTrackingResult | null> {
   if (!modelsLoaded) {
     await loadFaceModels();
+  }
+
+  // Guard: video element must be playing with valid dimensions
+  if (input instanceof HTMLVideoElement) {
+    if (!input.videoWidth || !input.videoHeight || input.readyState < 2) {
+      console.debug("[face-api] detectFaceQuick: video not ready (readyState=%d, %dx%d)", input.readyState, input.videoWidth, input.videoHeight);
+      return null;
+    }
   }
 
   const allResults = await faceapi

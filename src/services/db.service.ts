@@ -83,12 +83,15 @@ async function fetchAll<T>(table: string, options?: {
 }
 
 /** Generic upsert (insert or update) */
-async function upsertRow(table: string, row: Record<string, unknown>) {
+async function upsertRow(table: string, row: Record<string, unknown>, onConflict = "id") {
   const dbRow = keysToSnake(row);
-  const { error } = await supabase().from(table).upsert(dbRow, { onConflict: "id" });
+  const { error } = await supabase().from(table).upsert(dbRow, { onConflict });
   if (error) {
     if (isNetworkError(error) && isDemoMode) return false;
     if (error.code === "42501" && isDemoMode) return false;
+    // 23505 = unique_violation: row already exists via a different unique constraint.
+    // Safe to suppress — the data is already in the DB.
+    if (error.code === "23505") return true;
     console.error(`[db] upsert ${table}:`, error.message);
   }
   return !error;
@@ -276,7 +279,8 @@ export const attendanceDb = {
       row.locationLng = log.locationSnapshot.lng;
     }
     delete row.locationSnapshot;
-    return upsertRow("attendance_logs", row);
+    // attendance_logs has a unique constraint on (employee_id, date) in addition to PK
+    return upsertRow("attendance_logs", row, "employee_id,date");
   },
 
   async insertEvent(event: AttendanceEvent): Promise<boolean> {

@@ -27,6 +27,7 @@ import { SelfieCapture } from "@/components/attendance/selfie-capture";
 import { LocationTracker } from "@/components/attendance/location-tracker";
 import { BreakTimer } from "@/components/attendance/break-timer";
 import { EmployeeQRDisplay } from "@/components/attendance/employee-qr-display";
+import { EnrollmentReminder } from "@/components/attendance/enrollment-reminder";
 import { stopWriteThrough, startWriteThrough, forceRehydrate } from "@/services/sync.service";
 
 type CheckInStep = "idle" | "locating" | "location_result" | "done" | "error" | "selfie" | "qr_scan";
@@ -485,6 +486,11 @@ export default function EmployeeView() {
                         </Card>
                     );
                 })()}
+
+                {/* ── Face Enrollment Reminder (show unless project explicitly uses QR/manual only) ── */}
+                {myProject && myProject.verificationMethod !== "qr_only" && myProject.verificationMethod !== "manual_only" && (
+                    <EnrollmentReminder compact />
+                )}
 
                 {/* ── Status Hero Card ──────────────────────────────────── */}
                 <Card className={`border-2 overflow-hidden ${

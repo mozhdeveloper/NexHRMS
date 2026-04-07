@@ -32,6 +32,9 @@ export function EnrollmentReminder({ adminView = false, compact = false }: Enrol
         (e) => e.profileId === currentUser.id || e.email === currentUser.email || e.name === currentUser.name
     );
 
+    // Build the enrollment link based on user role (avoids kiosk PIN gate)
+    const enrollPath = `/${currentUser.role}/face-enrollment`;
+
     const [isEnrolled, setIsEnrolled] = useState<boolean | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -119,7 +122,7 @@ export function EnrollmentReminder({ adminView = false, compact = false }: Enrol
                             Enroll your face to enable faster check-in at the kiosk. This only takes a minute.
                         </p>
                         <Button asChild size="sm" variant="outline" className="gap-2">
-                            <Link href="/kiosk/face/enroll">
+                            <Link href={enrollPath}>
                                 <ScanFace className="h-4 w-4" />
                                 Enroll Now
                                 <ArrowRight className="h-3 w-3" />
