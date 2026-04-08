@@ -388,6 +388,8 @@ CREATE TABLE public.leave_requests (
   type text NOT NULL,
   start_date date NOT NULL,
   end_date date NOT NULL,
+  duration text NOT NULL DEFAULT 'full_day'::text CHECK (duration = ANY (ARRAY['full_day'::text, 'half_day_am'::text, 'half_day_pm'::text, 'hourly'::text])),
+  hours numeric,
   reason text NOT NULL DEFAULT ''::text,
   status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text])),
   reviewed_by text,

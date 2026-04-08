@@ -61,6 +61,9 @@ CREATE TABLE IF NOT EXISTS public.leave_requests (
     type            text NOT NULL,
     start_date      date NOT NULL,
     end_date        date NOT NULL,
+    duration        text NOT NULL DEFAULT 'full_day'
+                    CHECK (duration IN ('full_day','half_day_am','half_day_pm','hourly')),
+    hours           numeric,
     reason          text NOT NULL DEFAULT '',
     status          text NOT NULL DEFAULT 'pending'
                     CHECK (status IN ('pending','approved','rejected')),
