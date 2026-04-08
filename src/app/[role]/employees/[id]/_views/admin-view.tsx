@@ -251,13 +251,13 @@ export default function AdminProfileView() {
                         <Card className="border border-border/50">
                             <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Work Summary</CardTitle></CardHeader>
                             <CardContent className="space-y-3">
-                                <InfoRow icon={<DollarSign className="h-4 w-4" />} label="Monthly Salary" value={`${formatCurrency(employee.salary)}/mo`} />
-                                <InfoRow icon={<Calendar className="h-4 w-4" />} label="Join Date" value={formatDate(employee.joinDate)} />
+                                <InfoRow icon={<DollarSign className="h-4 w-4" />} label="Monthly Salary" value={`${formatCurrency(employee.salary ?? 0)}/mo`} />
+                                <InfoRow icon={<Calendar className="h-4 w-4" />} label="Join Date" value={employee.joinDate ? formatDate(employee.joinDate) : "—"} />
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-muted-foreground">Productivity</span>
                                     <div className="flex items-center gap-2">
-                                        <div className="h-2 w-24 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: `${employee.productivity}%` }} /></div>
-                                        <span className="text-sm font-medium">{employee.productivity}%</span>
+                                        <div className="h-2 w-24 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: `${employee.productivity ?? 0}%` }} /></div>
+                                        <span className="text-sm font-medium">{employee.productivity ?? 0}%</span>
                                     </div>
                                 </div>
                             </CardContent>
@@ -521,7 +521,7 @@ export default function AdminProfileView() {
                         <div className="grid grid-cols-2 gap-3">
                             <div><label className="text-sm font-medium">Pay Frequency</label>
                                 <Select value={editPayFreq} onValueChange={setEditPayFreq}><SelectTrigger className="mt-1"><SelectValue /></SelectTrigger><SelectContent>
-                                    <SelectItem value="company">Company Default ({paySchedule.defaultFrequency.replace("_", "-")})</SelectItem>
+                                    <SelectItem value="company">Company Default ({(paySchedule?.defaultFrequency ?? "semi_monthly").replace("_", "-")})</SelectItem>
                                     <SelectItem value="monthly">Monthly</SelectItem><SelectItem value="semi_monthly">Semi-Monthly</SelectItem><SelectItem value="bi_weekly">Bi-Weekly</SelectItem><SelectItem value="weekly">Weekly</SelectItem>
                                 </SelectContent></Select>
                             </div>

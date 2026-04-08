@@ -9,7 +9,8 @@ export function formatCurrency(amount: number): string {
     }).format(amount);
 }
 
-export function formatDate(dateStr: string): string {
+export function formatDate(dateStr: string | null | undefined): string {
+    if (!dateStr) return "—";
     try {
         return format(parseISO(dateStr), "MMM dd, yyyy");
     } catch {
