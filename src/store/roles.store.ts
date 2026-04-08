@@ -275,9 +275,9 @@ const FINANCE_DASHBOARD: WidgetConfig[] = [
 
 const EMPLOYEE_DASHBOARD: WidgetConfig[] = [
     defaultWidget("my_attendance_status", 0),
-    defaultWidget("my_leave_balance", 1, 2),
+    defaultWidget("my_leave_balance", 1, 3),
     defaultWidget("my_latest_payslip", 2),
-    defaultWidget("my_leave_requests", 3, 4),
+    defaultWidget("my_leave_requests", 3, 3),
     defaultWidget("events_widget_readonly", 4, 2),
     defaultWidget("birthdays_widget", 5, 2),
 ];
