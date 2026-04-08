@@ -227,7 +227,7 @@ export default function AdminProfileView() {
 
             {/* All tabs visible for admin/hr */}
             <Tabs defaultValue="overview">
-                <TabsList className="w-full overflow-x-auto justify-start">
+                <TabsList className="w-full justify-start">
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="employment">Employment</TabsTrigger>
                     <TabsTrigger value="attendance">Attendance</TabsTrigger>

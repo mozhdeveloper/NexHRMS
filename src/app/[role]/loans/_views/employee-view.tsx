@@ -53,7 +53,7 @@ export default function EmployeeLoansView() {
             </div>
 
             <Tabs defaultValue="loans">
-                <TabsList className="w-full overflow-x-auto justify-start">
+                <TabsList className="w-full justify-start">
                     <TabsTrigger value="loans">My Loans</TabsTrigger>
                     <TabsTrigger value="schedule" className="gap-1.5"><Calendar className="h-3.5 w-3.5" /> Repayment Schedule</TabsTrigger>
                     <TabsTrigger value="history" className="gap-1.5"><History className="h-3.5 w-3.5" /> Deduction History{myDeductions.length > 0 && <span className="ml-1 bg-primary/15 text-primary text-[10px] px-1.5 py-0.5 rounded-full">{myDeductions.length}</span>}</TabsTrigger>

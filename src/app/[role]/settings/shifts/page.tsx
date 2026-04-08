@@ -197,7 +197,7 @@ export default function ShiftsPage() {
             </div>
 
             <Tabs defaultValue="templates">
-                <TabsList className="w-full overflow-x-auto justify-start">
+                <TabsList className="w-full justify-start">
                     <TabsTrigger value="templates" className="gap-1.5">
                         <Clock3 className="h-3.5 w-3.5" /> Shift Templates
                     </TabsTrigger>

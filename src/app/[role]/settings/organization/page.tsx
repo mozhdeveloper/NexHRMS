@@ -182,7 +182,7 @@ export default function OrganizationPage() {
             </div>
 
             <Tabs defaultValue="departments">
-                <TabsList className="w-full overflow-x-auto justify-start">
+                <TabsList className="w-full justify-start">
                     <TabsTrigger value="departments" className="gap-1.5">
                         <Building2 className="h-3.5 w-3.5" /> Departments
                     </TabsTrigger>

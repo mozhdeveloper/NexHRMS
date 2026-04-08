@@ -644,7 +644,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
 
             {/* Tabs */}
             <Tabs defaultValue="payslips">
-                <TabsList className="w-full overflow-x-auto justify-start">
+                <TabsList className="w-full justify-start">
                     <TabsTrigger value="payslips">Payslips</TabsTrigger>
                     <TabsTrigger value="runs">Payroll Runs</TabsTrigger>
                     {canIssue && <TabsTrigger value="management" className="gap-1.5"><PenTool className="h-3.5 w-3.5" /> Management</TabsTrigger>}
