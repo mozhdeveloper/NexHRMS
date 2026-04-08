@@ -14,8 +14,11 @@ import { getInitials, formatDate } from "@/lib/format";
 import { useRoleHref } from "@/lib/hooks/use-role-href";
 import Link from "next/link";
 import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
     ListTodo, CheckCircle2, ArrowUpRight, Eye,
-    AlertTriangle, Camera, ChevronRight, Search,
+    AlertTriangle, Camera, ChevronRight, Search, Filter,
 } from "lucide-react";
 import type { Task, TaskStatus, TaskPriority, TaskCompletionReport } from "@/types";
 
@@ -117,11 +120,15 @@ function TaskCard({
 }
 
 export default function EmployeeTasksView() {
-    const { getTasksForEmployee, groups, getCompletionReport } = useTasksStore();
+    // Subscribe to tasks array so component re-renders when new tasks are added
+    const tasks = useTasksStore((s) => s.tasks);
+    const groups = useTasksStore((s) => s.groups);
+    const getCompletionReport = useTasksStore((s) => s.getCompletionReport);
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
     const roleHref = useRoleHref();
     const [search, setSearch] = useState("");
+    const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "all">("all");
 
     // Resolve the HR employee record by email so tasks assigned to "EMP026"
     // are found even though the DemoUser id is "U004".
@@ -130,18 +137,29 @@ export default function EmployeeTasksView() {
         [employees, currentUser.email, currentUser.name, currentUser.id],
     );
 
+    // Filter tasks assigned to current employee and sort by createdAt descending (newest first)
     const myTasks = useMemo(
-        () => getTasksForEmployee(myEmployeeId),
-        [getTasksForEmployee, myEmployeeId],
+        () => tasks
+            .filter((t) => t.assignedTo.includes(myEmployeeId))
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+        [tasks, myEmployeeId],
     );
 
     const filteredTasks = useMemo(() => {
-        if (!search) return myTasks;
-        const q = search.toLowerCase();
-        return myTasks.filter(
-            (t) => t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q),
-        );
-    }, [myTasks, search]);
+        let result = myTasks;
+        // Apply priority filter
+        if (priorityFilter !== "all") {
+            result = result.filter((t) => t.priority === priorityFilter);
+        }
+        // Apply search filter
+        if (search) {
+            const q = search.toLowerCase();
+            result = result.filter(
+                (t) => t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q),
+            );
+        }
+        return result;
+    }, [myTasks, search, priorityFilter]);
 
     const activeTasks = filteredTasks.filter((t) => ["open", "in_progress", "rejected"].includes(t.status));
     const pendingReview = filteredTasks.filter((t) => t.status === "submitted");
@@ -201,15 +219,30 @@ export default function EmployeeTasksView() {
                 </Card>
             )}
 
-            {/* Search */}
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search your tasks..."
-                    className="pl-9"
-                />
+            {/* Search & Filters */}
+            <div className="flex flex-col sm:flex-row gap-2">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search your tasks..."
+                        className="pl-9"
+                    />
+                </div>
+                <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as TaskPriority | "all")}>
+                    <SelectTrigger className="w-full sm:w-36">
+                        <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <SelectValue placeholder="Priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Priorities</SelectItem>
+                        <SelectItem value="urgent">Urgent</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
 
             <Tabs defaultValue="active">
