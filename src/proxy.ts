@@ -178,8 +178,9 @@ export const config = {
      * - _next/image (image optimization)
      * - favicon.ico (favicon)
      * - public folder assets
+     * - models folder (face-api models)
      * - API routes for webhooks/notifications
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|webmanifest)$|api/notifications).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|webmanifest|woff2?)$|models/|api/notifications).*)",
   ],
 };

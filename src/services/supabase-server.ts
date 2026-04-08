@@ -3,6 +3,21 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { getSupabaseUrl, getSupabaseAnonKey, getServiceRoleKey } from "@/lib/env";
 
+/**
+ * Check if an error is a refresh token error.
+ * These errors occur when the session has expired or been invalidated.
+ */
+export function isRefreshTokenError(error: unknown): boolean {
+  if (!error) return false;
+  const err = error as { code?: string; message?: string; __isAuthError?: boolean };
+  return (
+    err.code === "refresh_token_not_found" ||
+    err.message?.includes("Refresh Token") ||
+    err.message?.includes("Invalid Refresh Token") ||
+    err.__isAuthError === true
+  );
+}
+
 export async function createServerSupabaseClient() {
   const cookieStore = await cookies();
 
