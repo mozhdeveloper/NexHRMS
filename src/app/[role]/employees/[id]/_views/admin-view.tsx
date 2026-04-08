@@ -106,7 +106,7 @@ export default function AdminProfileView() {
         setEditDept(employee.department);
         setEditWorkType(employee.workType);
         setEditSalary(String(employee.salary));
-        setEditLocation(employee.location);
+        setEditLocation(employee.location || "");
         setEditPayFreq(employee.payFrequency || "company");
         setEditOpen(true);
     };
@@ -192,7 +192,7 @@ export default function AdminProfileView() {
                             <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
                                 <span className="flex items-center gap-1.5"><Mail className="h-4 w-4" />{employee.email}</span>
                                 {employee.phone && <span className="flex items-center gap-1.5"><Phone className="h-4 w-4" />{employee.phone}</span>}
-                                <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" />{employee.location}</span>
+                                {employee.location && <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" />{employee.location}</span>}
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -515,7 +515,7 @@ export default function AdminProfileView() {
                             </div>
                             <div><label className="text-sm font-medium">Monthly Salary (₱)</label><Input type="number" value={editSalary} onChange={(e) => setEditSalary(e.target.value)} className="mt-1" /></div>
                             <div><label className="text-sm font-medium">Location</label>
-                                <Select value={editLocation} onValueChange={setEditLocation}><SelectTrigger className="mt-1"><SelectValue /></SelectTrigger><SelectContent>{LOCATIONS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent></Select>
+                                <Select value={editLocation || ""} onValueChange={setEditLocation}><SelectTrigger className="mt-1"><SelectValue placeholder="Select location" /></SelectTrigger><SelectContent><SelectItem value="">— Not Specified —</SelectItem>{LOCATIONS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent></Select>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
