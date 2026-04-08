@@ -503,7 +503,7 @@ function MyAttendanceStatus() {
     const displayStatus = status === "loading" ? "Loading..." : status.replace("_", " ");
 
     return (
-        <Card className={`border-2 ${statusStyle[status]} h-full`}>
+        <Card className={`border-2 ${statusStyle[status]}`}>
             <CardContent className="p-5">
                 <div className="flex items-center gap-3">
                     <div className="p-3 rounded-xl bg-white/20 dark:bg-black/20">
@@ -570,7 +570,7 @@ function MyLeaveBalance() {
     }, [myLeaves, currentYear]);
 
     return (
-        <Card className="border border-border/50 h-full">
+        <Card className="border border-border/50">
             <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                     <CalendarOff className="h-5 w-5 text-muted-foreground" />
@@ -614,7 +614,7 @@ function MyLatestPayslip() {
     }, [payslips, empRecord]);
 
     return (
-        <Card className="border border-border/50 h-full">
+        <Card className="border border-border/50">
             <CardContent className="p-5">
                 <div className="flex items-center gap-3">
                     <div className="p-3 rounded-xl bg-emerald-500/10">
