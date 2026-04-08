@@ -1004,12 +1004,12 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                     <TableRow key={fp.id}>
                                                         <TableCell className="text-sm font-medium">{getEmpName(fp.employeeId)}</TableCell>
                                                         <TableCell className="text-xs text-muted-foreground">{new Date(fp.resignedAt).toLocaleDateString()}</TableCell>
-                                                        <TableCell className="text-sm">₱{fp.proRatedSalary.toLocaleString()}</TableCell>
-                                                        <TableCell className="text-sm">₱{fp.leavePayout.toLocaleString()}</TableCell>
-                                                        <TableCell className="text-sm">₱{fp.unpaidOT.toLocaleString()}</TableCell>
-                                                        <TableCell className="text-sm text-red-500">−₱{fp.remainingLoanBalance.toLocaleString()}</TableCell>
-                                                        <TableCell className="text-sm text-red-500">−₱{fp.deductions.toLocaleString()}</TableCell>
-                                                        <TableCell className="text-sm font-bold text-emerald-600 dark:text-emerald-400">₱{fp.netFinalPay.toLocaleString()}</TableCell>
+                                                        <TableCell className="text-sm">₱{(fp.proRatedSalary ?? 0).toLocaleString()}</TableCell>
+                                                        <TableCell className="text-sm">₱{(fp.leavePayout ?? 0).toLocaleString()}</TableCell>
+                                                        <TableCell className="text-sm">₱{(fp.unpaidOT ?? 0).toLocaleString()}</TableCell>
+                                                        <TableCell className="text-sm text-red-500">−₱{(fp.remainingLoanBalance ?? 0).toLocaleString()}</TableCell>
+                                                        <TableCell className="text-sm text-red-500">−₱{(fp.deductions ?? 0).toLocaleString()}</TableCell>
+                                                        <TableCell className="text-sm font-bold text-emerald-600 dark:text-emerald-400">₱{(fp.netFinalPay ?? 0).toLocaleString()}</TableCell>
                                                         <TableCell>
                                                             <Badge variant="secondary" className={`text-[10px] ${
                                                                 fp.status === "paid" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" :
