@@ -135,21 +135,35 @@ export const useNotificationsStore = create<NotificationsState>()(
             getLogsByEmployee: (employeeId) => get().logs.filter((l) => l.employeeId === employeeId),
 
             // ─── Read Tracking ─────────────────────────
-            markAsRead: (notificationId) =>
+            markAsRead: (notificationId) => {
                 set((s) => ({
                     logs: s.logs.map((l) =>
                         l.id === notificationId ? { ...l, read: true, readAt: new Date().toISOString() } : l
                     ),
-                })),
+                }));
+                // Persist to DB (fire-and-forget; local state already updated)
+                fetch("/api/notifications/mark-read", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ notificationId }),
+                }).catch(() => { /* silently ignore network errors */ });
+            },
 
-            markAllAsRead: (employeeId) =>
+            markAllAsRead: (employeeId) => {
                 set((s) => ({
                     logs: s.logs.map((l) =>
                         l.employeeId === employeeId && !l.read
                             ? { ...l, read: true, readAt: new Date().toISOString() }
                             : l
                     ),
-                })),
+                }));
+                // Persist to DB (fire-and-forget; local state already updated)
+                fetch("/api/notifications/mark-read", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ employeeId }),
+                }).catch(() => { /* silently ignore network errors */ });
+            },
 
             getUnreadCountForEmployee: (employeeId) =>
                 get().logs.filter((l) => l.employeeId === employeeId && !l.read).length,

@@ -526,6 +526,9 @@ CREATE TABLE public.notification_logs (
   recipient_email text,
   recipient_phone text,
   error_message text,
+  read boolean NOT NULL DEFAULT false,
+  read_at timestamp with time zone,
+  link text,
   CONSTRAINT notification_logs_pkey PRIMARY KEY (id),
   CONSTRAINT fk_nl_employee FOREIGN KEY (employee_id) REFERENCES public.employees(id)
 );
