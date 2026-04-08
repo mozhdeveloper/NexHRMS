@@ -14,6 +14,7 @@
 import {
   shouldSync,
   employeesDb,
+  employeeFromDb,
   salaryDb,
   leaveDb,
   attendanceDb,
@@ -983,10 +984,10 @@ export function startRealtime(): void {
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "employees" },
       safe(({ new: row }: { new: Record<string, unknown> }) => {
-        const emp = keysToCamel(row) as Record<string, unknown>;
+        const emp = employeeFromDb(row);
         useEmployeesStore.setState((s) => {
           if (s.employees.find((e) => e.id === emp.id)) return s;
-          return { employees: [...s.employees, emp as unknown as typeof s.employees[0]] };
+          return { employees: [...s.employees, emp] };
         });
       })
     )
@@ -994,11 +995,11 @@ export function startRealtime(): void {
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "employees" },
       safe(({ new: row }: { new: Record<string, unknown> }) => {
-        const emp = keysToCamel(row) as Record<string, unknown>;
+        const emp = employeeFromDb(row);
         useEmployeesStore.setState((s) => ({
           employees: s.employees.map((e) =>
             e.id === emp.id
-              ? (JSON.stringify(e) !== JSON.stringify(emp) ? { ...e, ...emp } as typeof e : e)
+              ? (JSON.stringify(e) !== JSON.stringify(emp) ? { ...e, ...emp } : e)
               : e
           ),
         }));

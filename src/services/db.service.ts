@@ -160,7 +160,7 @@ async function getExistingEmployeeIds(ids: string[]): Promise<Set<string>> {
 
 // ─── Employees ──────────────────────────────────────────────────
 
-function employeeFromDb(row: Record<string, unknown>): Employee {
+export function employeeFromDb(row: Record<string, unknown>): Employee {
   const camel = keysToCamel(row) as Record<string, unknown>;
   // Normalize role from DB (title-case) to frontend (lowercase)
   if (typeof camel.role === "string") {
