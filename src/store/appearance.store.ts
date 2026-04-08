@@ -166,6 +166,7 @@ export interface ModuleFlags {
   directory: boolean;
   tasks: boolean;
   messages: boolean;
+  events: boolean;
 }
 
 export const DEFAULT_MODULE_FLAGS: ModuleFlags = {
@@ -182,6 +183,7 @@ export const DEFAULT_MODULE_FLAGS: ModuleFlags = {
   directory: true,
   tasks: true,
   messages: true,
+  events: true,
 };
 
 export const MODULE_INFO: Record<keyof ModuleFlags, { label: string; description: string; icon: string }> = {
@@ -198,6 +200,7 @@ export const MODULE_INFO: Record<keyof ModuleFlags, { label: string; description
   directory: { label: "Employee Directory", description: "Employee directory and org chart", icon: "Contact" },
   tasks: { label: "Task Management", description: "Task groups, assignments, photo & GPS proof", icon: "ListTodo" },
   messages: { label: "Messaging Hub", description: "Channels, announcements, multi-channel messaging", icon: "MessageSquare" },
+  events: { label: "Events & Meetings", description: "Company events, meetings, calendar management", icon: "Calendar" },
 };
 
 // ─── Navigation Overrides ─────────────────────────────────────────────────────

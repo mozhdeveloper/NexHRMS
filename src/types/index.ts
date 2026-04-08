@@ -701,7 +701,7 @@ export type Permission =
   | "page:dashboard" | "page:employees" | "page:attendance"
   | "page:leave" | "page:payroll" | "page:loans" | "page:projects"
   | "page:reports" | "page:kiosk" | "page:notifications"
-  | "page:audit" | "page:settings" | "page:timesheets"
+  | "page:audit" | "page:settings" | "page:timesheets" | "page:events"
   // Employee actions
   | "employees:view" | "employees:create" | "employees:edit" | "employees:delete"
   | "employees:view_salary" | "employees:approve_salary"

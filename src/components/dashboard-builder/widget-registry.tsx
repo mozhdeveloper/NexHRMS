@@ -40,6 +40,7 @@ import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { format, parseISO, isAfter, startOfDay, isToday } from "date-fns";
 
 /** Format "HH:MM" time string to "h:mm AM/PM" */
 function formatTimeAmPm(time: string | null | undefined): string {
@@ -741,7 +742,18 @@ function EventsWidgetComponent({ readOnly = false }: { readOnly?: boolean }) {
     const [editTime, setEditTime] = useState("");
     const [deleteEvtId, setDeleteEvtId] = useState<string | null>(null);
 
-    const upcoming = [...events].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
+    // Filter to show only upcoming events (today and future), sorted by date
+    const today = startOfDay(new Date());
+    const upcoming = useMemo(() => 
+        [...events]
+            .filter((e) => {
+                const eventDate = parseISO(e.date);
+                return isAfter(eventDate, today) || isToday(eventDate);
+            })
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .slice(0, 5),
+        [events, today]
+    );
 
     const handleAdd = () => {
         if (!title || !date || !time) return;

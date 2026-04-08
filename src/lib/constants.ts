@@ -158,6 +158,14 @@ export const NAV_ITEMS: {
             moduleFlag: "messages",
         },
         {
+            label: "Events",
+            href: "/events",
+            icon: "Calendar",
+            roles: ["admin", "hr", "finance", "employee", "supervisor", "payroll_admin", "auditor"],
+            permission: "page:events",
+            moduleFlag: "events",
+        },
+        {
             label: "Attendance",
             href: "/attendance",
             icon: "Clock",

@@ -8,7 +8,7 @@ import type { CustomRole, Permission, WidgetConfig } from "@/types";
 export const ALL_PERMISSIONS: Permission[] = [
     "page:dashboard", "page:employees", "page:attendance", "page:leave",
     "page:payroll", "page:loans", "page:projects", "page:reports",
-    "page:kiosk", "page:notifications", "page:audit", "page:settings", "page:timesheets",
+    "page:kiosk", "page:notifications", "page:audit", "page:settings", "page:timesheets", "page:events",
     "employees:view", "employees:create", "employees:edit", "employees:delete",
     "employees:view_salary", "employees:approve_salary",
     "attendance:view_all", "attendance:edit", "attendance:approve_overtime",
@@ -41,6 +41,7 @@ export const PERMISSION_GROUPS: { label: string; permissions: { key: Permission;
             { key: "page:timesheets", label: "Timesheets" },
             { key: "page:kiosk", label: "Kiosk" },
             { key: "page:notifications", label: "Notifications" },
+            { key: "page:events", label: "Events" },
             { key: "page:audit", label: "Audit Log" },
             { key: "page:settings", label: "Settings" },
         ],
@@ -160,7 +161,7 @@ const ADMIN_PERMS: Permission[] = [...ALL_PERMISSIONS];
 
 const HR_PERMS: Permission[] = [
     "page:dashboard", "page:employees", "page:attendance", "page:leave",
-    "page:reports", "page:notifications", "page:kiosk", "page:timesheets", "page:settings", "page:projects",
+    "page:reports", "page:notifications", "page:kiosk", "page:timesheets", "page:settings", "page:projects", "page:events",
     "employees:view", "employees:create", "employees:edit", "employees:delete",
     "employees:view_salary",  // HR can view salaries and propose changes, but NOT directly approve
     "attendance:view_all", "attendance:edit", "attendance:approve_overtime",
@@ -176,7 +177,7 @@ const HR_PERMS: Permission[] = [
 
 const FINANCE_PERMS: Permission[] = [
     "page:dashboard", "page:payroll", "page:loans", "page:reports", "page:employees", "page:settings", "page:messages",
-    "page:notifications",
+    "page:notifications", "page:events",
     "employees:view", "employees:view_salary", "employees:approve_salary",
     "payroll:view_all", "payroll:generate", "payroll:lock", "payroll:issue",
     "loans:view_all", "loans:approve",
@@ -187,7 +188,7 @@ const FINANCE_PERMS: Permission[] = [
 
 const PAYROLL_ADMIN_PERMS: Permission[] = [
     "page:dashboard", "page:payroll", "page:loans", "page:reports", "page:timesheets", "page:settings", "page:messages",
-    "page:notifications",
+    "page:notifications", "page:events",
     "employees:view", "employees:view_salary",
     "payroll:view_all", "payroll:generate", "payroll:lock", "payroll:issue",
     "loans:view_all",
@@ -199,7 +200,7 @@ const PAYROLL_ADMIN_PERMS: Permission[] = [
 
 const SUPERVISOR_PERMS: Permission[] = [
     "page:dashboard", "page:employees", "page:attendance", "page:leave", "page:timesheets", "page:projects",
-    "page:notifications",
+    "page:notifications", "page:events",
     "employees:view",
     "attendance:view_all", "attendance:approve_overtime",
     "leave:view_all", "leave:approve",
@@ -210,7 +211,7 @@ const SUPERVISOR_PERMS: Permission[] = [
 
 const EMPLOYEE_PERMS: Permission[] = [
     "page:dashboard", "page:attendance", "page:leave", "page:payroll", "page:loans",
-    "page:notifications",
+    "page:notifications", "page:events",
     "payroll:view_own",
     "loans:view_own",
     "page:tasks", "tasks:view",
@@ -219,7 +220,7 @@ const EMPLOYEE_PERMS: Permission[] = [
 
 const AUDITOR_PERMS: Permission[] = [
     "page:dashboard", "page:audit", "page:reports", "page:employees", "page:loans",
-    "page:notifications",
+    "page:notifications", "page:events",
     "audit:view",
     "employees:view",
     "reports:view", "reports:government",
