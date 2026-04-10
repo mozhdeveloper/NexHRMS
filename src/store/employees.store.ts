@@ -245,7 +245,7 @@ export const useEmployeesStore = create<EmployeesState>()(
         }),
         {
             name: "soren-employees",
-            version: 10,
+            version: 12,
             migrate: (persisted, fromVersion) => {
                 const state = persisted as Partial<EmployeesState> & { employees?: Employee[] };
                 if (fromVersion < 7) {
@@ -256,27 +256,40 @@ export const useEmployeesStore = create<EmployeesState>()(
                 // v7→v8: reset productivity to 0 for non-seed employees with hardcoded 80
                 // v8→v9: deduplicate by email (keeps profileId-linked record)
                 // v9→v10: if role is a job title (not a system role), move to jobTitle and default role to "employee"
-                const employees = dedupeAll(
-                    (state.employees ?? SEED_EMPLOYEES).map((e) => {
-                        let updated = e;
-                        if (!seedIds.has(e.id) && e.productivity === 80) updated = { ...updated, productivity: 0 };
-                        if (!SYSTEM_ROLES.has(e.role)) {
-                            updated = { ...updated, jobTitle: updated.jobTitle ?? e.role, role: "employee" };
-                        }
-                        return updated;
-                    })
+                // v10→v11: merge newly added payroll test seed employees (EMP-PAYROLL-*)
+                // v11→v12: same merge, ensures payroll test employees added to SEED_EMPLOYEES are present
+                const existingEmployees = (state.employees ?? SEED_EMPLOYEES).map((e) => {
+                    let updated = e;
+                    if (!seedIds.has(e.id) && e.productivity === 80) updated = { ...updated, productivity: 0 };
+                    if (!SYSTEM_ROLES.has(e.role)) {
+                        updated = { ...updated, jobTitle: updated.jobTitle ?? e.role, role: "employee" };
+                    }
+                    return updated;
+                });
+                const existingIds = new Set(existingEmployees.map((e) => e.id));
+                const existingEmails = new Set(existingEmployees.map((e) => e.email?.toLowerCase()).filter(Boolean));
+                const newSeedEmployees = SEED_EMPLOYEES.filter(
+                    (e) => !existingIds.has(e.id) && !existingEmails.has(e.email?.toLowerCase())
                 );
+                const employees = dedupeAll([...existingEmployees, ...newSeedEmployees]);
                 return { ...state, employees };
             },
-            // Auto-deduplicate by both ID and email on every rehydration
+            // Auto-deduplicate AND auto-merge missing seed employees on every rehydration
             merge: (persisted, current) => {
                 const persistedState = persisted as Partial<EmployeesState> | undefined;
                 const currentState = current as EmployeesState;
                 if (!persistedState) return currentState;
+                const persistedEmployees = dedupeAll(persistedState.employees ?? currentState.employees);
+                // Self-healing: ensure all seed employees are present even if migration was skipped
+                const existingIds = new Set(persistedEmployees.map((e) => e.id));
+                const existingEmails = new Set(persistedEmployees.map((e) => e.email?.toLowerCase()).filter(Boolean));
+                const missingSeed = SEED_EMPLOYEES.filter(
+                    (e) => !existingIds.has(e.id) && !existingEmails.has(e.email?.toLowerCase())
+                );
                 return {
                     ...currentState,
                     ...persistedState,
-                    employees: dedupeAll(persistedState.employees ?? currentState.employees),
+                    employees: dedupeAll([...persistedEmployees, ...missingSeed]),
                 };
             },
         }

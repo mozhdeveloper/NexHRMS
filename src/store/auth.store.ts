@@ -95,10 +95,33 @@ export const useAuthStore = create<AuthState>()(
             setTheme: (theme) => set({ theme }),
 
             login: (email, password) => {
-                const { accounts } = get();
+                let { accounts } = get();
+                
+                // Self-healing: always merge any seed accounts added since last migration.
+                // This prevents login failures when new demo users are added to seed.ts
+                // without triggering a version bump.
+                const seed = buildSeedAccounts();
+                const existingEmails = new Set(accounts.map((u) => u.email.toLowerCase()));
+                const newFromSeed = seed.filter((u) => !existingEmails.has(u.email.toLowerCase()));
+                if (newFromSeed.length > 0) {
+                    console.log(`[auth] Self-healing: merging ${newFromSeed.length} new seed accounts:`, newFromSeed.map(u => u.email));
+                    accounts = [...accounts, ...newFromSeed];
+                    set({ accounts });
+                }
+
+                // Debug: log all available accounts
+                console.log(`[auth] Available accounts (${accounts.length}):`, accounts.map(u => u.email));
+                
                 const user = accounts.find((u) => u.email.toLowerCase() === email.toLowerCase());
-                if (!user) return false;
-                if (!user.passwordHash || !verifyPassword(password, user.passwordHash)) return false;
+                if (!user) {
+                    console.warn(`[auth] No account found for email: ${email}`);
+                    console.warn(`[auth] Looking for: "${email.toLowerCase()}" in:`, accounts.map(u => u.email.toLowerCase()));
+                    return false;
+                }
+                if (!user.passwordHash || !verifyPassword(password, user.passwordHash)) {
+                    console.warn(`[auth] Password mismatch for: ${email}, hash exists: ${!!user.passwordHash}`);
+                    return false;
+                }
                 set({ currentUser: user, isAuthenticated: true });
                 return true;
             },
@@ -231,13 +254,27 @@ export const useAuthStore = create<AuthState>()(
         }),
         {
             name: "soren-auth",
-            version: 5,
+            version: 8,
             migrate: (persisted: unknown, version: number) => {
-                // Any version < 5: rebuild from seed to pick up new demo accounts
+                console.log(`[auth] Migration running: v${version} → v8`);
+                // Any version < 5: full reset from seed
                 if (version < 5) {
-                    return { accounts: buildSeedAccounts(), currentUser: buildSeedAccounts()[0], isAuthenticated: false };
+                    const seed = buildSeedAccounts();
+                    console.log(`[auth] Full reset from seed (${seed.length} accounts)`);
+                    return { accounts: seed, currentUser: seed[0], isAuthenticated: false };
                 }
-                return persisted as AuthState;
+                // v5/v6/v7 → v8: merge any seed accounts missing from persisted state
+                // (catches cases where new accounts were added to DEMO_USERS after the
+                // previous migration already ran)
+                const state = persisted as AuthState;
+                const seed = buildSeedAccounts();
+                const existingEmails = new Set((state.accounts || []).map((u) => u.email.toLowerCase()));
+                const newSeedAccounts = seed.filter((u) => !existingEmails.has(u.email.toLowerCase()));
+                console.log(`[auth] Merging ${newSeedAccounts.length} new seed accounts:`, newSeedAccounts.map(u => u.email));
+                return {
+                    ...state,
+                    accounts: [...(state.accounts || []), ...newSeedAccounts],
+                };
             },
         }
     )

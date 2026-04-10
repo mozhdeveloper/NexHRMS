@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 // Set to true to use local demo login (no Supabase required)
 const USE_DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
@@ -28,7 +29,16 @@ const DEMO_ACCOUNTS = [
     { role: "QR Employee 2", email: "qr2@sdsi.com", color: "bg-pink-500/15 text-pink-700 dark:text-pink-400" },
     { role: "\uD83E\uDD16 Face Demo", email: "face@sdsi.com", color: "bg-violet-500/15 text-violet-700 dark:text-violet-400" },
 ];
-
+const PAYROLL_TEST_ACCOUNTS = [
+    { role: "Sr. Engineer", email: "maria.cruz@nexhrms.test", color: "bg-rose-500/15 text-rose-700 dark:text-rose-400", name: "Maria Cruz" },
+    { role: "Developer", email: "juan.reyes@nexhrms.test", color: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400", name: "Juan Reyes" },
+    { role: "Finance", email: "ana.villanueva@nexhrms.test", color: "bg-amber-500/15 text-amber-700 dark:text-amber-400", name: "Ana Villanueva" },
+    { role: "Field Tech", email: "carlo.gonzales@nexhrms.test", color: "bg-lime-500/15 text-lime-700 dark:text-lime-400", name: "Carlo Gonzales" },
+    { role: "HR Manager", email: "elena.tan@nexhrms.test", color: "bg-blue-500/15 text-blue-700 dark:text-blue-400", name: "Elena Tan" },
+    { role: "Eng. Lead", email: "roberto.aquino@nexhrms.test", color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400", name: "Roberto Aquino" },
+    { role: "Marketing", email: "lisa.fernandez@nexhrms.test", color: "bg-pink-500/15 text-pink-700 dark:text-pink-400", name: "Lisa Fernandez" },
+    { role: "Sales Exec", email: "mark.delacruz@nexhrms.test", color: "bg-orange-500/15 text-orange-700 dark:text-orange-400", name: "Mark Dela Cruz" },
+];
 export default function LoginPage() {
     const router = useRouter();
     const localLogin = useAuthStore((s) => s.login);
@@ -36,6 +46,7 @@ export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
+    const [showPayrollAccounts, setShowPayrollAccounts] = useState(false);
 
     // Branding from appearance store
     const loginHeading = useAppearanceStore((s) => s.loginHeading);
@@ -230,6 +241,36 @@ export default function LoginPage() {
                                 <span className="text-[11px] sm:text-xs text-muted-foreground truncate group-hover:text-primary transition-colors ml-1">{acc.email}</span>
                             </Button>
                         ))}
+                    </div>
+
+                    {/* Payroll Test Accounts — collapsible */}
+                    <div className="rounded-lg border border-dashed border-border/60 overflow-hidden">
+                        <button
+                            type="button"
+                            className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground/70 hover:bg-muted/30 transition-colors"
+                            onClick={() => setShowPayrollAccounts((v) => !v)}
+                        >
+                            <span>💰 Payroll Test Accounts</span>
+                            {showPayrollAccounts ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        </button>
+                        {showPayrollAccounts && (
+                            <div className="grid grid-cols-2 gap-2 p-2 pt-1 border-t border-border/40">
+                                {PAYROLL_TEST_ACCOUNTS.map((acc) => (
+                                    <Button
+                                        key={acc.email}
+                                        variant="outline"
+                                        className="h-12 w-full justify-start px-3 shadow-none border-dashed border-border/80 hover:border-primary/40 hover:bg-primary/5 transition-colors group"
+                                        disabled={loading}
+                                        onClick={() => handleQuickLogin(acc.email)}
+                                    >
+                                        <Badge variant="secondary" className={`text-[10px] w-20 font-semibold flex items-center justify-center tracking-wide ${acc.color} shrink-0`}>
+                                            {acc.role}
+                                        </Badge>
+                                        <span className="text-[11px] sm:text-xs text-muted-foreground truncate group-hover:text-primary transition-colors ml-1">{acc.name}</span>
+                                    </Button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Demo hint */}
