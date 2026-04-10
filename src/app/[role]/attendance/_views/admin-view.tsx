@@ -245,6 +245,57 @@ export default function AdminView({ mode = "admin" }: AdminViewProps) {
     }, [cleanExpiredPenalties, myEmployeeId, getActivePenalty, applyPenalty, penaltySettings]);
     const activePenalty = myEmployeeId ? getActivePenalty(myEmployeeId) : undefined;
 
+    // ─── Auto-reconcile absences on mount ─────────────────────────
+    const [isReconciling, setIsReconciling] = useState(false);
+    const [lastReconcileCount, setLastReconcileCount] = useState<number | null>(null);
+    const reconcileAbsences = useCallback(async (silent = false) => {
+        if (isReconciling) return;
+        setIsReconciling(true);
+        try {
+            const res = await fetch("/api/attendance/reconcile-absences", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+                    endDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split("T")[0], // yesterday
+                }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setLastReconcileCount(data.created || 0);
+                if (data.created > 0) {
+                    // Also update local store with the new absent records
+                    const details = data.details || [];
+                    const toUpsert = details
+                        .filter((d: { status: string }) => d.status === "created")
+                        .map((d: { employeeId: string; date: string; reason?: string }) => ({
+                            employeeId: d.employeeId,
+                            date: d.date,
+                            status: d.reason?.includes("on_leave") ? "on_leave" : "absent",
+                        }));
+                    if (toUpsert.length > 0) {
+                        bulkUpsertLogs(toUpsert);
+                    }
+                    if (!silent) {
+                        toast.info(`Auto-marked ${data.created} absence record(s) for past work days`, { duration: 4000 });
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("[reconcile-absences] Error:", err);
+        } finally {
+            setIsReconciling(false);
+        }
+    }, [isReconciling, bulkUpsertLogs]);
+
+    // Run reconciliation on mount (only for admin/hr modes)
+    useEffect(() => {
+        if (mode === "admin" || mode === "hr") {
+            reconcileAbsences(true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mode]);
+
     // ─── Handlers ─────────────────────────────────────────────────
     const openOverride = (log: typeof logs[0]) => {
         setEditingLog(log); setOvCheckIn(log.checkIn || ""); setOvCheckOut(log.checkOut || "");
@@ -809,19 +860,58 @@ export default function AdminView({ mode = "admin" }: AdminViewProps) {
                         <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-sm text-muted-foreground">Auto-detect anomalies & mark absent</p>
                             <div className="flex items-center gap-2">
-                                <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => {
+                                <Button size="sm" variant="outline" className="gap-1.5 text-xs" disabled={isReconciling} onClick={async () => {
                                     const targetDate = dateFilter || new Date().toISOString().slice(0, 10);
-                                    const count = autoMarkAbsentAfterShift(
-                                        targetDate,
-                                        visibleEmployees.map(e => ({ id: e.id, workDays: e.workDays, shiftId: e.shiftId }))
-                                    );
-                                    if (count > 0) {
-                                        appendEvent({ employeeId: currentUser.id || "SYSTEM", eventType: "BULK_OVERRIDE", timestampUTC: new Date().toISOString(), performedBy: currentUser.id, description: `Auto-marked ${count} employee(s) absent for ${targetDate}`, metadata: { date: targetDate, count } });
-                                        toast.success(`Marked ${count} employee(s) as absent`);
-                                    } else {
-                                        toast.info("No employees to mark absent (all have logs or it's a non-work day/holiday)");
+                                    // First, call API to persist to database
+                                    setIsReconciling(true);
+                                    try {
+                                        const res = await fetch("/api/attendance/reconcile-absences", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ startDate: targetDate, endDate: targetDate }),
+                                        });
+                                        if (res.ok) {
+                                            const data = await res.json();
+                                            if (data.created > 0) {
+                                                // Also update local store
+                                                const localCount = autoMarkAbsentAfterShift(
+                                                    targetDate,
+                                                    visibleEmployees.map(e => ({ id: e.id, workDays: e.workDays, shiftId: e.shiftId }))
+                                                );
+                                                appendEvent({ employeeId: currentUser.id || "SYSTEM", eventType: "BULK_OVERRIDE", timestampUTC: new Date().toISOString(), performedBy: currentUser.id, description: `Auto-marked ${data.created} employee(s) absent for ${targetDate}`, metadata: { date: targetDate, count: data.created } });
+                                                toast.success(`Marked ${data.created} employee(s) as absent`);
+                                            } else {
+                                                toast.info("No employees to mark absent (all have logs or it's a non-work day/holiday)");
+                                            }
+                                        } else {
+                                            // Fallback to local-only
+                                            const count = autoMarkAbsentAfterShift(
+                                                targetDate,
+                                                visibleEmployees.map(e => ({ id: e.id, workDays: e.workDays, shiftId: e.shiftId }))
+                                            );
+                                            if (count > 0) {
+                                                appendEvent({ employeeId: currentUser.id || "SYSTEM", eventType: "BULK_OVERRIDE", timestampUTC: new Date().toISOString(), performedBy: currentUser.id, description: `Auto-marked ${count} employee(s) absent for ${targetDate}`, metadata: { date: targetDate, count } });
+                                                toast.success(`Marked ${count} employee(s) as absent (local only)`);
+                                            } else {
+                                                toast.info("No employees to mark absent");
+                                            }
+                                        }
+                                    } catch {
+                                        // Fallback to local store
+                                        const count = autoMarkAbsentAfterShift(
+                                            targetDate,
+                                            visibleEmployees.map(e => ({ id: e.id, workDays: e.workDays, shiftId: e.shiftId }))
+                                        );
+                                        if (count > 0) {
+                                            toast.success(`Marked ${count} employee(s) as absent (local only)`);
+                                        }
+                                    } finally {
+                                        setIsReconciling(false);
                                     }
-                                }}><UserX className="h-3.5 w-3.5" /> Mark Absent</Button>
+                                }}><UserX className="h-3.5 w-3.5" /> {isReconciling ? "Processing..." : "Mark Absent"}</Button>
+                                <Button size="sm" variant="outline" className="gap-1.5 text-xs" disabled={isReconciling} onClick={() => reconcileAbsences(false)}>
+                                    <RotateCcw className="h-3.5 w-3.5" /> Reconcile 30 Days
+                                </Button>
                                 <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => {
                                     autoGenerateExceptions(dateFilter || new Date().toISOString().slice(0, 10), visibleEmployees.map(e => e.id));
                                     appendEvent({ employeeId: currentUser.id || "SYSTEM", eventType: "EXCEPTION_SCANNED", timestampUTC: new Date().toISOString(), performedBy: currentUser.id, description: `Scanned for exceptions on ${dateFilter || "today"} for ${visibleEmployees.length} employee(s)`, metadata: { date: dateFilter, employeeCount: visibleEmployees.length } });
