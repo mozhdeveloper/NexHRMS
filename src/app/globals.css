@@ -172,7 +172,22 @@
 .sidebar-colored .sidebar-logo {
   filter: brightness(0) invert(1);
 }
-
+/* ─── Native date/time input — calendar icon visibility ────────────────────── */
+/* Force the browser-rendered calendar icon to match foreground color in dark mode */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="month"],
+input[type="week"] {
+  color-scheme: light;
+}
+.dark input[type="date"],
+.dark input[type="datetime-local"],
+.dark input[type="time"],
+.dark input[type="month"],
+.dark input[type="week"] {
+  color-scheme: dark;
+}
 /* ─── Thin scrollbar — used on main content and sidebar nav ────────────────── */
 .thin-scrollbar {
   scrollbar-width: thin;
