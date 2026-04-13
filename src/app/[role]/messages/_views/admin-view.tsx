@@ -386,7 +386,7 @@ export default function AdminMessagesView() {
                                                                     {!isMine && <span className="text-xs font-medium">{getEmpName(msg.employeeId)}</span>}
                                                                     <span className="text-[10px] text-muted-foreground">{formatDateTime(msg.createdAt)}</span>
                                                                 </div>
-                                                                <div className={`rounded-lg px-3 py-2 text-sm break-words whitespace-pre-wrap overflow-hidden ${
+                                                                <div className={`rounded-lg px-3 py-2 text-sm break-words whitespace-pre-wrap overflow-hidden text-left ${
                                                                     isMine
                                                                         ? "bg-primary text-primary-foreground"
                                                                         : "bg-muted"
