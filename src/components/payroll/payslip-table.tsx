@@ -94,7 +94,6 @@ export function PayslipTable({ payslips, getEmpName, onMarkPaid, isAdmin }: Pays
                         <SelectItem value="all">All Statuses</SelectItem>
                         <SelectItem value="draft">Draft</SelectItem>
                         <SelectItem value="published">Published</SelectItem>
-                        <SelectItem value="signed">Signed</SelectItem>
                     </SelectContent>
                 </Select>
                 <Select value={signedFilter} onValueChange={setSignedFilter}>

@@ -881,7 +881,6 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                 <SelectItem value="all">All Statuses</SelectItem>
                                 <SelectItem value="draft">Draft</SelectItem>
                                 <SelectItem value="published">Published</SelectItem>
-                                <SelectItem value="signed">Signed</SelectItem>
                             </SelectContent>
                         </Select>
                         <p className="text-xs text-muted-foreground self-center whitespace-nowrap">{filteredPayslips.length} result{filteredPayslips.length !== 1 ? "s" : ""}</p>
