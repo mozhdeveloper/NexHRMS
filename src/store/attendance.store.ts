@@ -22,7 +22,7 @@ interface AttendanceState {
     employeeShifts: Record<string, string>;
 
     // ─── Event ledger (append-only — no edit/delete) ──
-    appendEvent: (data: Omit<AttendanceEvent, "id" | "createdAt">) => void;
+    appendEvent: (data: Omit<AttendanceEvent, "id" | "createdAt"> & { id?: string }) => string;
     recordEvidence: (data: Omit<AttendanceEvidence, "id">) => void;
     getEventsForEmployee: (employeeId: string) => AttendanceEvent[];
     getEventsForDate: (date: string) => AttendanceEvent[];
@@ -95,17 +95,20 @@ export const useAttendanceStore = create<AttendanceState>()(
             holidays: DEFAULT_HOLIDAYS.map((h, i) => ({ ...h, id: `HOL-${i + 1}` })),
 
             // ─── Append-only event ledger ─────────────────────────────
-            appendEvent: (data) =>
+            appendEvent: (data) => {
+                const eventId = data.id ?? `EVT-${nanoid(8)}`;
                 set((s) => ({
                     events: [
                         ...s.events,
                         {
                             ...data,
-                            id: `EVT-${nanoid(8)}`,
+                            id: eventId,
                             createdAt: new Date().toISOString(),
                         },
                     ],
-                })),
+                }));
+                return eventId;
+            },
 
             recordEvidence: (data) =>
                 set((s) => ({

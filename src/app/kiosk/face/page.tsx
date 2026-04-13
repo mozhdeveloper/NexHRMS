@@ -28,7 +28,7 @@ type ScanState = "loading" | "idle" | "scanning" | "verifying" | "verified" | "f
 export default function FaceKioskPage() {
     const router = useRouter();
     const ks = useKioskStore((s) => s.settings);
-    const { appendEvent, checkIn, checkOut } = useAttendanceStore();
+    const { appendEvent, checkIn, checkOut, recordEvidence } = useAttendanceStore();
     const employees = useEmployeesStore((s) => s.employees);
     const companyName = useAppearanceStore((s) => s.companyName);
     const logoUrl = useAppearanceStore((s) => s.logoUrl);
@@ -412,11 +412,24 @@ export default function FaceKioskPage() {
         if (mode === "in") checkWorkDay(empId);
 
         // Event ledger (append-only audit trail)
-        appendEvent({
+        const eventId = appendEvent({
             employeeId: empId,
             eventType: mode === "in" ? "IN" : "OUT",
             timestampUTC: new Date().toISOString(),
             deviceId,
+        });
+
+        // Record face verification evidence for audit trail
+        recordEvidence({
+            eventId,
+            gpsLat: undefined,
+            gpsLng: undefined,
+            gpsAccuracyMeters: undefined,
+            geofencePass: undefined, // Not currently checking geofence in face kiosk
+            qrTokenId: undefined, // Not applicable for face verification
+            deviceIntegrityResult: undefined,
+            faceVerified: true, // Face was verified before confirm was enabled
+            mockLocationDetected: false,
         });
 
         // Daily log (backward-compatible computed view)
@@ -443,7 +456,7 @@ export default function FaceKioskPage() {
             setMatchDistance(null);
             setScanState("idle");
         }, ks.feedbackDuration);
-    }, [matchedName, mode, employees, getProjectForEmployee, ks, checkIn, checkOut, appendEvent, deviceId, checkWorkDay]);
+    }, [matchedName, mode, employees, getProjectForEmployee, ks, checkIn, checkOut, appendEvent, recordEvidence, deviceId, checkWorkDay]);
 
     // Ref so auto-confirm timer can call the latest handleConfirm
     const handleConfirmRef = useRef(handleConfirm);

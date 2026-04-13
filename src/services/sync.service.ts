@@ -328,6 +328,8 @@ export function startWriteThrough(): void {
   // Determine write scope — only admin/hr manage HR data (employees meta, leave balances, attendance logs)
   const role = useAuthStore.getState().currentUser?.role ?? "";
   const isAdminOrHr = ["admin", "hr"].includes(role);
+  // Kiosk mode syncs all attendance data (used by all employees without individual login)
+  const isKioskMode = typeof window !== "undefined" && window.location.pathname.startsWith("/kiosk");
 
   // ─── Employees write-through ──────────────────────────────
   _subscriptions.push(
@@ -404,7 +406,7 @@ export function startWriteThrough(): void {
   _subscriptions.push(
     useAttendanceStore.subscribe(
       (state, prevState) => {
-        // Logs: admin/hr sync all logs; employees sync only their own log entries
+        // Logs: admin/hr/kiosk sync all logs; employees sync only their own log entries
         const currentUserState = useAuthStore.getState().currentUser;
         const currentEmployees = useEmployeesStore.getState().employees;
         const myEmployeeId = currentEmployees.find(
@@ -414,8 +416,8 @@ export function startWriteThrough(): void {
         for (const log of state.logs) {
           const prev = prevState.logs.find((l) => l.id === log.id);
           if (!prev || JSON.stringify(prev) !== JSON.stringify(log)) {
-            // Admin/HR sync all; employees only sync their own
-            if (isAdminOrHr || log.employeeId === myEmployeeId) {
+            // Admin/HR/kiosk sync all; employees only sync their own
+            if (isAdminOrHr || isKioskMode || log.employeeId === myEmployeeId) {
               attendanceDb.upsertLog(log);
             }
           }
