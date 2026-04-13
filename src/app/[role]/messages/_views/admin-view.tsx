@@ -24,7 +24,7 @@ import { getInitials, formatDateTime, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import {
     MessageSquare, Send, Hash, Megaphone, Mail, Smartphone,
-    Globe, Trash2, Archive,
+    Globe, Trash2, Archive, ArchiveRestore, ChevronDown, ChevronRight,
 } from "lucide-react";
 import type { MessageChannel, AnnouncementScope } from "@/types";
 
@@ -45,7 +45,7 @@ const CHANNEL_LABELS: Record<MessageChannel, string> = {
 export default function AdminMessagesView() {
     const {
         announcements, channels, messages,
-        sendAnnouncement, createChannel, deleteChannel, archiveChannel,
+        sendAnnouncement, createChannel, deleteChannel, archiveChannel, unarchiveChannel,
         sendMessage, getChannelMessages, getUnreadCount, deleteAnnouncement,
         markMessageRead,
     } = useMessagingStore();
@@ -70,6 +70,7 @@ export default function AdminMessagesView() {
 
     // ── Channel chat state ───────────────────────────────────
     const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+    const [showArchived, setShowArchived] = useState(false);
     const [chatMessage, setChatMessage] = useState("");
     const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -310,6 +311,43 @@ export default function AdminMessagesView() {
                                                 </button>
                                             );
                                         })}
+
+                                        {/* Archived channels section */}
+                                        {channels.some((c) => c.isArchived) && (
+                                            <div className="pt-2">
+                                                <button
+                                                    onClick={() => setShowArchived((v) => !v)}
+                                                    className="w-full flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted/50"
+                                                >
+                                                    {showArchived ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                                    <Archive className="h-3 w-3" />
+                                                    Archived ({channels.filter((c) => c.isArchived).length})
+                                                </button>
+                                                {showArchived && channels.filter((c) => c.isArchived).map((ch) => (
+                                                    <div
+                                                        key={ch.id}
+                                                        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left opacity-60"
+                                                    >
+                                                        <Hash className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                                        <span className="text-sm truncate flex-1 line-through text-muted-foreground">{ch.name.replace("#", "")}</span>
+                                                        <button
+                                                            title="Unarchive"
+                                                            onClick={() => { unarchiveChannel(ch.id); toast.success(`"${ch.name}" unarchived`); }}
+                                                            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-100"
+                                                        >
+                                                            <ArchiveRestore className="h-3.5 w-3.5" />
+                                                        </button>
+                                                        <button
+                                                            title="Delete"
+                                                            onClick={() => { deleteChannel(ch.id); toast.success("Channel deleted"); }}
+                                                            className="p-1 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-600 transition-colors opacity-100"
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </ScrollArea>
                             </CardContent>

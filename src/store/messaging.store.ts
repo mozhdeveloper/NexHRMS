@@ -47,6 +47,7 @@ interface MessagingState {
     createChannel: (data: Omit<TextChannel, "id" | "createdAt" | "isArchived">) => string;
     updateChannel: (id: string, patch: Partial<Omit<TextChannel, "id">>) => void;
     archiveChannel: (id: string) => void;
+    unarchiveChannel: (id: string) => void;
     deleteChannel: (id: string) => void;
     addChannelMember: (channelId: string, employeeId: string) => void;
     removeChannelMember: (channelId: string, employeeId: string) => void;
@@ -143,6 +144,12 @@ export const useMessagingStore = create<MessagingState>()(
                 set((s) => ({
                     channels: s.channels.map((c) =>
                         c.id === id ? { ...c, isArchived: true } : c
+                    ),
+                })),
+            unarchiveChannel: (id) =>
+                set((s) => ({
+                    channels: s.channels.map((c) =>
+                        c.id === id ? { ...c, isArchived: false } : c
                     ),
                 })),
             deleteChannel: (id) =>
