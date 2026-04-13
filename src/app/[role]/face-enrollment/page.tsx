@@ -564,7 +564,7 @@ export default function FaceEnrollmentPage() {
     if (currentUser.role === "admin") {
         return null;
     }
-    if (myProject && myProject.verificationMethod !== "face_only") {
+    if (myProject && (myProject.verificationMethod === "qr_only" || myProject.verificationMethod === "manual_only")) {
         return null;
     }
 
