@@ -316,7 +316,7 @@ export default function AdminMessagesView() {
                         </Card>
 
                         {/* Chat area */}
-                        <Card className="border border-border/50 flex flex-col">
+                        <Card className="border border-border/50 flex flex-col h-full min-h-0">
                             {selectedChannel ? (
                                 <>
                                     <CardHeader className="pb-2 border-b flex-row items-center justify-between space-y-0">
@@ -333,8 +333,8 @@ export default function AdminMessagesView() {
                                             </Button>
                                         </div>
                                     </CardHeader>
-                                    <CardContent className="flex-1 p-0 flex flex-col overflow-hidden">
-                                        <ScrollArea className="flex-1 p-4">
+                                    <CardContent className="flex-1 p-0 flex flex-col overflow-hidden min-h-0">
+                                        <ScrollArea className="flex-1 min-h-0 p-4">
                                             <div className="space-y-3">
                                                 {channelMsgs.map((msg) => {
                                                     const isMine = msg.employeeId === effectiveId;
