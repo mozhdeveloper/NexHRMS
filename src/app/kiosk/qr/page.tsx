@@ -32,6 +32,11 @@ export default function QRKioskPage() {
     const isAutoTheme = ks.kioskTheme === "auto";
 
     const [mode, setMode] = useState<"in" | "out">("in");
+    const modeRef = useRef<"in" | "out">("in");
+    const handleSetMode = useCallback((m: "in" | "out") => {
+        setMode(m);
+        modeRef.current = m;
+    }, []);
     const [feedback, setFeedback] = useState<"idle" | "success-in" | "success-out" | "error">("idle");
     const [now, setNow] = useState(new Date());
     const [checkedInName, setCheckedInName] = useState("");
@@ -144,17 +149,18 @@ export default function QRKioskPage() {
 
     const addToKioskLog = useCallback((name: string) => {
         const timeNow = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
-        const newEntry = { name, type: mode, time: timeNow };
+        const currentMode = modeRef.current;
+        const newEntry = { name, type: currentMode, time: timeNow };
         setKioskLog((prev) => {
             // Prevent duplicate: same name + same type + same time = skip
-            const isDuplicate = prev.length > 0 && prev[0].name === name && prev[0].type === mode && prev[0].time === timeNow;
+            const isDuplicate = prev.length > 0 && prev[0].name === name && prev[0].type === currentMode && prev[0].time === timeNow;
             if (isDuplicate) return prev;
             
             const updated = [newEntry, ...prev].slice(0, 100); // Keep max 100 entries
             try { sessionStorage.setItem("kiosk-qr-activity-log", JSON.stringify(updated)); } catch { /* full */ }
             return updated;
         });
-    }, [mode]);
+    }, []);
 
     const clearKioskLog = useCallback(() => {
         setKioskLog([]);
@@ -163,15 +169,16 @@ export default function QRKioskPage() {
 
     const clockEmployee = useCallback((empId: string, empName: string) => {
         // checkWorkDay for analytics (local only)
-        if (mode === "in") checkWorkDay(empId);
+        const currentMode = modeRef.current;
+        if (currentMode === "in") checkWorkDay(empId);
 
         // NOTE: DB write already happened in /api/attendance/validate-qr
         // We no longer call store checkIn/checkOut here to avoid double-writes
 
         // Activity log (local kiosk UI only)
         addToKioskLog(empName);
-        triggerFeedback(mode === "in" ? "success-in" : "success-out", empName);
-    }, [mode, checkWorkDay, addToKioskLog, triggerFeedback]);
+        triggerFeedback(currentMode === "in" ? "success-in" : "success-out", empName);
+    }, [checkWorkDay, addToKioskLog, triggerFeedback]);
 
     const processQrPayload = useCallback(async (payload: string) => {
         // Use ref-based lock (synchronous) to prevent duplicate scans
@@ -194,7 +201,7 @@ export default function QRKioskPage() {
                 body: JSON.stringify({
                     payload,
                     kioskId: deviceId,
-                    mode,
+                    mode: modeRef.current,
                 }),
             });
 
@@ -235,6 +242,8 @@ export default function QRKioskPage() {
             processingLockRef.current = false;
         }
     }, [employees, qrProcessing, deviceId, stopQrScanner, clockEmployee, getProjectForEmployee, triggerFeedback]);
+
+    const hasAutoStartedRef = useRef(false);
 
     const startQrScanner = useCallback(async () => {
         setQrCameraError(false);
@@ -308,10 +317,12 @@ export default function QRKioskPage() {
     // Keep startQrScannerRef in sync to avoid circular dependency with triggerFeedback
     startQrScannerRef.current = startQrScanner;
 
-    // Auto-start scanner when page loads (after PIN verification)
+    // Auto-start scanner when page loads (after PIN verification) — runs only once
     useEffect(() => {
+        if (hasAutoStartedRef.current) return;
         const verified = sessionStorage.getItem("kiosk-pin-verified");
         if (verified && !qrScanning && feedback === "idle") {
+            hasAutoStartedRef.current = true;
             // Small delay to allow video element to mount
             const timer = setTimeout(() => {
                 startQrScanner();
@@ -449,7 +460,7 @@ export default function QRKioskPage() {
                     {/* Mode toggle */}
                     <div className={cn("flex rounded-2xl overflow-hidden border backdrop-blur-sm", toggleBgClass)}>
                         <button
-                            onClick={() => setMode("in")}
+                            onClick={() => handleSetMode("in")}
                             className={cn(
                                 "px-6 sm:px-10 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 min-h-[44px]",
                                 mode === "in"
@@ -462,7 +473,7 @@ export default function QRKioskPage() {
                         </button>
                         {ks.allowCheckOut && (
                             <button
-                                onClick={() => setMode("out")}
+                                onClick={() => handleSetMode("out")}
                                 className={cn(
                                     "px-6 sm:px-10 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 min-h-[44px]",
                                     mode === "out"
