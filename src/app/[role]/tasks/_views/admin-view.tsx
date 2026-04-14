@@ -498,6 +498,14 @@ export default function AdminTasksView() {
         [employees],
     );
 
+    // Filter employees by selected project's assignedEmployeeIds
+    const assignableEmployees = useMemo(() => {
+        if (!taskForm.projectId) return activeEmployees;
+        const project = projects.find((p) => p.id === taskForm.projectId);
+        if (!project || !project.assignedEmployeeIds?.length) return activeEmployees;
+        return activeEmployees.filter((e) => project.assignedEmployeeIds.includes(e.id));
+    }, [activeEmployees, projects, taskForm.projectId]);
+
     const hasActiveFilters = statusFilter !== "all" || priorityFilter !== "all" || groupFilter !== "all" || search !== "";
 
     const clearFilters = () => {
@@ -1293,11 +1301,25 @@ export default function AdminTasksView() {
                             </label>
                         </div>
                         <div className="grid gap-2">
-                            <label className="text-sm font-medium">
-                                Assign Employees ({taskForm.assignedTo.length} selected)
-                            </label>
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-medium">
+                                    Assign Employees ({taskForm.assignedTo.length} selected)
+                                </label>
+                                {taskForm.projectId && (() => {
+                                    const proj = projects.find((p) => p.id === taskForm.projectId);
+                                    return proj ? (
+                                        <span className="text-xs text-muted-foreground">
+                                            {assignableEmployees.length} in project
+                                        </span>
+                                    ) : null;
+                                })()}
+                            </div>
                             <div className="border rounded-md max-h-48 overflow-y-auto p-2 space-y-1">
-                                {activeEmployees.map((emp) => (
+                                {assignableEmployees.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground text-center py-4">
+                                        No employees assigned to this project yet.
+                                    </p>
+                                ) : assignableEmployees.map((emp) => (
                                     <label
                                         key={emp.id}
                                         className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer"
