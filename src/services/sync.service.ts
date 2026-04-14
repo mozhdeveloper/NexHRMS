@@ -291,13 +291,12 @@ async function hydrateAllStoresInternal(): Promise<void> {
       });
     }
 
-    // Hydrate notifications store
-    if (notificationLogs.length > 0 || notificationRules.length > 0) {
-      useNotificationsStore.setState({
-        ...(notificationLogs.length > 0 ? { logs: notificationLogs } : {}),
-        ...(notificationRules.length > 0 ? { rules: notificationRules } : {}),
-      });
-    }
+    // Hydrate notifications store — always set logs from DB so stale
+    // localStorage data from a previous user session is cleared on login.
+    useNotificationsStore.setState({
+      logs: notificationLogs,
+      ...(notificationRules.length > 0 ? { rules: notificationRules } : {}),
+    });
 
     // Hydrate location store
     if (locationPings.length > 0 || sitePhotos.length > 0 || breakRecords.length > 0) {
