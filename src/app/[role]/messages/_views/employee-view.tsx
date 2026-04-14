@@ -230,18 +230,18 @@ export default function EmployeeMessagesView() {
                                         </ScrollArea>
 
                                         {/* Input bar */}
-                                        <div className="p-3 border-t flex gap-2 shrink-0 bg-background">
+                                        <div className="p-3 border-t flex items-center gap-2 shrink-0 bg-background">
                                             <Input
                                                 value={chatMessage}
                                                 onChange={(e) => setChatMessage(e.target.value)}
                                                 placeholder="Type a message..."
-                                                className="text-base"
+                                                className="flex-1 h-9"
                                                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
                                             />
                                             <button
                                                 onClick={handleSend}
                                                 disabled={!chatMessage.trim()}
-                                                className="h-10 w-10 shrink-0 rounded-md bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 hover:bg-primary/90 transition-colors"
+                                                className="h-9 w-9 shrink-0 rounded-md bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 hover:bg-primary/90 transition-colors"
                                                 aria-label="Send"
                                             >
                                                 <Send className="h-4 w-4" />

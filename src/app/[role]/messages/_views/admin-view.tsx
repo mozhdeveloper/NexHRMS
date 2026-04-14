@@ -403,14 +403,15 @@ export default function AdminMessagesView() {
                                                 <div ref={chatEndRef} />
                                             </div>
                                         </ScrollArea>
-                                        <div className="p-3 border-t flex gap-2">
+                                        <div className="p-3 border-t flex items-center gap-2">
                                             <Input
                                                 value={chatMessage}
                                                 onChange={(e) => setChatMessage(e.target.value)}
                                                 placeholder="Type a message..."
+                                                className="flex-1 h-9"
                                                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendChat()}
                                             />
-                                            <Button size="sm" onClick={handleSendChat} disabled={!chatMessage.trim()}>
+                                            <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleSendChat} disabled={!chatMessage.trim()}>
                                                 <Send className="h-4 w-4" />
                                             </Button>
                                         </div>
