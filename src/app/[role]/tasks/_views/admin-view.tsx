@@ -712,17 +712,17 @@ export default function AdminTasksView() {
 
                                             return (
                                                 <TableRow key={task.id} className="group">
-                                                    <TableCell>
+                                                    <TableCell className="max-w-[180px] sm:max-w-[240px] xl:max-w-xs">
                                                         <Link
                                                             href={roleHref(`/tasks/${task.id}`)}
-                                                            className="font-medium text-sm hover:underline"
+                                                            className="font-medium text-sm hover:underline line-clamp-2 break-words block"
                                                         >
                                                             {task.title}
                                                         </Link>
-                                                        <p className="text-xs text-muted-foreground font-mono">{task.id}</p>
+                                                        <p className="text-xs text-muted-foreground font-mono truncate">{task.id}</p>
                                                     </TableCell>
-                                                    <TableCell className="hidden sm:table-cell">
-                                                        <span className="text-xs text-muted-foreground">{getGroupName(task.groupId)}</span>
+                                                    <TableCell className="hidden sm:table-cell max-w-[120px]">
+                                                        <span className="text-xs text-muted-foreground truncate block">{getGroupName(task.groupId)}</span>
                                                     </TableCell>
                                                     <TableCell>
                                                         <Badge variant="secondary" className={`text-[10px] ${sc.color}`}>
@@ -824,10 +824,10 @@ export default function AdminTasksView() {
                             const cfg = STATUS_CONFIG[status];
                             const columnTasks = filteredTasks.filter((t) => t.status === status);
                             return (
-                                <div key={status} className="space-y-2">
+                                <div key={status} className="space-y-2 min-w-0 overflow-hidden">
                                     <div className="flex items-center gap-2 px-1">
-                                        <cfg.icon className="h-3.5 w-3.5 text-muted-foreground" />
-                                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                        <cfg.icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate">
                                             {cfg.label}
                                         </span>
                                         <Badge variant="secondary" className="text-[10px] h-4 min-w-4 px-1 ml-auto">
@@ -842,8 +842,8 @@ export default function AdminTasksView() {
                                                 <Link key={task.id} href={roleHref(`/tasks/${task.id}`)}>
                                                     <Card className="border border-border/50 hover:border-border transition-colors cursor-pointer">
                                                         <CardContent className="p-3.5 space-y-2.5">
-                                                            <div className="flex items-start justify-between gap-1">
-                                                                <p className="text-sm font-medium leading-snug line-clamp-2">
+                                                            <div className="flex items-start justify-between gap-1 min-w-0">
+                                                                <p className="text-sm font-medium leading-snug line-clamp-2 break-words min-w-0 flex-1">
                                                                     {task.title}
                                                                 </p>
                                                                 <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground mt-0.5" />

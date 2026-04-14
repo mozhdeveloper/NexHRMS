@@ -71,9 +71,9 @@ function TaskCard({
             <Card className="border border-border/50 hover:border-border active:scale-[0.99] transition-all cursor-pointer touch-manipulation">
                 <CardContent className="p-3.5 sm:p-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium leading-snug">{task.title}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{groupName}</p>
+                        <div className="min-w-0 flex-1 overflow-hidden">
+                            <p className="text-sm font-medium leading-snug break-words">{task.title}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate">{groupName}</p>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                             <Badge variant="secondary" className={`text-[10px] ${sc.color}`}>{sc.label}</Badge>
@@ -81,7 +81,7 @@ function TaskCard({
                         </div>
                     </div>
                     {task.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2 break-words">{task.description}</p>
                     )}
                     <div className="flex items-center gap-1.5 flex-wrap">
                         <Badge variant="secondary" className={`text-[10px] ${pc.color}`}>{pc.label}</Badge>
