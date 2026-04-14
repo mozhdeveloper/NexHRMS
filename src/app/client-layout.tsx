@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { KeyRound, AlertTriangle, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { PushNotificationBanner } from "@/components/push-notification-banner";
 
 const USE_DEMO_MODE = process.env.NEXT_PUBLIC_USE_DEMO_MODE === "true";
 
@@ -255,6 +256,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 {skipShell ? children : <AppShell>{children}</AppShell>}
                 {/* Force password change modal - blocks UI until password is changed */}
                 {isAuthenticated && !isKiosk && <ForcePasswordChangeModal />}
+                {/* Push notification banner - shows once after login */}
+                {isAuthenticated && !isKiosk && <PushNotificationBanner />}
             </ThemeProvider>
         </TooltipProvider>
     );

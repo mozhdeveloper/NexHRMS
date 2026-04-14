@@ -265,6 +265,24 @@ export const useNotificationsStore = create<NotificationsState>()(
                         ].slice(0, 500),
                     }));
                 }
+
+                // ─── Fire real push notification (fire-and-forget) ───
+                // Send to /api/push/send to deliver via Web Push API
+                // This works even when the browser tab is closed (PWA)
+                fetch("/api/push/send", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        employeeId: recipientEmployeeId,
+                        title: subject,
+                        body,
+                        url: autoLink,
+                        tag: `${trigger}-${Date.now()}`,
+                    }),
+                }).catch((err) => {
+                    // Silently fail — push is best-effort
+                    console.debug("[notifications] Push send failed (non-critical):", err);
+                });
             },
 
             resetToSeed: () => set({ logs: [], rules: [...DEFAULT_RULES], providerConfig: { ...DEFAULT_PROVIDER } }),

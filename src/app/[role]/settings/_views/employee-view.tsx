@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Sun, Moon, Monitor, Palette, Bell, Lock, Eye, EyeOff, KeyRound } from "lucide-react";
+import { Sun, Moon, Monitor, Palette, Bell, Lock, Eye, EyeOff, KeyRound, Smartphone } from "lucide-react";
 import { toast } from "sonner";
+import { PushNotificationPrompt } from "@/components/push-notification-prompt";
 
 /* ═══════════════════════════════════════════════════════════════
    EMPLOYEE VIEW — Personal Preferences Only
@@ -111,6 +112,22 @@ export default function EmployeeSettingsView() {
                             <Switch checked={prefs[n.key]} onCheckedChange={(checked) => { update({ [n.key]: checked }); toast.success(`${n.label} ${checked ? "enabled" : "disabled"}`); }} />
                         </div>
                     ))}
+                </CardContent>
+            </Card>
+
+            {/* Push Notifications */}
+            <Card className="border border-border/50">
+                <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                        <Smartphone className="h-5 w-5 text-muted-foreground" />
+                        <CardTitle className="text-base font-semibold">Push Notifications</CardTitle>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <PushNotificationPrompt variant="inline" className="w-full justify-start" />
+                    <p className="text-xs text-muted-foreground mt-2">
+                        Enable push notifications to receive instant alerts even when the app is closed.
+                    </p>
                 </CardContent>
             </Card>
 
