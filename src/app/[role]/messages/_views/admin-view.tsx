@@ -147,7 +147,7 @@ export default function AdminMessagesView() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 h-full flex flex-col">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
@@ -284,8 +284,8 @@ export default function AdminMessagesView() {
                 </TabsList>
 
                 {/* ── Channels Tab ────────────────────────────── */}
-                <TabsContent value="channels" className="mt-4">
-                    <div className="grid lg:grid-cols-[280px_1fr] gap-4" style={{ height: "calc(100vh - 300px)", minHeight: "500px", maxHeight: "700px" }}>
+                <TabsContent value="channels" className="mt-4 flex-1 min-h-0">
+                    <div className="grid lg:grid-cols-[280px_1fr] gap-4 h-[calc(100vh-260px)] min-h-[400px] max-h-[700px]">
                         {/* Channel list */}
                         <Card className="border border-border/50 h-full">
                             <CardContent className="p-0 h-full">
@@ -377,20 +377,23 @@ export default function AdminMessagesView() {
                                                 {channelMsgs.map((msg) => {
                                                     const isMine = msg.employeeId === effectiveId;
                                                     return (
-                                                        <div key={msg.id} className={`flex gap-2.5 ${isMine ? "flex-row-reverse" : ""}`}>
+                                                        <div key={msg.id} className={`flex gap-2.5 w-full ${isMine ? "flex-row-reverse" : ""}`}>
                                                             <Avatar className="h-7 w-7 shrink-0">
                                                                 <AvatarFallback className="text-[9px] bg-muted">{getInitials(getEmpName(msg.employeeId))}</AvatarFallback>
                                                             </Avatar>
-                                                            <div className={`max-w-[70%] min-w-0 ${isMine ? "text-right" : ""}`}>
-                                                                <div className="flex items-center gap-2 mb-0.5">
-                                                                    {!isMine && <span className="text-xs font-medium">{getEmpName(msg.employeeId)}</span>}
-                                                                    <span className="text-[10px] text-muted-foreground">{formatDateTime(msg.createdAt)}</span>
+                                                            <div className={`max-w-[70%] min-w-0 overflow-hidden ${isMine ? "text-right" : ""}`}>
+                                                                <div className={`flex items-center gap-2 mb-0.5 ${isMine ? "justify-end" : ""}`}>
+                                                                    {!isMine && <span className="text-xs font-medium truncate">{getEmpName(msg.employeeId)}</span>}
+                                                                    <span className="text-[10px] text-muted-foreground shrink-0">{formatDateTime(msg.createdAt)}</span>
                                                                 </div>
-                                                                <div className={`rounded-lg px-3 py-2 text-sm break-words whitespace-pre-wrap overflow-hidden text-left ${
-                                                                    isMine
-                                                                        ? "bg-primary text-primary-foreground"
-                                                                        : "bg-muted"
-                                                                }`}>
+                                                                <div 
+                                                                    className={`rounded-lg px-3 py-2 text-sm text-left inline-block max-w-full ${
+                                                                        isMine
+                                                                            ? "bg-primary text-primary-foreground"
+                                                                            : "bg-muted"
+                                                                    }`}
+                                                                    style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+                                                                >
                                                                     {msg.message}
                                                                 </div>
                                                             </div>
