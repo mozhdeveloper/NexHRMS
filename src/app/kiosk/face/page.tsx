@@ -15,12 +15,16 @@ import {
     Loader2, RotateCcw, AlertTriangle, Camera, ClipboardList,
 } from "lucide-react";
 
+// Neon theme colors
+const NEON_GREEN = "#39FF14";
+const NEON_GREEN_DIM = "rgba(57, 255, 20, 0.6)";
+
 /**
  * Face Recognition Kiosk Page
  *
  * Uses face-api.js (client-side, WebGL) for real 128-d embedding computation.
  * Sends embedding to server for matching against enrolled employees.
- * Qwen AI liveness check can be layered on top via /api/attendance/verify-face.
+ * Black and neon green SaaS branding.
  */
 
 type ScanState = "loading" | "idle" | "scanning" | "verifying" | "verified" | "failed";
@@ -33,8 +37,6 @@ export default function FaceKioskPage() {
     const companyName = useAppearanceStore((s) => s.companyName);
     const logoUrl = useAppearanceStore((s) => s.logoUrl);
     const getProjectForEmployee = useProjectsStore((s) => s.getProjectForEmployee);
-
-    const isAutoTheme = ks.kioskTheme === "auto";
 
     const [mode, setMode] = useState<"in" | "out">("in");
     const [feedback, setFeedback] = useState<"idle" | "success-in" | "success-out" | "error">("idle");
@@ -477,75 +479,168 @@ export default function FaceKioskPage() {
     const isError = feedback === "error";
     const isSuccess = isSuccessIn || isSuccessOut;
 
-    // Theme-aware classes
-    const bgClass = isSuccess ? (isSuccessIn ? "bg-emerald-950 dark:bg-emerald-950" : "bg-sky-950 dark:bg-sky-950") :
-        isError ? "bg-red-950 dark:bg-red-950" :
-        isAutoTheme ? "bg-background" :
-        ks.kioskTheme === "midnight" ? "bg-slate-950" :
-        ks.kioskTheme === "charcoal" ? "bg-neutral-950" : "bg-zinc-950";
-    const textClass = isAutoTheme && !isSuccess && !isError ? "text-foreground" : "text-white";
-    const textMutedClass = isAutoTheme && !isSuccess && !isError ? "text-muted-foreground" : "text-white/40";
-    const textFaintClass = isAutoTheme && !isSuccess && !isError ? "text-muted-foreground/40" : "text-white/30";
-    const cardClass = isAutoTheme && !isSuccess && !isError ? "bg-card border-border" : "bg-white/[0.04] border-white/10";
-    const toggleBgClass = isAutoTheme && !isSuccess && !isError ? "border-border bg-muted/30" : "border-white/10 bg-white/[0.03]";
-    const toggleInactiveClass = isAutoTheme && !isSuccess && !isError ? "text-muted-foreground hover:text-foreground" : "text-white/30 hover:text-white/60";
-
     return (
-        <div className={cn(
-            "fixed inset-0 flex flex-col transition-colors duration-700 select-none overflow-auto",
-            bgClass
-        )}>
-            {/* Ambient blob */}
+        <div className="fixed inset-0 flex flex-col select-none overflow-auto bg-black transition-colors duration-500">
+            {/* Animated gradient background */}
             <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                <div className="absolute -top-40 -left-40 w-[550px] h-[550px] rounded-full blur-[130px] opacity-20 transition-colors duration-700"
-                    style={{ backgroundColor: isSuccess ? (isSuccessIn ? "#10b981" : "#0ea5e9") : isError ? "#ef4444" : "#3b82f6" }} />
+                {/* Top-left neon blob */}
+                <div 
+                    className="absolute rounded-full blur-[150px] animate-pulse"
+                    style={{
+                        width: "clamp(300px, 40vw, 600px)",
+                        height: "clamp(300px, 40vh, 600px)",
+                        top: "-10%",
+                        left: "-10%",
+                        background: isSuccess 
+                            ? (isSuccessIn ? "rgba(16, 185, 129, 0.3)" : "rgba(14, 165, 233, 0.3)")
+                            : isError ? "rgba(239, 68, 68, 0.3)" : `linear-gradient(135deg, ${NEON_GREEN}40 0%, ${NEON_GREEN}10 100%)`,
+                        animationDuration: "4s",
+                    }}
+                />
+                {/* Bottom-right neon blob */}
+                <div 
+                    className="absolute rounded-full blur-[180px] animate-pulse"
+                    style={{
+                        width: "clamp(350px, 50vw, 700px)",
+                        height: "clamp(350px, 50vh, 700px)",
+                        bottom: "-15%",
+                        right: "-15%",
+                        background: isSuccess 
+                            ? (isSuccessIn ? "rgba(16, 185, 129, 0.2)" : "rgba(14, 165, 233, 0.2)")
+                            : isError ? "rgba(239, 68, 68, 0.2)" : `linear-gradient(315deg, ${NEON_GREEN}30 0%, transparent 70%)`,
+                        animationDuration: "6s",
+                        animationDelay: "1s",
+                    }}
+                />
+                {/* Grid pattern */}
+                <div 
+                    className="absolute inset-0 opacity-[0.03]"
+                    style={{
+                        backgroundImage: `linear-gradient(${NEON_GREEN}20 1px, transparent 1px), linear-gradient(90deg, ${NEON_GREEN}20 1px, transparent 1px)`,
+                        backgroundSize: "clamp(30px, 4vw, 50px) clamp(30px, 4vw, 50px)",
+                    }}
+                />
             </div>
 
             {/* Top bar */}
-            <header className="relative z-10 w-full flex items-center justify-between px-4 sm:px-8 pt-4 sm:pt-6">
-                <button onClick={() => router.push("/kiosk")} className={cn("flex items-center gap-2 transition-colors min-h-[44px]",
-                    isAutoTheme && !isSuccess && !isError ? "text-muted-foreground hover:text-foreground" : "text-white/50 hover:text-white"
-                )}>
-                    <ArrowLeft className="h-4 w-4" /><span className="text-sm">Back</span>
+            <header 
+                className="relative z-10 w-full flex items-center justify-between"
+                style={{ padding: "clamp(1rem, 3vh, 1.5rem) clamp(1rem, 3vw, 2rem)" }}
+            >
+                <button
+                    onClick={() => router.push("/kiosk")}
+                    className="flex items-center gap-2 text-white/50 hover:text-white transition-colors min-h-[44px]"
+                    style={{ fontSize: "clamp(0.75rem, 1.2vw, 0.875rem)" }}
+                >
+                    <ArrowLeft className="h-4 w-4" /><span>Back</span>
                 </button>
                 <div className="text-center">
                     {ks.showClock && (
-                        <p className={cn("font-mono text-2xl sm:text-4xl font-bold tracking-widest tabular-nums drop-shadow-lg", textClass)}>{timeStr}</p>
+                        <p 
+                            className="font-mono font-bold tracking-widest tabular-nums"
+                            style={{ 
+                                fontSize: "clamp(1.25rem, 3vw, 2.5rem)",
+                                color: NEON_GREEN,
+                                textShadow: `0 0 20px ${NEON_GREEN_DIM}, 0 0 40px ${NEON_GREEN_DIM}`
+                            }}
+                        >
+                            {timeStr}
+                        </p>
                     )}
-                    {ks.showDate && <p className={cn("text-xs mt-1", textMutedClass)}>{dateStr}</p>}
+                    {ks.showDate && (
+                        <p className="text-white/40 mt-1" style={{ fontSize: "clamp(0.65rem, 1vw, 0.75rem)" }}>{dateStr}</p>
+                    )}
                 </div>
                 <div className="flex items-center gap-3">
                     {ks.showLogo && logoUrl ? (
-                        <img src={logoUrl} alt={companyName}
-                            className={cn("h-7 max-w-[100px] object-contain", !isAutoTheme && "brightness-0 invert opacity-90")} />
+                        <img 
+                            src={logoUrl} 
+                            alt={companyName}
+                            className="object-contain brightness-0 invert opacity-90"
+                            style={{ height: "clamp(1.5rem, 3vh, 2rem)", maxWidth: "clamp(80px, 10vw, 120px)" }}
+                        />
                     ) : (
-                        <span className={cn("font-semibold text-sm", textMutedClass)}>{companyName || "Soren Data Solutions Inc."}</span>
+                        <span className="font-semibold text-white/40" style={{ fontSize: "clamp(0.75rem, 1.2vw, 0.875rem)" }}>
+                            {companyName || "Soren Data Solutions Inc."}
+                        </span>
                     )}
                 </div>
             </header>
 
             {/* Success/Error overlay */}
             {feedback !== "idle" && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md">
                     <div className="text-center space-y-4 animate-in zoom-in-90 duration-300">
                         {isSuccess ? (
                             <>
-                                <div className={cn("h-20 w-20 mx-auto rounded-full flex items-center justify-center",
-                                    isSuccessIn ? "bg-emerald-500/20" : "bg-sky-500/20")}>
-                                    <CheckCircle className={cn("h-10 w-10", isSuccessIn ? "text-emerald-400" : "text-sky-400")} />
+                                <div 
+                                    className="mx-auto rounded-full flex items-center justify-center"
+                                    style={{
+                                        width: "clamp(80px, 15vw, 120px)",
+                                        height: "clamp(80px, 15vw, 120px)",
+                                        background: isSuccessIn 
+                                            ? `radial-gradient(circle, ${NEON_GREEN}30 0%, transparent 70%)`
+                                            : "radial-gradient(circle, rgba(14, 165, 233, 0.3) 0%, transparent 70%)",
+                                        boxShadow: isSuccessIn 
+                                            ? `0 0 60px ${NEON_GREEN}40` 
+                                            : "0 0 60px rgba(14, 165, 233, 0.4)",
+                                    }}
+                                >
+                                    <CheckCircle 
+                                        style={{ 
+                                            width: "clamp(40px, 8vw, 60px)", 
+                                            height: "clamp(40px, 8vw, 60px)",
+                                            color: isSuccessIn ? NEON_GREEN : "#0ea5e9",
+                                        }} 
+                                    />
                                 </div>
-                                <p className={cn("text-3xl font-bold", isSuccessIn ? "text-emerald-300" : "text-sky-300")}>
+                                <p 
+                                    className="font-bold"
+                                    style={{ 
+                                        fontSize: "clamp(1.5rem, 5vw, 2.5rem)",
+                                        color: isSuccessIn ? NEON_GREEN : "#0ea5e9",
+                                        textShadow: isSuccessIn 
+                                            ? `0 0 30px ${NEON_GREEN}60` 
+                                            : "0 0 30px rgba(14, 165, 233, 0.6)",
+                                    }}
+                                >
                                     {isSuccessIn ? "Checked In" : "Checked Out"}
                                 </p>
-                                {checkedInName && <p className="text-white text-4xl font-bold mt-2">{checkedInName}</p>}
-                                <p className="text-white/30 text-sm">{now.toLocaleTimeString()}</p>
+                                {checkedInName && (
+                                    <p 
+                                        className="text-white font-bold mt-2"
+                                        style={{ fontSize: "clamp(1.75rem, 6vw, 3rem)" }}
+                                    >
+                                        {checkedInName}
+                                    </p>
+                                )}
+                                <p className="text-white/30" style={{ fontSize: "clamp(0.75rem, 1.5vw, 1rem)" }}>
+                                    {now.toLocaleTimeString()}
+                                </p>
                             </>
                         ) : (
                             <>
-                                <div className="h-20 w-20 mx-auto rounded-full bg-red-500/20 flex items-center justify-center">
-                                    <XCircle className="h-10 w-10 text-red-400" />
+                                <div 
+                                    className="mx-auto rounded-full bg-red-500/20 flex items-center justify-center"
+                                    style={{
+                                        width: "clamp(70px, 12vw, 100px)",
+                                        height: "clamp(70px, 12vw, 100px)",
+                                    }}
+                                >
+                                    <XCircle 
+                                        className="text-red-400"
+                                        style={{ 
+                                            width: "clamp(35px, 6vw, 50px)", 
+                                            height: "clamp(35px, 6vw, 50px)" 
+                                        }} 
+                                    />
                                 </div>
-                                <p className="text-2xl font-bold text-red-300">Invalid - Try Again</p>
+                                <p 
+                                    className="font-bold text-red-300"
+                                    style={{ fontSize: "clamp(1.25rem, 3vw, 1.75rem)" }}
+                                >
+                                    Invalid - Try Again
+                                </p>
                             </>
                         )}
                     </div>
@@ -553,17 +648,42 @@ export default function FaceKioskPage() {
             )}
 
             {/* Main content — two-column on desktop, stacked on mobile */}
-            <main className="relative z-10 flex flex-col lg:flex-row items-start justify-center gap-4 sm:gap-6 px-4 sm:px-6 flex-1 w-full max-w-6xl mx-auto py-4">
+            <main 
+                className="relative z-10 flex flex-col lg:flex-row items-start justify-center flex-1 w-full mx-auto"
+                style={{ 
+                    gap: "clamp(1rem, 3vw, 2rem)",
+                    padding: "clamp(1rem, 2vh, 1.5rem) clamp(1rem, 3vw, 2rem)",
+                    maxWidth: "min(1400px, 95vw)",
+                }}
+            >
                 {/* LEFT: Face Scanner Column */}
-                <div className="flex flex-col items-center gap-4 sm:gap-6 w-full lg:w-[420px] lg:flex-shrink-0">
+                <div 
+                    className="flex flex-col items-center w-full lg:flex-shrink-0"
+                    style={{ 
+                        gap: "clamp(1rem, 2vh, 1.5rem)",
+                        maxWidth: "min(480px, 100%)",
+                    }}
+                >
                     {/* Mode toggle */}
-                    <div className={cn("flex rounded-2xl overflow-hidden border backdrop-blur-sm", toggleBgClass)}>
+                    <div 
+                        className="flex rounded-2xl overflow-hidden backdrop-blur-xl"
+                        style={{
+                            background: "rgba(255, 255, 255, 0.03)",
+                            border: `1px solid ${NEON_GREEN}20`,
+                        }}
+                    >
                         <button
                             onClick={() => { setMode("in"); setScanState("idle"); setMatchedName(""); setTrackingStatus("no-face"); setTrackingBox(null); if (autoConfirmTimerRef.current) { clearInterval(autoConfirmTimerRef.current); autoConfirmTimerRef.current = null; } setAutoConfirmCountdown(null); }}
                             className={cn(
-                                "px-6 sm:px-10 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 min-h-[44px]",
-                                mode === "in" ? "bg-emerald-500/80 text-white shadow-lg shadow-emerald-900/30" : toggleInactiveClass
+                                "flex items-center justify-center gap-2 font-semibold transition-all duration-200 min-h-[44px]",
+                                mode === "in" ? "text-black" : "text-white/30 hover:text-white/60"
                             )}
+                            style={{
+                                padding: "clamp(0.6rem, 1.5vh, 0.75rem) clamp(1.5rem, 4vw, 2.5rem)",
+                                fontSize: "clamp(0.75rem, 1.2vw, 0.875rem)",
+                                background: mode === "in" ? NEON_GREEN : "transparent",
+                                boxShadow: mode === "in" ? `0 0 30px ${NEON_GREEN}50` : "none",
+                            }}
                         >
                             <LogIn className="h-4 w-4" />Check In
                         </button>
@@ -571,9 +691,15 @@ export default function FaceKioskPage() {
                             <button
                                 onClick={() => { setMode("out"); setScanState("idle"); setMatchedName(""); setTrackingStatus("no-face"); setTrackingBox(null); if (autoConfirmTimerRef.current) { clearInterval(autoConfirmTimerRef.current); autoConfirmTimerRef.current = null; } setAutoConfirmCountdown(null); }}
                                 className={cn(
-                                    "px-6 sm:px-10 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 min-h-[44px]",
-                                    mode === "out" ? "bg-sky-500/80 text-white shadow-lg shadow-sky-900/30" : toggleInactiveClass
+                                    "flex items-center justify-center gap-2 font-semibold transition-all duration-200 min-h-[44px]",
+                                    mode === "out" ? "text-black" : "text-white/30 hover:text-white/60"
                                 )}
+                                style={{
+                                    padding: "clamp(0.6rem, 1.5vh, 0.75rem) clamp(1.5rem, 4vw, 2.5rem)",
+                                    fontSize: "clamp(0.75rem, 1.2vw, 0.875rem)",
+                                    background: mode === "out" ? "#0ea5e9" : "transparent",
+                                    boxShadow: mode === "out" ? "0 0 30px rgba(14, 165, 233, 0.5)" : "none",
+                                }}
                             >
                                 <LogOut className="h-4 w-4" />Check Out
                             </button>
@@ -582,27 +708,54 @@ export default function FaceKioskPage() {
 
                     {/* Enrollment Required */}
                     {enrollmentChecked && !isEnrolled ? (
-                        <div className={cn("border border-amber-500/30 rounded-3xl p-4 sm:p-8 backdrop-blur-sm flex flex-col items-center gap-4 sm:gap-5 shadow-2xl w-full max-w-sm",
-                            isAutoTheme ? "bg-card" : "bg-white/[0.04]"
-                        )}>
+                        <div 
+                            className="border border-amber-500/30 rounded-3xl backdrop-blur-xl flex flex-col items-center shadow-2xl w-full"
+                            style={{
+                                padding: "clamp(1rem, 3vh, 2rem)",
+                                gap: "clamp(1rem, 2vh, 1.5rem)",
+                                maxWidth: "min(400px, 90vw)",
+                                background: "rgba(255, 255, 255, 0.04)",
+                            }}
+                        >
                             <div className="h-16 w-16 rounded-full bg-amber-500/20 flex items-center justify-center">
                                 <AlertTriangle className="h-8 w-8 text-amber-400" />
                             </div>
-                            <p className={cn("text-lg font-bold text-center", textClass)}>Face Enrollment Required</p>
-                            <p className={cn("text-sm text-center", textMutedClass)}>
+                            <p className="text-lg font-bold text-center text-white">Face Enrollment Required</p>
+                            <p className="text-sm text-center text-white/40">
                                 You need to enroll your face before using face recognition check-in.
                             </p>
-                            <button onClick={() => router.push("/kiosk/face/enroll")}
-                                className="w-full py-3.5 rounded-xl bg-violet-500/80 hover:bg-violet-500 text-white text-sm font-bold transition-all min-h-[44px]">
+                            <button 
+                                onClick={() => router.push("/kiosk/face/enroll")}
+                                className="w-full rounded-xl text-black font-bold transition-all min-h-[44px] hover:opacity-90"
+                                style={{
+                                    padding: "clamp(0.75rem, 1.5vh, 1rem)",
+                                    fontSize: "clamp(0.75rem, 1.2vw, 0.875rem)",
+                                    background: NEON_GREEN,
+                                    boxShadow: `0 0 30px ${NEON_GREEN}40`,
+                                }}
+                            >
                                 <ScanFace className="h-4 w-4 inline mr-2" />Enroll Face Now
                             </button>
                         </div>
                     ) : (
                         /* Face Recognition Panel */
-                        <div className={cn("rounded-3xl p-4 sm:p-6 backdrop-blur-sm flex flex-col items-center gap-4 sm:gap-5 shadow-2xl w-full border", cardClass)}>
+                        <div 
+                            className="rounded-3xl backdrop-blur-xl flex flex-col items-center shadow-2xl w-full"
+                            style={{
+                                padding: "clamp(1rem, 3vh, 1.5rem)",
+                                gap: "clamp(1rem, 2vh, 1.5rem)",
+                                background: "rgba(255, 255, 255, 0.03)",
+                                border: `1px solid ${NEON_GREEN}15`,
+                            }}
+                        >
                             <div className="flex items-center gap-2">
-                                <ScanFace className="h-4 w-4 text-emerald-400/60" />
-                                <p className={cn("text-[11px] font-semibold uppercase tracking-widest", textMutedClass)}>Face Recognition</p>
+                                <ScanFace style={{ color: NEON_GREEN, opacity: 0.6 }} className="h-4 w-4" />
+                                <p 
+                                    className="font-semibold uppercase tracking-widest text-white/40"
+                                    style={{ fontSize: "clamp(0.6rem, 1vw, 0.7rem)" }}
+                                >
+                                    Face Recognition
+                                </p>
                             </div>
 
                             {/* Camera feed */}
@@ -730,7 +883,10 @@ export default function FaceKioskPage() {
                             )}
 
                             {scanState === "idle" && (
-                                <p className={cn("text-[10px] text-center", textFaintClass)}>
+                                <p 
+                                    className="text-center text-white/30"
+                                    style={{ fontSize: "clamp(0.55rem, 0.9vw, 0.65rem)" }}
+                                >
                                     {trackingStatus === "no-face"
                                         ? "Step in front of the camera — auto-scan will detect your face"
                                         : "Hold steady for automatic recognition"}
@@ -738,10 +894,11 @@ export default function FaceKioskPage() {
                             )}
 
                             {/* Re-enroll link */}
-                            <button onClick={() => router.push("/kiosk/face/enroll")}
-                                className={cn("flex items-center gap-1.5 text-[10px] transition-colors",
-                                    isAutoTheme ? "text-muted-foreground/40 hover:text-muted-foreground" : "text-white/25 hover:text-white/50"
-                                )}>
+                            <button 
+                                onClick={() => router.push("/kiosk/face/enroll")}
+                                className="flex items-center gap-1.5 text-white/25 hover:text-white/50 transition-colors"
+                                style={{ fontSize: "clamp(0.55rem, 0.9vw, 0.65rem)" }}
+                            >
                                 <RotateCcw className="h-3 w-3" />Re-enroll Face
                             </button>
                         </div>
@@ -749,50 +906,99 @@ export default function FaceKioskPage() {
                 </div>
 
                 {/* RIGHT: Daily Activity Log */}
-                <div className={cn("w-full lg:flex-1 lg:max-w-sm rounded-3xl backdrop-blur-sm shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-160px)] border", cardClass)}>
-                    <div className={cn("px-4 py-3 border-b flex items-center gap-2",
-                        isAutoTheme ? "border-border" : "border-white/10"
-                    )}>
-                        <ClipboardList className="h-4 w-4 text-blue-400/70" />
-                        <h2 className={cn("text-xs font-semibold uppercase tracking-widest",
-                            isAutoTheme ? "text-muted-foreground" : "text-white/70"
-                        )}>Today&apos;s Activity</h2>
-                        <span className={cn("ml-auto text-[10px] tabular-nums", textFaintClass)}>{kioskLog.length} {kioskLog.length === 1 ? "entry" : "entries"}</span>
+                <div 
+                    className="w-full lg:flex-1 rounded-3xl backdrop-blur-xl shadow-2xl overflow-hidden flex flex-col"
+                    style={{
+                        maxWidth: "min(400px, 100%)",
+                        maxHeight: "clamp(300px, 50vh, 500px)",
+                        background: "rgba(255, 255, 255, 0.03)",
+                        border: `1px solid ${NEON_GREEN}15`,
+                    }}
+                >
+                    <div 
+                        className="flex items-center gap-2"
+                        style={{
+                            padding: "clamp(0.75rem, 1.5vh, 1rem) clamp(1rem, 2vw, 1.25rem)",
+                            borderBottom: `1px solid ${NEON_GREEN}10`,
+                        }}
+                    >
+                        <ClipboardList style={{ color: NEON_GREEN, opacity: 0.7 }} className="h-4 w-4" />
+                        <h2 
+                            className="font-semibold uppercase tracking-widest text-white/70"
+                            style={{ fontSize: "clamp(0.6rem, 1vw, 0.7rem)" }}
+                        >
+                            Today&apos;s Activity
+                        </h2>
+                        <span 
+                            className="ml-auto tabular-nums text-white/30"
+                            style={{ fontSize: "clamp(0.55rem, 0.9vw, 0.65rem)" }}
+                        >
+                            {kioskLog.length} {kioskLog.length === 1 ? "entry" : "entries"}
+                        </span>
                     </div>
-                    <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+                    <div 
+                        className="flex-1 overflow-y-auto space-y-1.5"
+                        style={{ padding: "clamp(0.5rem, 1.5vh, 0.75rem)" }}
+                    >
                         {kioskLog.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-10 gap-2">
-                                <ClipboardList className={cn("h-8 w-8", isAutoTheme ? "text-muted-foreground/20" : "text-white/10")} />
-                                <p className={cn("text-xs", isAutoTheme ? "text-muted-foreground/40" : "text-white/20")}>No activity yet today</p>
-                                <p className={cn("text-[10px]", isAutoTheme ? "text-muted-foreground/30" : "text-white/10")}>Scan a face to check in or out</p>
+                            <div 
+                                className="flex flex-col items-center justify-center gap-2"
+                                style={{ padding: "clamp(1.5rem, 5vh, 3rem) 0" }}
+                            >
+                                <ClipboardList className="text-white/10" style={{ width: "clamp(24px, 5vw, 32px)", height: "clamp(24px, 5vw, 32px)" }} />
+                                <p className="text-white/20" style={{ fontSize: "clamp(0.65rem, 1vw, 0.75rem)" }}>No activity yet today</p>
+                                <p className="text-white/10" style={{ fontSize: "clamp(0.55rem, 0.9vw, 0.65rem)" }}>Scan a face to check in or out</p>
                             </div>
                         ) : (
                             kioskLog.map((entry, i) => (
-                                <div key={i} className={cn(
-                                    "flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-colors",
-                                    entry.type === "in"
-                                        ? "bg-emerald-500/5 border-emerald-500/20"
-                                        : "bg-sky-500/5 border-sky-500/20"
-                                )}>
-                                    <div className={cn(
-                                        "h-7 w-7 rounded-full flex items-center justify-center shrink-0",
-                                        entry.type === "in" ? "bg-emerald-500/20" : "bg-sky-500/20"
-                                    )}>
+                                <div 
+                                    key={i} 
+                                    className="flex items-center gap-3 rounded-xl transition-colors"
+                                    style={{
+                                        padding: "clamp(0.5rem, 1vh, 0.75rem) clamp(0.75rem, 1.5vw, 1rem)",
+                                        background: entry.type === "in" 
+                                            ? `${NEON_GREEN}08` 
+                                            : "rgba(14, 165, 233, 0.05)",
+                                        border: entry.type === "in"
+                                            ? `1px solid ${NEON_GREEN}20`
+                                            : "1px solid rgba(14, 165, 233, 0.2)",
+                                    }}
+                                >
+                                    <div 
+                                        className="rounded-full flex items-center justify-center shrink-0"
+                                        style={{
+                                            width: "clamp(24px, 4vw, 32px)",
+                                            height: "clamp(24px, 4vw, 32px)",
+                                            background: entry.type === "in" ? `${NEON_GREEN}20` : "rgba(14, 165, 233, 0.2)",
+                                        }}
+                                    >
                                         {entry.type === "in"
-                                            ? <LogIn className="h-3.5 w-3.5 text-emerald-400" />
-                                            : <LogOut className="h-3.5 w-3.5 text-sky-400" />
+                                            ? <LogIn style={{ color: NEON_GREEN, width: "clamp(12px, 2vw, 16px)", height: "clamp(12px, 2vw, 16px)" }} />
+                                            : <LogOut className="text-sky-400" style={{ width: "clamp(12px, 2vw, 16px)", height: "clamp(12px, 2vw, 16px)" }} />
                                         }
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className={cn("text-sm font-medium truncate", isAutoTheme ? "text-foreground" : "text-white/80")}>{entry.name}</p>
-                                        <p className={cn(
-                                            "text-[10px]",
-                                            entry.type === "in" ? "text-emerald-400/60" : "text-sky-400/60"
-                                        )}>
+                                        <p 
+                                            className="font-medium truncate text-white/80"
+                                            style={{ fontSize: "clamp(0.75rem, 1.2vw, 0.875rem)" }}
+                                        >
+                                            {entry.name}
+                                        </p>
+                                        <p 
+                                            style={{ 
+                                                fontSize: "clamp(0.55rem, 0.9vw, 0.65rem)",
+                                                color: entry.type === "in" ? `${NEON_GREEN}99` : "rgba(14, 165, 233, 0.6)",
+                                            }}
+                                        >
                                             {entry.type === "in" ? "Checked In" : "Checked Out"}
                                         </p>
                                     </div>
-                                    <span className={cn("text-[10px] tabular-nums shrink-0", textFaintClass)}>{entry.time}</span>
+                                    <span 
+                                        className="tabular-nums shrink-0 text-white/30"
+                                        style={{ fontSize: "clamp(0.55rem, 0.9vw, 0.65rem)" }}
+                                    >
+                                        {entry.time}
+                                    </span>
                                 </div>
                             ))
                         )}
@@ -801,8 +1007,18 @@ export default function FaceKioskPage() {
             </main>
 
             {/* Footer */}
-            <footer className="relative z-10 w-full flex items-center justify-center pb-4 sm:pb-6">
-                <div className={cn("flex items-center gap-2 text-xs", textFaintClass)}>
+            <footer 
+                className="relative z-10 w-full flex items-center justify-center"
+                style={{ padding: "clamp(0.75rem, 2vh, 1.5rem) 0" }}
+            >
+                <div 
+                    className="flex items-center gap-2 text-white/20"
+                    style={{ fontSize: "clamp(0.6rem, 1vw, 0.75rem)" }}
+                >
+                    <div 
+                        className="h-1.5 w-1.5 rounded-full animate-pulse"
+                        style={{ backgroundColor: NEON_GREEN }}
+                    />
                     <span>{companyName || "Soren Data Solutions Inc."} • Face Recognition Kiosk</span>
                 </div>
             </footer>
