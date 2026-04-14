@@ -43,11 +43,9 @@ export function PushNotificationBanner() {
   if (!showBanner) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50">
-      <PushNotificationPrompt
-        variant="banner"
-        onDismiss={handleDismiss}
-      />
-    </div>
+    <PushNotificationPrompt
+      variant="banner"
+      onDismiss={handleDismiss}
+    />
   );
 }

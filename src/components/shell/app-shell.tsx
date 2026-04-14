@@ -2,6 +2,7 @@
 
 import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
+import { PushNotificationBanner } from "@/components/push-notification-banner";
 import { useUIStore } from "@/store/ui.store";
 import { useAppearanceStore } from "@/store/appearance.store";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,10 @@ function AppShellComponent({ children }: { children: React.ReactNode }) {
         <div className="min-h-screen bg-background">
             <Sidebar />
             <Topbar />
+            {/* Push Notification Banner */}
+            <div className={cn("sticky top-16 z-20 transition-all duration-300", marginClass)}>
+                <PushNotificationBanner />
+            </div>
             {/* Announcement Banner */}
             {bannerEnabled && bannerText && (
                 <div

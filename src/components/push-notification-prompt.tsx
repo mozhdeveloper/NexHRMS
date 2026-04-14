@@ -104,37 +104,37 @@ export function PushNotificationPrompt({
 
     return (
       <div className={cn(
-        "bg-primary/5 border-b border-primary/20 px-4 py-3",
+        "bg-primary/5 border-b border-primary/20 px-3 py-2 sm:px-4 sm:py-2.5",
         className
       )}>
-        <div className="flex items-center justify-between gap-4 max-w-screen-xl mx-auto">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-              <Bell className="h-4 w-4 text-primary" />
+        <div className="flex items-center justify-between gap-2 sm:gap-4 max-w-screen-xl mx-auto">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium">Enable Push Notifications</p>
-              <p className="text-xs text-muted-foreground">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium truncate">Enable Push Notifications</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground truncate hidden xs:block">
                 Get notified about leave approvals, payslips, and more
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <Button
               size="sm"
               onClick={subscribe}
               disabled={isLoading}
-              className="gap-1.5"
+              className="h-7 px-2.5 text-xs sm:h-8 sm:px-3 sm:text-sm gap-1"
             >
-              {isLoading ? "Enabling..." : "Enable"}
+              {isLoading ? "..." : "Enable"}
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-muted-foreground"
+              className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground"
               onClick={handleDismiss}
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
           </div>
         </div>
