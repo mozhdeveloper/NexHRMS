@@ -1624,10 +1624,39 @@ export function startRealtime(): void {
         }));
       })
     )
+    // ── notification_logs (realtime) ────────────────────────
+    // When another user's write-through inserts a log destined for us,
+    // this listener ensures our in-app notification tab updates immediately
+    // without requiring a page refresh.
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "notification_logs" },
+      safe(({ new: row }: { new: Record<string, unknown> }) => {
+        const log = keysToCamel(row) as Record<string, unknown>;
+        useNotificationsStore.setState((s) => {
+          if (s.logs.find((l) => l.id === log.id)) return s;
+          return { logs: [log as unknown as typeof s.logs[0], ...s.logs].slice(0, 500) };
+        });
+      })
+    )
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "notification_logs" },
+      safe(({ new: row }: { new: Record<string, unknown> }) => {
+        const log = keysToCamel(row) as Record<string, unknown>;
+        useNotificationsStore.setState((s) => ({
+          logs: s.logs.map((l) =>
+            l.id === log.id
+              ? (JSON.stringify(l) !== JSON.stringify(log) ? { ...l, ...log } as typeof l : l)
+              : l
+          ),
+        }));
+      })
+    )
     .subscribe((status: string, err?: unknown) => {
       if (status === "SUBSCRIBED") {
         _realtimeRetries = 0;
-        console.log("[realtime] Connected — watching 24 tables");
+        console.log("[realtime] Connected — watching 26 tables");
       }
       if (status === "CHANNEL_ERROR") {
         const errMsg = err instanceof Error ? err.message : (typeof err === "string" ? err : JSON.stringify(err) ?? "");

@@ -38,24 +38,13 @@ export async function POST(req: Request) {
   const apiKey = req.headers.get("x-api-key");
   const isSystemCall = apiKey === process.env.PUSH_API_KEY;
 
-  let isAuthorized = isSystemCall;
-
   if (!isSystemCall) {
+    // Any authenticated session user may trigger a push send.
+    // Push calls are initiated by client-side store logic which already
+    // controls recipient targeting — employees can trigger pushes for
+    // leave/overtime/task submission events (which target admin/HR users).
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    // Check if user is admin/hr
-    const { data: employee } = await supabase
-      .from("employees")
-      .select("role")
-      .eq("profile_id", user.id)
-      .maybeSingle();
-
-    isAuthorized = employee?.role === "admin" || employee?.role === "hr";
-  }
-
-  if (!isAuthorized) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json();
