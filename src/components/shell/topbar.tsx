@@ -45,7 +45,8 @@ import {
     CommandItem,
     CommandList,
 } from "@/components/ui/command";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { useAppearanceStore } from "@/store/appearance.store";
 
 export function Topbar() {
@@ -94,6 +95,37 @@ export function Topbar() {
         document.addEventListener("keydown", down);
         return () => document.removeEventListener("keydown", down);
     }, []);
+
+    // Show an in-app toast when a new notification arrives for the current user
+    const prevLogCountRef = useRef<number | null>(null);
+    const prevEmployeeIdRef = useRef<string | undefined>(undefined);
+    useEffect(() => {
+        // Reset baseline whenever the resolved employee ID changes (e.g. role switch)
+        if (prevEmployeeIdRef.current !== currentEmployeeId) {
+            prevEmployeeIdRef.current = currentEmployeeId;
+            prevLogCountRef.current = null;
+        }
+        if (!currentEmployeeId) return;
+        const myLogs = notifLogs.filter((l) => l.employeeId === currentEmployeeId);
+        if (prevLogCountRef.current === null) {
+            // First render — set baseline without toasting existing notifications
+            prevLogCountRef.current = myLogs.length;
+            return;
+        }
+        if (myLogs.length > prevLogCountRef.current) {
+            // New notification arrived — show toast for the most recent one
+            const newest = myLogs[0];
+            if (newest) {
+                toast(newest.subject, {
+                    description: newest.body,
+                    ...(newest.link ? {
+                        action: { label: "View", onClick: () => router.push(`${rolePrefix}${newest.link}`) },
+                    } : {}),
+                });
+            }
+        }
+        prevLogCountRef.current = myLogs.length;
+    }, [notifLogs, currentEmployeeId, rolePrefix, router]);
 
     const roleColors: Record<Role, string> = {
         admin: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",

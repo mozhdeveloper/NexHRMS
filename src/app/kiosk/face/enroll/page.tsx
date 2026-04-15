@@ -56,17 +56,24 @@ export default function FaceEnrollPage() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
 
-    // PIN verification
+    // PIN verification — redirect if not verified; guard browser back
     useEffect(() => {
         const verified = sessionStorage.getItem("kiosk-pin-verified");
         const verifiedTime = sessionStorage.getItem("kiosk-pin-verified-time");
-        if (!verified || !verifiedTime) { router.push("/kiosk"); return; }
+        if (!verified || !verifiedTime) { router.replace("/kiosk"); return; }
         const elapsed = Date.now() - parseInt(verifiedTime);
         if (elapsed > 5 * 60 * 1000) {
             sessionStorage.removeItem("kiosk-pin-verified");
             sessionStorage.removeItem("kiosk-pin-verified-time");
-            router.push("/kiosk");
+            router.replace("/kiosk");
+            return;
         }
+        window.history.pushState({ kioskGuard: true }, "");
+        const handlePopState = () => {
+            router.replace("/kiosk/face");
+        };
+        window.addEventListener("popstate", handlePopState);
+        return () => window.removeEventListener("popstate", handlePopState);
     }, [router]);
 
     // Load face-api.js models on mount
@@ -224,7 +231,7 @@ export default function FaceEnrollPage() {
             stopCamera();
             setState("done");
             toast.success("Face enrolled successfully!");
-            setTimeout(() => router.push("/kiosk/face"), 2000);
+            setTimeout(() => router.replace("/kiosk/face"), 2000);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Network error");
             setState("error");
@@ -276,7 +283,7 @@ export default function FaceEnrollPage() {
                 style={{ padding: "clamp(1rem, 3vh, 1.5rem) clamp(1rem, 3vw, 2rem)" }}
             >
                 <button 
-                    onClick={() => router.push("/kiosk/face")} 
+                    onClick={() => router.replace("/kiosk/face")} 
                     className="flex items-center gap-2 text-white/50 hover:text-white transition-colors min-h-[44px]"
                     style={{ fontSize: "clamp(0.75rem, 1.2vw, 0.875rem)" }}
                 >

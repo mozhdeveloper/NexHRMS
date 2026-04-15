@@ -46,6 +46,12 @@ export default function KioskLandingPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [showError, setShowError] = useState(false);
     const [now, setNow] = useState(new Date());
+
+    // On mount: always clear PIN session so that navigating back here forces re-auth
+    useEffect(() => {
+        sessionStorage.removeItem("kiosk-pin-verified");
+        sessionStorage.removeItem("kiosk-pin-verified-time");
+    }, []);
     
     useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 1000);
@@ -100,13 +106,13 @@ export default function KioskLandingPage() {
             const qrEnabled = settings.enableQr;
 
             if (targetKiosk === "qr") {
-                router.push("/kiosk/qr");
+                router.replace("/kiosk/qr");
             } else if (targetKiosk === "face") {
-                router.push("/kiosk/face");
+                router.replace("/kiosk/face");
             } else if (faceEnabled && !qrEnabled) {
-                router.push("/kiosk/face");
+                router.replace("/kiosk/face");
             } else if (qrEnabled && !faceEnabled) {
-                router.push("/kiosk/qr");
+                router.replace("/kiosk/qr");
             } else {
                 setPageState("method_select");
             }
@@ -325,7 +331,7 @@ export default function KioskLandingPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                             {settings.enableFace && (
                                 <button
-                                    onClick={() => router.push("/kiosk/face")}
+                                    onClick={() => router.replace("/kiosk/face")}
                                     className="group rounded-2xl p-5 sm:p-6 text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                                     style={{ 
                                         backgroundColor: "rgba(255, 255, 255, 0.03)",
@@ -361,7 +367,7 @@ export default function KioskLandingPage() {
                             
                             {settings.enableQr && (
                                 <button
-                                    onClick={() => router.push("/kiosk/qr")}
+                                    onClick={() => router.replace("/kiosk/qr")}
                                     className="group rounded-2xl p-5 sm:p-6 text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                                     style={{ 
                                         backgroundColor: "rgba(255, 255, 255, 0.03)",

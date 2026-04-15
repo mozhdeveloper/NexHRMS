@@ -110,13 +110,13 @@ export default function QRKioskPage() {
         }
     }, []);
 
-    // Verify PIN access
+    // Verify PIN access — redirect if not verified; guard browser back
     useEffect(() => {
         const verified = sessionStorage.getItem("kiosk-pin-verified");
         const verifiedTime = sessionStorage.getItem("kiosk-pin-verified-time");
         
         if (!verified || !verifiedTime) {
-            router.push("/kiosk?target=qr");
+            router.replace("/kiosk?target=qr");
             return;
         }
 
@@ -124,8 +124,18 @@ export default function QRKioskPage() {
         if (elapsed > 5 * 60 * 1000) {
             sessionStorage.removeItem("kiosk-pin-verified");
             sessionStorage.removeItem("kiosk-pin-verified-time");
-            router.push("/kiosk?target=qr");
+            router.replace("/kiosk?target=qr");
+            return;
         }
+        // Push a guard history entry so browser back clears PIN and redirects
+        window.history.pushState({ kioskGuard: true }, "");
+        const handlePopState = () => {
+            sessionStorage.removeItem("kiosk-pin-verified");
+            sessionStorage.removeItem("kiosk-pin-verified-time");
+            router.replace("/kiosk");
+        };
+        window.addEventListener("popstate", handlePopState);
+        return () => window.removeEventListener("popstate", handlePopState);
     }, [router]);
 
     const stopQrScanner = useCallback(() => {
@@ -401,7 +411,11 @@ export default function QRKioskPage() {
                 style={{ padding: "clamp(1rem, 3vh, 1.5rem) clamp(1rem, 3vw, 2rem)" }}
             >
                 <button
-                    onClick={() => router.push("/kiosk")}
+                    onClick={() => {
+                        sessionStorage.removeItem("kiosk-pin-verified");
+                        sessionStorage.removeItem("kiosk-pin-verified-time");
+                        router.replace("/kiosk");
+                    }}
                     className="flex items-center gap-2 text-white/50 hover:text-white transition-colors min-h-[44px]"
                     style={{ fontSize: "clamp(0.75rem, 1.2vw, 0.875rem)" }}
                 >

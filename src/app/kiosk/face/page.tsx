@@ -89,17 +89,28 @@ export default function FaceKioskPage() {
         }
     }, []);
 
-    // PIN verification
+    // PIN verification — redirect if not verified; also guard against browser back
     useEffect(() => {
         const verified = sessionStorage.getItem("kiosk-pin-verified");
         const verifiedTime = sessionStorage.getItem("kiosk-pin-verified-time");
-        if (!verified || !verifiedTime) { router.push("/kiosk?target=face"); return; }
+        if (!verified || !verifiedTime) { router.replace("/kiosk?target=face"); return; }
         const elapsed = Date.now() - parseInt(verifiedTime);
         if (elapsed > 5 * 60 * 1000) {
             sessionStorage.removeItem("kiosk-pin-verified");
             sessionStorage.removeItem("kiosk-pin-verified-time");
-            router.push("/kiosk?target=face");
+            router.replace("/kiosk?target=face");
+            return;
         }
+        // Push a guard history entry so browser back hits this page again
+        // instead of leaving to the PIN page. On popstate, clear PIN and redirect.
+        window.history.pushState({ kioskGuard: true }, "");
+        const handlePopState = () => {
+            sessionStorage.removeItem("kiosk-pin-verified");
+            sessionStorage.removeItem("kiosk-pin-verified-time");
+            router.replace("/kiosk");
+        };
+        window.addEventListener("popstate", handlePopState);
+        return () => window.removeEventListener("popstate", handlePopState);
     }, [router]);
 
     // Load face-api.js models + start camera
@@ -528,7 +539,11 @@ export default function FaceKioskPage() {
                 style={{ padding: "clamp(1rem, 3vh, 1.5rem) clamp(1rem, 3vw, 2rem)" }}
             >
                 <button
-                    onClick={() => router.push("/kiosk")}
+                    onClick={() => {
+                        sessionStorage.removeItem("kiosk-pin-verified");
+                        sessionStorage.removeItem("kiosk-pin-verified-time");
+                        router.replace("/kiosk");
+                    }}
                     className="flex items-center gap-2 text-white/50 hover:text-white transition-colors min-h-[44px]"
                     style={{ fontSize: "clamp(0.75rem, 1.2vw, 0.875rem)" }}
                 >
@@ -725,7 +740,7 @@ export default function FaceKioskPage() {
                                 You need to enroll your face before using face recognition check-in.
                             </p>
                             <button 
-                                onClick={() => router.push("/kiosk/face/enroll")}
+                                onClick={() => router.replace("/kiosk/face/enroll")}
                                 className="w-full rounded-xl text-black font-bold transition-all min-h-[44px] hover:opacity-90"
                                 style={{
                                     padding: "clamp(0.75rem, 1.5vh, 1rem)",
@@ -895,7 +910,7 @@ export default function FaceKioskPage() {
 
                             {/* Re-enroll link */}
                             <button 
-                                onClick={() => router.push("/kiosk/face/enroll")}
+                                onClick={() => router.replace("/kiosk/face/enroll")}
                                 className="flex items-center gap-1.5 text-white/25 hover:text-white/50 transition-colors"
                                 style={{ fontSize: "clamp(0.55rem, 0.9vw, 0.65rem)" }}
                             >
