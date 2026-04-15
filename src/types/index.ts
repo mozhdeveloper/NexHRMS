@@ -72,7 +72,7 @@ export type AttendanceEventType =
   | "EXCEPTION_RESOLVED" | "EXCEPTION_SCANNED" | "EXCEPTION_REOPENED" | "EXCEPTION_DELETED" | "EXCEPTION_UPDATED"
   | "HOLIDAY_ADDED" | "HOLIDAY_UPDATED" | "HOLIDAY_DELETED"
   | "CSV_IMPORTED" | "CSV_EXPORTED"
-  | "PENALTY_APPLIED" | "PENALTY_CLEARED"
+  | "PENALTY_APPLIED" | "PENALTY_CLEARED" | "CHEAT_DETECTED"
   | "SHIFT_ASSIGNED" | "DATA_RESET";
 export type TimesheetStatus = "computed" | "submitted" | "approved" | "rejected";
 export type AccrualFrequency = "monthly" | "annual";
@@ -86,7 +86,7 @@ export type AuditAction =
   | "loan_created" | "loan_frozen" | "loan_unfrozen" | "loan_settled"
   | "payment_recorded" | "employee_resigned" | "employee_deleted" | "final_pay_created"
   | "timesheet_approved" | "timesheet_rejected"
-  | "kiosk_registered" | "attendance_correction"
+  | "kiosk_registered" | "attendance_correction" | "cheat_detected"
   | "task_created" | "task_assigned" | "task_completed" | "task_verified" | "task_rejected"
   | "tag_created" | "tag_updated" | "tag_deleted"
   | "announcement_sent" | "channel_created";
@@ -698,7 +698,7 @@ export type NotificationType =
     | "task_assigned" | "task_submitted" | "task_verified" | "task_rejected"
     | "payslip_published" | "payslip_signed" | "payslip_unsigned_reminder" | "payment_confirmed"
     | "leave_submitted" | "leave_approved" | "leave_rejected"
-    | "attendance_missing" | "geofence_violation" | "location_disabled"
+    | "attendance_missing" | "geofence_violation" | "location_disabled" | "cheat_detected"
     | "loan_reminder" | "overtime_submitted"
     | "birthday" | "contract_expiry" | "daily_summary";
 

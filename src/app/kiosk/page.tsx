@@ -292,7 +292,7 @@ export default function KioskLandingPage() {
                                 Change PIN in Admin Settings → Kiosk
                             </p>
 
-                            {(settings.enableFace || settings.enableQr || settings.enablePin) && (
+                            {(settings.enableFace || settings.enableQr) && (
                                 <div className="flex items-center justify-center gap-4 sm:gap-5 pt-3 sm:pt-4 border-t border-white/10">
                                     {settings.enableFace && (
                                         <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-white/40">
@@ -304,12 +304,6 @@ export default function KioskLandingPage() {
                                         <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-white/40">
                                             <QrCode className="h-3 w-3 sm:h-3.5 sm:w-3.5" style={{ color: NEON_GREEN }} />
                                             <span>QR</span>
-                                        </div>
-                                    )}
-                                    {settings.enablePin && (
-                                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-white/40">
-                                            <Shield className="h-3 w-3 sm:h-3.5 sm:w-3.5" style={{ color: NEON_GREEN }} />
-                                            <span>PIN</span>
                                         </div>
                                     )}
                                 </div>

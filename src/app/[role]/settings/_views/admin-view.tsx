@@ -17,9 +17,10 @@ import { Switch } from "@/components/ui/switch";
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Sun, Moon, Monitor, Building2, Shield, Bell, Palette, ClipboardList, Pencil, Plus, Clock3, ChevronRight, Wallet, CalendarDays, Lock, Eye, EyeOff, KeyRound, RotateCcw, TriangleAlert, Tablet, MapPin, MessageSquare, ListTodo, Settings2, Users, CreditCard, Megaphone, Wrench, Trash2 } from "lucide-react";
+import { Sun, Moon, Monitor, Building2, Shield, Bell, Palette, ClipboardList, Pencil, Plus, Clock3, ChevronRight, Wallet, CalendarDays, Lock, Eye, EyeOff, KeyRound, RotateCcw, TriangleAlert, Tablet, MapPin, MessageSquare, ListTodo, Settings2, Users, CreditCard, Megaphone, Wrench, Trash2, Smartphone } from "lucide-react";
 import type { Role } from "@/types";
 import { toast } from "sonner";
+import { PushNotificationPrompt } from "@/components/push-notification-prompt";
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -593,6 +594,25 @@ export default function AdminSettingsView() {
                             Configure detailed permissions →
                         </Link>
                     </div>
+                </CardContent>
+            </Card>
+
+            {/* Push Notifications */}
+            <Card>
+                <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                        <Smartphone className="h-5 w-5 text-primary" />
+                        <div>
+                            <CardTitle className="text-base">Push Notifications</CardTitle>
+                            <p className="text-xs text-muted-foreground mt-0.5">Receive instant alerts even when the app is closed</p>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <PushNotificationPrompt variant="inline" className="w-full justify-start" />
+                    <p className="text-xs text-muted-foreground mt-2">
+                        Enable push notifications to get real-time alerts for attendance, payroll, and system events.
+                    </p>
                 </CardContent>
             </Card>
 

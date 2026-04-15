@@ -765,6 +765,7 @@ export default function AdminView({ mode = "admin" }: AdminViewProps) {
                                         { value: "CSV_IMPORTED", label: "CSV Imported" },
                                         { value: "CSV_EXPORTED", label: "CSV Exported" },
                                         { value: "PENALTY_APPLIED", label: "Penalty Applied" },
+                                        { value: "CHEAT_DETECTED", label: "Cheat Detected" },
                                         { value: "SHIFT_ASSIGNED", label: "Shift Assigned" },
                                         { value: "DATA_RESET", label: "Data Reset" },
                                     ]}
@@ -802,7 +803,7 @@ export default function AdminView({ mode = "admin" }: AdminViewProps) {
                                                 : evt.eventType.startsWith("HOLIDAY_") ? "bg-pink-500/15 text-pink-700 dark:text-pink-400"
                                                 : evt.eventType.startsWith("EXCEPTION_") ? "bg-orange-500/15 text-orange-700 dark:text-orange-400"
                                                 : evt.eventType === "CSV_IMPORTED" || evt.eventType === "CSV_EXPORTED" ? "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400"
-                                                : evt.eventType === "PENALTY_APPLIED" || evt.eventType === "PENALTY_CLEARED" ? "bg-red-500/15 text-red-700 dark:text-red-400"
+                                                : evt.eventType === "PENALTY_APPLIED" || evt.eventType === "PENALTY_CLEARED" || evt.eventType === "CHEAT_DETECTED" ? "bg-red-500/15 text-red-700 dark:text-red-400"
                                                 : evt.eventType === "DATA_RESET" ? "bg-slate-500/15 text-slate-700 dark:text-slate-400"
                                                 : "bg-slate-500/15 text-slate-700 dark:text-slate-400";
                                             const performedByName = evt.performedBy ? getEmpName(evt.performedBy) : evt.deviceId?.startsWith("admin:") ? evt.deviceId.replace("admin:", "") : "System";

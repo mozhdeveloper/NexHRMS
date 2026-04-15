@@ -15,8 +15,9 @@ import {
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Sun, Moon, Monitor, Building2, Palette, Bell, Lock, Eye, EyeOff, KeyRound, ClipboardList, Pencil, Plus, Clock3, ExternalLink, Wallet, CalendarDays } from "lucide-react";
+import { Sun, Moon, Monitor, Building2, Palette, Bell, Lock, Eye, EyeOff, KeyRound, ClipboardList, Pencil, Plus, Clock3, ExternalLink, Wallet, CalendarDays, Smartphone } from "lucide-react";
 import { toast } from "sonner";
+import { PushNotificationPrompt } from "@/components/push-notification-prompt";
 import type { AttendanceRuleSet, PayFrequency } from "@/types";
 import Link from "next/link";
 import { useRoleHref } from "@/lib/hooks/use-role-href";
@@ -291,6 +292,22 @@ export default function HrSettingsView() {
                             <Switch checked={settings[n.key]} onCheckedChange={(checked) => { update({ [n.key]: checked }); toast.success(`${n.label} ${checked ? "enabled" : "disabled"}`); }} />
                         </div>
                     ))}
+                </CardContent>
+            </Card>
+
+            {/* Push Notifications */}
+            <Card className="border border-border/50">
+                <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                        <Smartphone className="h-5 w-5 text-muted-foreground" />
+                        <CardTitle className="text-base font-semibold">Push Notifications</CardTitle>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <PushNotificationPrompt variant="inline" className="w-full justify-start" />
+                    <p className="text-xs text-muted-foreground mt-2">
+                        Enable push notifications to receive instant alerts even when the app is closed.
+                    </p>
                 </CardContent>
             </Card>
 

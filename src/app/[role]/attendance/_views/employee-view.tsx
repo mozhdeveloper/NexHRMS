@@ -7,6 +7,8 @@ import { useAuthStore } from "@/store/auth.store";
 import { useProjectsStore } from "@/store/projects.store";
 import { useLocationStore } from "@/store/location.store";
 import { useKioskStore } from "@/store/kiosk.store";
+import { useNotificationsStore } from "@/store/notifications.store";
+import { useAuditStore } from "@/store/audit.store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -169,13 +171,15 @@ const otStatusColor: Record<string, string> = {
    EMPLOYEE VIEW — immersive personal attendance dashboard
    ═══════════════════════════════════════════════════════════════ */
 export default function EmployeeView() {
-    const { logs, checkIn, checkOut, getTodayLog, overtimeRequests, submitOvertimeRequest, holidays, applyPenalty, clearPenalty, getActivePenalty, cleanExpiredPenalties, resetTodayLog } = useAttendanceStore();
+    const { logs, checkIn, checkOut, getTodayLog, overtimeRequests, submitOvertimeRequest, holidays, applyPenalty, clearPenalty, getActivePenalty, cleanExpiredPenalties, resetTodayLog, appendEvent, recordEvidence } = useAttendanceStore();
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
     const getProjectForEmployee = useProjectsStore((s) => s.getProjectForEmployee);
     const locationConfig = useLocationStore((s) => s.config);
     const addPhoto = useLocationStore((s) => s.addPhoto);
     const penaltySettings = useKioskStore((s) => s.settings);
+    const notificationsDispatch = useNotificationsStore((s) => s.dispatch);
+    const notificationsAddLog = useNotificationsStore((s) => s.addLog);
 
     const myEmployeeId = employees.find(
         (e) => e.profileId === currentUser.id || e.email?.toLowerCase() === currentUser.email?.toLowerCase() || e.name === currentUser.name
@@ -253,6 +257,58 @@ export default function EmployeeView() {
     }, [cleanExpiredPenalties, myEmployeeId, getActivePenalty, penaltySettings]);
     const activePenalty = myEmployeeId ? getActivePenalty(myEmployeeId) : undefined;
 
+    // ─── Cheat detection handler (event + penalty + audit + notify) ──
+    const handleCheatDetected = useCallback((employeeId: string, reason: string, cheatType: "devtools" | "spoofing") => {
+        const now = new Date();
+        const until = new Date(now.getTime() + penaltySettings.devOptionsPenaltyMinutes * 60000).toISOString();
+
+        // 1. Apply penalty lockout
+        applyPenalty({ employeeId, reason, triggeredAt: now.toISOString(), penaltyUntil: until });
+
+        // 2. Record CHEAT_DETECTED attendance event
+        const eventId = appendEvent({
+            employeeId,
+            eventType: "CHEAT_DETECTED",
+            timestampUTC: now.toISOString(),
+            description: reason,
+            metadata: { cheatType, penaltyMinutes: penaltySettings.devOptionsPenaltyMinutes },
+        });
+
+        // 3. Record evidence
+        recordEvidence({
+            eventId,
+            deviceIntegrityResult: cheatType === "devtools" ? "fail" : "mock",
+            mockLocationDetected: cheatType === "spoofing",
+        });
+
+        // 4. Audit log
+        const emp = employees.find((e) => e.id === employeeId);
+        useAuditStore.getState().log({
+            entityType: "attendance",
+            entityId: employeeId,
+            action: "cheat_detected",
+            performedBy: currentUser.id,
+            reason,
+            afterSnapshot: { cheatType, penaltyMinutes: penaltySettings.devOptionsPenaltyMinutes, penaltyUntil: until },
+        });
+
+        // 5. Notify admin (in-app + push) if setting enabled
+        if (penaltySettings.devOptionsPenaltyNotifyAdmin) {
+            const empName = emp?.name || employeeId;
+            const adminEmployees = employees.filter((e) => e.role === "admin" || e.role === "hr");
+            for (const admin of adminEmployees) {
+                notificationsAddLog({
+                    employeeId: admin.id,
+                    type: "cheat_detected",
+                    channel: "in_app",
+                    subject: "Cheat Detected",
+                    body: `${empName} triggered anti-cheat: ${reason}`,
+                    link: "/attendance",
+                });
+            }
+        }
+    }, [applyPenalty, appendEvent, recordEvidence, employees, currentUser.id, penaltySettings, notificationsAddLog]);
+
     // ─── Handlers ─────────────────────────────────────────────────
     const todayDateStr = useMemo(() => new Date().toISOString().split("T")[0], []);
 
@@ -290,13 +346,7 @@ export default function EmployeeView() {
         if (!isMobile && devToolsOpen) {
             if (penaltySettings.devOptionsPenaltyEnabled && myEmployeeId &&
                 (penaltySettings.devOptionsPenaltyApplyTo === "devtools" || penaltySettings.devOptionsPenaltyApplyTo === "both")) {
-                const until = new Date(now + penaltySettings.devOptionsPenaltyMinutes * 60000).toISOString();
-                applyPenalty({
-                    employeeId: myEmployeeId,
-                    reason: "Developer tools were open during a check-in attempt. Check-in is locked for the penalty duration.",
-                    triggeredAt: new Date().toISOString(),
-                    penaltyUntil: until,
-                });
+                handleCheatDetected(myEmployeeId, "Developer tools were open during a check-in attempt. Check-in is locked for the penalty duration.", "devtools");
                 toast.error(`Developer tools detected on check-in. Locked out for ${penaltySettings.devOptionsPenaltyMinutes} minutes.`, { duration: 6000, id: "devtools-penalty" });
             } else {
                 toast.error("Please close Developer Tools before checking in.", { id: "devtools-block" });
@@ -323,8 +373,7 @@ export default function EmployeeView() {
                 if (spoof) {
                     if (penaltySettings.devOptionsPenaltyEnabled && myEmployeeId &&
                         (penaltySettings.devOptionsPenaltyApplyTo === "spoofing" || penaltySettings.devOptionsPenaltyApplyTo === "both")) {
-                        const until = new Date(Date.now() + penaltySettings.devOptionsPenaltyMinutes * 60000).toISOString();
-                        applyPenalty({ employeeId: myEmployeeId, reason: spoof, triggeredAt: new Date().toISOString(), penaltyUntil: until });
+                        handleCheatDetected(myEmployeeId, spoof, "spoofing");
                         toast.error(`Location spoofing detected. Locked out for ${penaltySettings.devOptionsPenaltyMinutes} minutes.`, { duration: 6000 });
                     }
                     setSpoofReason(spoof); setStep("error"); return;
@@ -334,8 +383,7 @@ export default function EmployeeView() {
                 if (velocitySpoof) {
                     if (penaltySettings.devOptionsPenaltyEnabled && myEmployeeId &&
                         (penaltySettings.devOptionsPenaltyApplyTo === "spoofing" || penaltySettings.devOptionsPenaltyApplyTo === "both")) {
-                        const until = new Date(Date.now() + penaltySettings.devOptionsPenaltyMinutes * 60000).toISOString();
-                        applyPenalty({ employeeId: myEmployeeId, reason: velocitySpoof, triggeredAt: new Date().toISOString(), penaltyUntil: until });
+                        handleCheatDetected(myEmployeeId, velocitySpoof, "spoofing");
                     }
                     setSpoofReason(velocitySpoof); setStep("error"); return;
                 }

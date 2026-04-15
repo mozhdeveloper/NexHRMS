@@ -23,6 +23,7 @@ const DEFAULT_RULES: NotificationRule[] = [
     { id: "NR-13", trigger: "location_disabled", enabled: true, channel: "both", recipientRoles: ["admin"], timing: "immediate", subjectTemplate: "Location Disabled: {name}", bodyTemplate: "{name} has disabled location tracking at {time}.", smsTemplate: "{name} disabled GPS at {time}." },
     { id: "NR-14", trigger: "payslip_signed", enabled: true, channel: "email", recipientRoles: ["admin", "finance"], timing: "immediate", subjectTemplate: "Payslip Signed: {name} ({period})", bodyTemplate: "{name} has signed their payslip for {period}." },
     { id: "NR-15", trigger: "payment_confirmed", enabled: true, channel: "sms", recipientRoles: ["employee"], timing: "immediate", subjectTemplate: "Payment Confirmed: {period}", bodyTemplate: "Your payment for {period} has been confirmed. Amount: {amount}.", smsTemplate: "Payment confirmed for {period}. Amount: {amount}." },
+    { id: "NR-16", trigger: "cheat_detected", enabled: true, channel: "both", recipientRoles: ["admin", "hr"], timing: "immediate", subjectTemplate: "Anti-Cheat Alert: {name}", bodyTemplate: "{name} triggered anti-cheat detection: {reason}. A {penalty} minute lockout has been applied." },
 ];
 
 // ─── Provider config (MVP — simulated) ───────────────────────
@@ -106,6 +107,7 @@ function getDefaultLinkForTrigger(trigger: NotificationTrigger): string {
         task_submitted: "/tasks",
         task_verified: "/tasks",
         task_rejected: "/tasks",
+        cheat_detected: "/attendance",
     };
     return linkMap[trigger] || "/notifications";
 }
