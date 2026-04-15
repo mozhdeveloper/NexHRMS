@@ -18,7 +18,7 @@ import { CheckCircle, Eye, PenTool, Sparkles, Printer, AlertCircle, FileSignatur
 import { toast } from "sonner";
 import { SignaturePad } from "@/components/ui/signature-pad";
 import { PrintablePayslip } from "@/components/payroll/printable-payslip";
-import { dispatchNotification } from "@/lib/notifications";
+import { dispatchNotification, notifyPayslipSigned } from "@/lib/notifications";
 import { formatCurrency } from "@/lib/format";
 import { keysToCamel } from "@/lib/db-utils";
 
@@ -90,10 +90,11 @@ export default function EmployeePayrollView() {
                 const camelPayslip = keysToCamel(data.payslip) as { id: string };
                 updatePayslipFromServer(camelPayslip);
             }
-            dispatchNotification("payslip_signed", {
-                name: myEmployee.name,
+            notifyPayslipSigned({
+                employeeId: myEmployee.id,
+                employeeName: myEmployee.name,
                 period: (() => { const ps = payslips.find(p => p.id === payslipId); return ps ? `${ps.periodStart} — ${ps.periodEnd}` : ""; })(),
-            }, myEmployee.id);
+            });
             toast.success("Payslip signed successfully!");
             setSignSlip(null);
         } catch (err) {

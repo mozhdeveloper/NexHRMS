@@ -173,11 +173,20 @@ export function notifyGeofenceViolation(params: {
     distance: number;
     time: string;
 }): void {
-    dispatchNotification("geofence_violation", {
-        name: params.employeeName,
-        time: params.time,
-        distance: String(params.distance),
-    }, params.employeeId, params.employeeEmail);
+    // Auto-resolve admin recipients (rule says recipientRoles: ["admin"])
+    const employees = useEmployeesStore.getState().employees;
+    const admins = employees.filter(
+        (e) => e.role === "admin" && e.status === "active"
+    );
+    const vars = { name: params.employeeName, time: params.time, distance: String(params.distance) };
+    if (admins.length > 0) {
+        admins.forEach((admin) => {
+            dispatchNotification("geofence_violation", vars, admin.id, admin.email ?? undefined);
+        });
+    } else {
+        // Fallback: send to the caller-provided employee ID
+        dispatchNotification("geofence_violation", vars, params.employeeId, params.employeeEmail);
+    }
 }
 
 export function notifyPayslipPublished(params: {
@@ -200,10 +209,23 @@ export function notifyPayslipSigned(params: {
     employeeName: string;
     period: string;
 }): void {
+    // Notify the employee who signed
     dispatchNotification("payslip_signed", {
         name: params.employeeName,
         period: params.period,
     }, params.employeeId);
+
+    // Also notify admin/finance users (per rule recipientRoles)
+    const employees = useEmployeesStore.getState().employees;
+    const adminsAndFinance = employees.filter(
+        (e) => (e.role === "admin" || e.role === "finance") && e.status === "active" && e.id !== params.employeeId
+    );
+    adminsAndFinance.forEach((recipient) => {
+        dispatchNotification("payslip_signed", {
+            name: params.employeeName,
+            period: params.period,
+        }, recipient.id, recipient.email ?? undefined);
+    });
 }
 
 export function notifyPaymentConfirmed(params: {

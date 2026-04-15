@@ -4,6 +4,8 @@ import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import type { LeaveRequest, LeaveStatus, LeavePolicy, LeaveBalance, LeaveType, LeaveDuration } from "@/types";
 import { SEED_LEAVES } from "@/data/seed";
+import { useEmployeesStore } from "@/store/employees.store";
+import { useNotificationsStore } from "@/store/notifications.store";
 
 /**
  * Calculate the number of leave days based on date range and duration type.
@@ -128,17 +130,40 @@ export const useLeaveStore = create<LeaveState>()(
                     // Insufficient balance — still create but it will be noted
                 }
 
+                const leaveId = `LV-${nanoid(8)}`;
                 set((s) => ({
                     requests: [
                         ...s.requests,
                         {
                             ...req,
-                            duration: req.duration || "full_day", // Default to full_day for backward compatibility
-                            id: `LV-${nanoid(8)}`,
+                            duration: req.duration || "full_day",
+                            id: leaveId,
                             status: "pending",
                         },
                     ],
                 }));
+
+                // Notify admin/HR about the new leave request
+                try {
+                    const employees = useEmployeesStore.getState().employees;
+                    const requester = employees.find((e) => e.id === req.employeeId);
+                    const requesterName = requester?.name ?? req.employeeId;
+                    const adminsAndHR = employees.filter(
+                        (e) => (e.role === "admin" || e.role === "hr") && e.status === "active" && e.id !== req.employeeId
+                    );
+                    adminsAndHR.forEach((recipient) => {
+                        useNotificationsStore.getState().dispatch(
+                            "leave_submitted",
+                            {
+                                name: requesterName,
+                                leaveType: req.type,
+                                dates: `${req.startDate} – ${req.endDate}`,
+                            },
+                            recipient.id,
+                            recipient.email ?? undefined,
+                        );
+                    });
+                } catch { /* best-effort */ }
             },
 
             updateStatus: (id, status, reviewedBy) =>
