@@ -19,6 +19,7 @@ import {
 } from "@/data/seed";
 import { useAuditStore } from "@/store/audit.store";
 import { useNotificationsStore } from "@/store/notifications.store";
+import { useEmployeesStore } from "@/store/employees.store";
 
 interface TasksState {
     groups: TaskGroup[];
@@ -119,7 +120,7 @@ export const useTasksStore = create<TasksState>()(
                     useNotificationsStore.getState().addLog({
                         employeeId: empId,
                         type: "task_assigned",
-                        channel: "in_app",
+                        channel: "both",
                         subject: "New Task Assigned",
                         body: `You have been assigned: ${data.title}`,
                         link: `/tasks/${id}`,
@@ -170,6 +171,23 @@ export const useTasksStore = create<TasksState>()(
                     action: "task_completed",
                     performedBy: data.employeeId,
                 });
+                // Notify admin/HR that an employee submitted a task for review
+                const submittedTask = get().tasks.find((t) => t.id === data.taskId);
+                if (submittedTask) {
+                    const admins = useEmployeesStore.getState().employees.filter(
+                        (e) => e.status === "active" && (e.role === "admin" || e.role === "hr")
+                    );
+                    admins.forEach((admin) =>
+                        useNotificationsStore.getState().addLog({
+                            employeeId: admin.id,
+                            type: "task_submitted",
+                            channel: "both",
+                            subject: "Task Submitted for Review",
+                            body: `"${submittedTask.title}" has been submitted for your review.`,
+                            link: `/tasks/${data.taskId}`,
+                        })
+                    );
+                }
                 return id;
             },
             verifyCompletion: (reportId, verifiedBy) => {
@@ -199,7 +217,7 @@ export const useTasksStore = create<TasksState>()(
                         useNotificationsStore.getState().addLog({
                             employeeId: empId,
                             type: "task_verified",
-                            channel: "in_app",
+                            channel: "both",
                             subject: "Task Verified",
                             body: `Your completion report for "${task.title}" was approved.`,
                             link: `/tasks/${report.taskId}`,
@@ -235,7 +253,7 @@ export const useTasksStore = create<TasksState>()(
                         useNotificationsStore.getState().addLog({
                             employeeId: empId,
                             type: "task_rejected",
-                            channel: "in_app",
+                            channel: "both",
                             subject: "Task Rejected",
                             body: `Your completion report for "${task.title}" was rejected: ${reason}`,
                             link: `/tasks/${report.taskId}`,

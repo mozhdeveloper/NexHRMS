@@ -224,10 +224,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 handleInvalidSession();
                 return;
             }
-            // Session is valid, hydrate stores
-            hydrateAllStores().then(() => {
+            // Session is valid, hydrate stores (skip redundant session check)
+            hydrateAllStores({ skipSessionCheck: true }).then(() => {
                 startWriteThrough();
-                startRealtime();
+                startRealtime();  // non-blocking — both fire immediately after hydration
             });
         });
 

@@ -57,6 +57,7 @@ async function fetchAll<T>(table: string, options?: {
   select?: string;
   filter?: Record<string, string>;
   order?: { column: string; ascending?: boolean };
+  limit?: number;
 // _attempt is internal — do not pass externally
 }, _attempt = 0): Promise<T[]> {
   let query = supabase().from(table).select(options?.select ?? "*");
@@ -67,6 +68,9 @@ async function fetchAll<T>(table: string, options?: {
   }
   if (options?.order) {
     query = query.order(options.order.column, { ascending: options.order.ascending ?? true });
+  }
+  if (options?.limit) {
+    query = query.limit(options.limit);
   }
   const { data, error } = await query;
   if (error) {
@@ -689,8 +693,8 @@ export const payrollDb = {
         .from("payroll_signature_config")
         .select("*")
         .eq("id", "default")
-        .single();
-      if (error) {
+        .maybeSingle();
+      if (error || !data) {
         // PGRST116 = no rows, 406 = table may not exist or RLS blocks access
         // Silently return null for expected failure modes
         return null;
@@ -912,7 +916,7 @@ export const projectsDb = {
 // ─── Audit Logs ─────────────────────────────────────────────────
 
 export const auditDb = {
-  fetchAll: () => fetchAll<AuditLogEntry>("audit_logs", { order: { column: "timestamp", ascending: false } }),
+  fetchAll: () => fetchAll<AuditLogEntry>("audit_logs", { order: { column: "timestamp", ascending: false }, limit: 1000 }),
 
   async insert(entry: AuditLogEntry): Promise<boolean> {
     return insertRow("audit_logs", entry as unknown as Record<string, unknown>);
@@ -1050,7 +1054,7 @@ export const timesheetsDb = {
 // ─── Notifications ──────────────────────────────────────────────
 
 export const notificationsDb = {
-  fetchLogs: () => fetchAll<NotificationLog>("notification_logs", { order: { column: "sent_at", ascending: false } }),
+  fetchLogs: () => fetchAll<NotificationLog>("notification_logs", { order: { column: "sent_at", ascending: false }, limit: 500 }),
   fetchRules: () => fetchAll<NotificationRule>("notification_rules"),
 
   async insertLog(log: NotificationLog): Promise<boolean> {

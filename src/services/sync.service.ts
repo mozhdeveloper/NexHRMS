@@ -56,8 +56,8 @@ let _realtimeChannel: ReturnType<ReturnType<typeof createClient>["channel"]> | n
  * Pull all data from Supabase and replace Zustand store state.
  * Call this once after successful login or on app mount.
  */
-export async function hydrateAllStores(): Promise<void> {
-  return hydrateAllStoresInternal();
+export async function hydrateAllStores(opts?: { skipSessionCheck?: boolean }): Promise<void> {
+  return hydrateAllStoresInternal(opts);
 }
 
 /**
@@ -70,16 +70,18 @@ export async function forceRehydrate(): Promise<void> {
   await hydrateAllStoresInternal();
 }
 
-async function hydrateAllStoresInternal(): Promise<void> {
+async function hydrateAllStoresInternal(opts?: { skipSessionCheck?: boolean }): Promise<void> {
   if (!shouldSync()) return;
   if (_hydrated) return;
 
   // Check for valid session before attempting to fetch data.
   // This prevents 406 errors when the refresh token is invalid.
-  const hasSession = await hasValidSession();
-  if (!hasSession) {
-    console.info("[sync] No valid session — skipping hydration");
-    return;
+  if (!opts?.skipSessionCheck) {
+    const hasSession = await hasValidSession();
+    if (!hasSession) {
+      console.info("[sync] No valid session — skipping hydration");
+      return;
+    }
   }
 
   try {

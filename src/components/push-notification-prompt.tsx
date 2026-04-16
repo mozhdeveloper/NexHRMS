@@ -104,39 +104,43 @@ export function PushNotificationPrompt({
 
     return (
       <div className={cn(
-        "bg-primary/5 border-b border-primary/20 px-3 py-2 sm:px-4 sm:py-2.5",
+        "fixed bottom-5 right-5 z-50 w-[300px] animate-in slide-in-from-bottom-4 fade-in duration-300",
+        "rounded-xl border border-border/60 bg-background/80 backdrop-blur-md shadow-lg shadow-black/10",
         className
       )}>
-        <div className="flex items-center justify-between gap-2 sm:gap-4 max-w-screen-xl mx-auto">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-              <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm font-medium truncate">Enable Push Notifications</p>
-              <p className="text-[10px] sm:text-xs text-muted-foreground truncate hidden xs:block">
-                Get notified about leave approvals, payslips, and more
-              </p>
+        <div className="flex items-start gap-3 p-3.5">
+          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+            <Bell className="h-4 w-4 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium leading-tight">Stay in the loop</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+              Enable push notifications for instant alerts.
+            </p>
+            <div className="flex items-center gap-2 mt-2.5">
+              <Button
+                size="sm"
+                onClick={subscribe}
+                disabled={isLoading}
+                className="h-7 px-3 text-xs gap-1.5"
+              >
+                <Bell className="h-3 w-3" />
+                {isLoading ? "Enabling…" : "Enable"}
+              </Button>
+              <button
+                onClick={handleDismiss}
+                className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Not now
+              </button>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <Button
-              size="sm"
-              onClick={subscribe}
-              disabled={isLoading}
-              className="h-7 px-2.5 text-xs sm:h-8 sm:px-3 sm:text-sm gap-1"
-            >
-              {isLoading ? "..." : "Enable"}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground"
-              onClick={handleDismiss}
-            >
-              <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </Button>
-          </div>
+          <button
+            onClick={handleDismiss}
+            className="text-muted-foreground/60 hover:text-muted-foreground transition-colors shrink-0 mt-0.5"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
     );
