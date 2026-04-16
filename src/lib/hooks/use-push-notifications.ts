@@ -142,39 +142,30 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     setError(null);
 
     try {
-      // Request permission if not already granted
-      if (Notification.permission === "default") {
-        const result = await Notification.requestPermission();
-        // Explicitly handle all permission results
-        if (result === "denied") {
-          setPermission("denied");
-          setError("Notification permission denied");
-          setIsLoading(false);
-          return false;
-        } else if (result === "granted") {
-          setPermission("granted");
-        } else {
-          setPermission("default");
-          setError("Permission not granted");
-          setIsLoading(false);
-          return false;
-        }
-      } else if (Notification.permission === "denied") {
+      // Run permission request and SW ready in parallel for faster subscribe
+      const [permResult, registration] = await Promise.all([
+        Notification.permission === "default"
+          ? Notification.requestPermission()
+          : Promise.resolve(Notification.permission),
+        swRegistrationRef.current
+          ? Promise.resolve(swRegistrationRef.current)
+          : navigator.serviceWorker.ready,
+      ]);
+
+      if (permResult === "denied") {
         setPermission("denied");
-        setError("Notifications are blocked. Please enable in browser settings.");
+        setError("Notification permission denied");
         setIsLoading(false);
         return false;
       }
-
-      // Get or register service worker
-      let registration = swRegistrationRef.current;
-      if (!registration) {
-        registration = await navigator.serviceWorker.register("/sw.js");
-        swRegistrationRef.current = registration;
+      if (permResult !== "granted") {
+        setPermission("default");
+        setError("Permission not granted");
+        setIsLoading(false);
+        return false;
       }
-
-      // Wait for service worker to be ready
-      await navigator.serviceWorker.ready;
+      setPermission("granted");
+      swRegistrationRef.current = registration;
 
       // Subscribe to push
       let subscription = await registration.pushManager.getSubscription();

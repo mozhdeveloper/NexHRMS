@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useAppearanceStore } from "@/store/appearance.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { signIn } from "@/services/auth.service";
+import { hydrateAllStores, startWriteThrough, startRealtime } from "@/services/sync.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,7 +91,12 @@ export default function LoginPage() {
                     emergencyContact: result.user.emergencyContact,
                 });
                 useAuthStore.setState({ isAuthenticated: true });
-                // Redirect immediately — client-layout will handle store hydration
+                // Start store hydration NOW — runs in parallel with navigation
+                // so data is ready by the time the dashboard mounts
+                hydrateAllStores({ skipSessionCheck: true }).then(() => {
+                    startWriteThrough();
+                    startRealtime();
+                });
                 toast.success("Welcome back!");
                 router.push(`/${result.user.role}/dashboard`);
             } else if (result.error === "deactivated") {

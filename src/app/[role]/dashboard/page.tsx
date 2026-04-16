@@ -1,8 +1,15 @@
 ﻿"use client";
 
+import dynamic from "next/dynamic";
 import { useAuthStore } from "@/store/auth.store";
 import { useRolesStore } from "@/store/roles.store";
-import { WidgetGrid } from "@/components/dashboard-builder/widget-grid";
+import { Skeleton } from "@/components/ui/skeleton";
+
+/* Lazy-load the heavy widget grid (imports 8 stores + recharts + 1000 lines) */
+const WidgetGrid = dynamic(
+    () => import("@/components/dashboard-builder/widget-grid").then((m) => ({ default: m.WidgetGrid })),
+    { ssr: false, loading: () => <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4"><Skeleton className="h-32" /><Skeleton className="h-32" /><Skeleton className="h-32" /><Skeleton className="h-32" /></div> }
+);
 
 export default function DashboardPage() {
     const currentUser = useAuthStore((s) => s.currentUser);

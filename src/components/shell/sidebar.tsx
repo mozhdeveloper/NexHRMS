@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
 import { useEmployeesStore } from "@/store/employees.store";
-import { useProjectsStore } from "@/store/projects.store";
 import { signOut } from "@/services/auth.service";
 import { stopWriteThrough } from "@/services/sync.service";
 import { useUIStore } from "@/store/ui.store";
@@ -132,26 +131,10 @@ function SidebarComponent() {
     }, [employees, currentUserId, currentUserEmail, currentUserName]);
     const totalUnreadNotifications = currentEmployeeId ? getUnreadCountForEmployee(currentEmployeeId) : 0;
 
-    // Check if employee is assigned to a face-recognition project
-    const getProjectForEmployee = useProjectsStore((s) => s.getProjectForEmployee);
-    const hasFaceProject = useMemo(() => {
-        if (role !== "employee" && role !== "supervisor") return false;
-        const myEmp = employees.find(
-            (e) => e.profileId === currentUserId || e.email?.toLowerCase() === currentUserEmail?.toLowerCase() || e.name === currentUserName
-        );
-        if (!myEmp) return false;
-        const project = getProjectForEmployee(myEmp.id);
-        return project?.verificationMethod === "face_only";
-    }, [role, employees, currentUserId, currentUserEmail, currentUserName, getProjectForEmployee]);
-
     // Permission-based filtering + module flags + nav overrides
     const filtered = useMemo(() => {
         const systemItems = NAV_ITEMS
             .filter((item) => {
-                // Face Enrollment: only show for employees with face-recognition projects
-                if (item.href === "/face-enrollment" && !hasFaceProject) {
-                    return false;
-                }
                 // Module flag check
                 if (item.moduleFlag && !modules[item.moduleFlag as keyof typeof modules]) {
                     return false;
@@ -187,7 +170,7 @@ function SidebarComponent() {
         }));
 
         return { systemItems, customNavItems };
-    }, [role, hasPermission, customPages, modules, navOverrides, hasFaceProject]);
+    }, [role, hasPermission, customPages, modules, navOverrides]);
 
     // Build role-prefixed paths
     const rolePrefix = `/${role}`;

@@ -22,18 +22,14 @@ export function PushNotificationBanner() {
     // Check if banner was dismissed
     const dismissed = localStorage.getItem("push-prompt-dismissed") === "true";
     
-    // Show banner after a short delay if:
+    // Show banner immediately if:
     // - Push is supported
     // - Permission not denied
     // - Not already subscribed
     // - Not previously dismissed
-    const timeout = setTimeout(() => {
-      if (isSupported && permission === "default" && !isSubscribed && !dismissed) {
-        setShowBanner(true);
-      }
-    }, 2000); // Show after 2 seconds
-
-    return () => clearTimeout(timeout);
+    if (isSupported && permission === "default" && !isSubscribed && !dismissed) {
+      setShowBanner(true);
+    }
   }, [isSupported, permission, isSubscribed]);
 
   const handleDismiss = () => {
