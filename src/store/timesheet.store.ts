@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type { Timesheet, TimesheetSegment, AttendanceRuleSet, TimesheetStatus } from "@/types";
 
@@ -241,6 +242,6 @@ export const useTimesheetStore = create<TimesheetState>()(
                 get().timesheets.filter((t) => t.status === "submitted"),
             resetToSeed: () => set({ timesheets: [] }),
         }),
-        { name: "soren-timesheet", version: 1 }
+        { name: "soren-timesheet", version: 1, storage: safePersistStorage }
     )
 );

@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type { CustomRole, Permission, WidgetConfig } from "@/types";
 
@@ -533,6 +534,7 @@ export const useRolesStore = create<RolesState>()(
         {
             name: "soren-roles",
             version: 2,
+            storage: safePersistStorage,
             migrate: () => ({ roles: buildSystemRoles() }),
         }
     )

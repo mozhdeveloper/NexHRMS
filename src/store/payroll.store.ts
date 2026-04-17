@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type { Payslip, PayrollRun, PayrollAdjustment, PayScheduleConfig, FinalPayComputation, PayrollSignatureConfig, DeductionOverride, DeductionGlobalDefault, DeductionType } from "@/types";
 import { POLICY_VERSIONS } from "@/lib/constants";
@@ -579,6 +580,7 @@ export const usePayrollStore = create<PayrollState>()(
         {
             name: "soren-payroll",
             version: 7,
+            storage: safePersistStorage,
             migrate: () => ({
                 payslips: [],
                 runs: [],

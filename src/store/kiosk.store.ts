@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { safePersistStorage } from "@/lib/storage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -146,6 +147,6 @@ export const useKioskStore = create<KioskStore>()(
         set((state) => ({ settings: { ...state.settings, ...patch } })),
       resetSettings: () => set({ settings: { ...DEFAULT_SETTINGS } }),
     }),
-    { name: "soren-kiosk-settings" }
+    { name: "soren-kiosk-settings", storage: safePersistStorage }
   )
 );

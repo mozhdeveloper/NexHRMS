@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type {
     SiteSurveyPhoto,
@@ -187,6 +188,6 @@ export const useLocationStore = create<LocationState>()(
                     pings: [],
                 }),
         }),
-        { name: "soren-location", version: 1 }
+        { name: "soren-location", version: 1, storage: safePersistStorage }
     )
 );

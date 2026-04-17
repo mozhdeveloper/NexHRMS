@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type {
     TaskGroup,
@@ -344,7 +345,7 @@ export const useTasksStore = create<TasksState>()(
                     taskTags: SEED_TASK_TAGS,
                 }),
         }),
-        { name: "soren-tasks", version: 2,
+        { name: "soren-tasks", version: 2, storage: safePersistStorage,
             migrate: (persisted) => {
                 const state = persisted as Partial<{ groups: unknown; tasks: unknown; completionReports: unknown; comments: unknown; taskTags: unknown[] }>;
                 // v1→v2: inject seed tags for existing users who had empty taskTags

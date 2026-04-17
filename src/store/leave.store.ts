@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type { LeaveRequest, LeaveStatus, LeavePolicy, LeaveBalance, LeaveType, LeaveDuration } from "@/types";
 import { SEED_LEAVES } from "@/data/seed";
@@ -333,6 +334,7 @@ export const useLeaveStore = create<LeaveState>()(
         {
             name: "soren-leave",
             version: 3,
+            storage: safePersistStorage,
             migrate: () => ({ requests: SEED_LEAVES, balances: [] }),
         }
     )

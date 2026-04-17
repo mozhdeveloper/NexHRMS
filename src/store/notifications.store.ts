@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type { NotificationLog, NotificationType, NotificationChannel, NotificationRule, NotificationTrigger } from "@/types";
 import { useEmployeesStore } from "@/store/employees.store";
@@ -377,6 +378,7 @@ export const useNotificationsStore = create<NotificationsState>()(
         {
             name: "soren-notifications",
             version: 4,
+            storage: safePersistStorage,
             migrate: (persisted: unknown) => {
                 // Carry over rules and logs from previous versions; reset everything else.
                 const p = persisted as Partial<NotificationsState> | null;

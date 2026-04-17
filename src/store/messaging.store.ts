@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type {
     Announcement,
@@ -302,6 +303,6 @@ export const useMessagingStore = create<MessagingState>()(
                     config: DEFAULT_CONFIG,
                 }),
         }),
-        { name: "soren-messaging", version: 1 }
+        { name: "soren-messaging", version: 1, storage: safePersistStorage }
     )
 );

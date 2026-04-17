@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type {
     AttendanceLog, AttendanceFlag, AttendanceEvent, AttendanceEvidence,
@@ -784,6 +785,7 @@ export const useAttendanceStore = create<AttendanceState>()(
         {
             name: "soren-attendance",
             version: 5,
+            storage: safePersistStorage,
             migrate: (persistedState: unknown, version: number) => {
                 const state = (persistedState ?? {}) as Record<string, unknown>;
                 if (version < 4) {
