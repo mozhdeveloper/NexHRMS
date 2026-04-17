@@ -239,6 +239,54 @@ export const useAttendanceStore = create<AttendanceState>()(
                         })),
                     ],
                 }));
+
+                // ─── Notify admins/HR for each absence + audit log ────
+                try {
+                    const allEmployees = useEmployeesStore.getState().employees;
+                    const notifStore = useNotificationsStore.getState();
+                    const adminHrEmployees = allEmployees.filter((e) => e.role === "admin" || e.role === "hr");
+                    const { useAuditStore } = require("@/store/audit.store");
+
+                    for (const empId of toMarkAbsent) {
+                        const emp = allEmployees.find((e) => e.id === empId);
+                        const empName = emp?.name || empId;
+
+                        // Notify each admin/HR
+                        for (const admin of adminHrEmployees) {
+                            notifStore.dispatch(
+                                "absence",
+                                { name: empName, date },
+                                admin.id,
+                                admin.email,
+                                undefined,
+                                "/attendance"
+                            );
+                        }
+
+                        // Notify the absent employee too
+                        if (emp) {
+                            notifStore.addLog({
+                                employeeId: emp.id,
+                                type: "absence",
+                                channel: "in_app",
+                                subject: `Marked Absent: ${date}`,
+                                body: `You have been marked absent for ${date}.`,
+                                link: "/attendance",
+                            });
+                        }
+
+                        // Audit log
+                        useAuditStore.getState().log({
+                            entityType: "attendance",
+                            entityId: empId,
+                            action: "bulk_mark_absent",
+                            performedBy: "SYSTEM",
+                            reason: `Auto-marked absent for ${date}`,
+                            afterSnapshot: { date, status: "absent" },
+                        });
+                    }
+                } catch { /* notification/audit is best-effort */ }
+
                 return toMarkAbsent.length;
             },
 
@@ -436,6 +484,50 @@ export const useAttendanceStore = create<AttendanceState>()(
                         ],
                     }));
                 }
+
+                // ─── Notify admins/HR + employee + audit log ──────────
+                try {
+                    const allEmployees = useEmployeesStore.getState().employees;
+                    const notifStore = useNotificationsStore.getState();
+                    const adminHrEmployees = allEmployees.filter((e) => e.role === "admin" || e.role === "hr");
+                    const emp = allEmployees.find((e) => e.id === employeeId);
+                    const empName = emp?.name || employeeId;
+                    const { useAuditStore } = require("@/store/audit.store");
+
+                    // Notify each admin/HR
+                    for (const admin of adminHrEmployees) {
+                        notifStore.dispatch(
+                            "absence",
+                            { name: empName, date },
+                            admin.id,
+                            admin.email,
+                            undefined,
+                            "/attendance"
+                        );
+                    }
+
+                    // Notify the absent employee
+                    if (emp) {
+                        notifStore.addLog({
+                            employeeId: emp.id,
+                            type: "absence",
+                            channel: "in_app",
+                            subject: `Marked Absent: ${date}`,
+                            body: `You have been marked absent for ${date}.`,
+                            link: "/attendance",
+                        });
+                    }
+
+                    // Audit log
+                    useAuditStore.getState().log({
+                        entityType: "attendance",
+                        entityId: employeeId,
+                        action: "mark_absent",
+                        performedBy: "SYSTEM",
+                        reason: `Marked absent for ${date}`,
+                        afterSnapshot: { date, status: "absent", employeeName: empName },
+                    });
+                } catch { /* notification/audit is best-effort */ }
             },
 
             getEmployeeLogs: (employeeId) =>

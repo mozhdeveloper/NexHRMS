@@ -87,6 +87,7 @@ export type AuditAction =
   | "payment_recorded" | "employee_resigned" | "employee_deleted" | "final_pay_created"
   | "timesheet_approved" | "timesheet_rejected"
   | "kiosk_registered" | "attendance_correction" | "cheat_detected"
+  | "mark_absent" | "bulk_mark_absent"
   | "task_created" | "task_assigned" | "task_completed" | "task_verified" | "task_rejected"
   | "tag_created" | "tag_updated" | "tag_deleted"
   | "announcement_sent" | "channel_created";
