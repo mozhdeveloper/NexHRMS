@@ -77,10 +77,42 @@ interface NotificationsState {
     // Provider
     updateProviderConfig: (patch: Partial<NotificationProviderConfig>) => void;
 
+    // Per-employee opt-out preferences (keyed by employeeId)
+    employeePrefs: Record<string, EmployeeNotifPrefs>;
+    setEmployeePref: (employeeId: string, patch: Partial<EmployeeNotifPrefs>) => void;
+    getEmployeePref: (employeeId: string) => EmployeeNotifPrefs;
+
     // Dispatch (simulated send)
     dispatch: (trigger: NotificationTrigger, vars: Record<string, string>, recipientEmployeeId: string, recipientEmail?: string, recipientPhone?: string, link?: string) => void;
 
     resetToSeed: () => void;
+}
+
+// Per-employee notification opt-out preferences.
+// Defaults to all enabled — only opt-outs are stored.
+export interface EmployeeNotifPrefs {
+    leaveUpdates: boolean;   // leave_approved, leave_rejected
+    absenceAlerts: boolean;  // absence, attendance_missing
+    payrollAlerts: boolean;  // payslip_published, payment_confirmed, payslip_unsigned_reminder
+}
+
+const DEFAULT_EMPLOYEE_PREFS: EmployeeNotifPrefs = {
+    leaveUpdates: true,
+    absenceAlerts: true,
+    payrollAlerts: true,
+};
+
+/** Returns which pref key gates a given trigger, or null if always allowed. */
+function prefKeyForTrigger(trigger: NotificationTrigger): keyof EmployeeNotifPrefs | null {
+    if (trigger === "leave_approved" || trigger === "leave_rejected") return "leaveUpdates";
+    if (trigger === "absence" || trigger === "attendance_missing") return "absenceAlerts";
+    if (
+        trigger === "payslip_published" ||
+        trigger === "payment_confirmed" ||
+        trigger === "payslip_unsigned_reminder" ||
+        trigger === "payslip_signed"
+    ) return "payrollAlerts";
+    return null;
 }
 
 function renderTemplate(template: string, vars: Record<string, string>): string {
@@ -123,6 +155,7 @@ export const useNotificationsStore = create<NotificationsState>()(
             logs: [],
             rules: [...DEFAULT_RULES],
             providerConfig: { ...DEFAULT_PROVIDER },
+            employeePrefs: {} as Record<string, EmployeeNotifPrefs>,
 
             addLog: (data) => {
                 const notificationId = `NOTIF-${nanoid(8)}`;
@@ -224,11 +257,32 @@ export const useNotificationsStore = create<NotificationsState>()(
             updateProviderConfig: (patch) =>
                 set((s) => ({ providerConfig: { ...s.providerConfig, ...patch } })),
 
+            // ─── Per-employee prefs ─────────────────────
+            setEmployeePref: (employeeId, patch) =>
+                set((s) => ({
+                    employeePrefs: {
+                        ...s.employeePrefs,
+                        [employeeId]: { ...DEFAULT_EMPLOYEE_PREFS, ...s.employeePrefs[employeeId], ...patch },
+                    },
+                })),
+
+            getEmployeePref: (employeeId) => ({
+                ...DEFAULT_EMPLOYEE_PREFS,
+                ...get().employeePrefs[employeeId],
+            }),
+
             // ─── Dispatch ──────────────────────────────
             dispatch: (trigger, vars, recipientEmployeeId, recipientEmail, recipientPhone, link) => {
                 const state = get();
                 const rule = state.rules.find((r) => r.trigger === trigger);
                 if (!rule || !rule.enabled) return;
+
+                // Check per-employee opt-out preference
+                const prefKey = prefKeyForTrigger(trigger);
+                if (prefKey !== null) {
+                    const prefs = { ...DEFAULT_EMPLOYEE_PREFS, ...state.employeePrefs[recipientEmployeeId] };
+                    if (!prefs[prefKey]) return; // employee opted out
+                }
 
                 const subject = renderTemplate(rule.subjectTemplate, vars);
                 const body = renderTemplate(rule.bodyTemplate, vars);
@@ -297,12 +351,21 @@ export const useNotificationsStore = create<NotificationsState>()(
                 });
             },
 
-            resetToSeed: () => set({ logs: [], rules: [...DEFAULT_RULES], providerConfig: { ...DEFAULT_PROVIDER } }),
+            resetToSeed: () => set({ logs: [], rules: [...DEFAULT_RULES], providerConfig: { ...DEFAULT_PROVIDER }, employeePrefs: {} }),
         }),
         {
             name: "soren-notifications",
-            version: 3,
-            migrate: () => ({ logs: [], rules: [...DEFAULT_RULES], providerConfig: { ...DEFAULT_PROVIDER } }),
+            version: 4,
+            migrate: (persisted: unknown) => {
+                // Carry over rules and logs from previous versions; reset everything else.
+                const p = persisted as Partial<NotificationsState> | null;
+                return {
+                    logs: p?.logs ?? [],
+                    rules: p?.rules ?? [...DEFAULT_RULES],
+                    providerConfig: p?.providerConfig ?? { ...DEFAULT_PROVIDER },
+                    employeePrefs: (p as Record<string, unknown>)?.employeePrefs as Record<string, EmployeeNotifPrefs> ?? {},
+                };
+            },
         }
     )
 );

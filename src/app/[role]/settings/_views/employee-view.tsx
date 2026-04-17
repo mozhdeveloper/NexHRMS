@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/auth.store";
+import { useNotificationsStore } from "@/store/notifications.store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,37 +22,6 @@ import { cn } from "@/lib/utils";
    EMPLOYEE VIEW — Personal Preferences Only
    Theme, notification prefs, push, profile, password change
    ═══════════════════════════════════════════════════════════════ */
-
-const defaultPrefs = { emailAbsenceAlerts: true, emailLeaveUpdates: true, emailPayrollAlerts: true };
-function readNotifPrefs() {
-    if (typeof window === "undefined") return defaultPrefs;
-    try {
-        const s = localStorage.getItem("sdsi-org-settings");
-        if (s) {
-            const p = JSON.parse(s);
-            return {
-                emailAbsenceAlerts: p.emailAbsenceAlerts ?? true,
-                emailLeaveUpdates: p.emailLeaveUpdates ?? true,
-                emailPayrollAlerts: p.emailPayrollAlerts ?? true,
-            };
-        }
-    } catch { /* ignore */ }
-    return defaultPrefs;
-}
-
-function useNotificationPrefs() {
-    const [prefs, setPrefs] = useState(readNotifPrefs);
-    const update = (patch: Partial<typeof prefs>) => {
-        setPrefs((prev) => {
-            const next = { ...prev, ...patch };
-            const stored = localStorage.getItem("sdsi-org-settings");
-            const full = stored ? { ...JSON.parse(stored), ...next } : next;
-            localStorage.setItem("sdsi-org-settings", JSON.stringify(full));
-            return next;
-        });
-    };
-    return { prefs, update };
-}
 
 /* ─── Section nav items ────────────────────────────────────── */
 const SECTIONS = [
@@ -73,7 +43,11 @@ const CHANNEL_LABELS: Record<string, string> = {
 
 export default function EmployeeSettingsView() {
     const { theme, setTheme, currentUser, changePassword, updateProfile } = useAuthStore();
-    const { prefs, update } = useNotificationPrefs();
+    const { getEmployeePref, setEmployeePref } = useNotificationsStore();
+
+    // Read per-employee prefs from the notifications store (persisted, affects dispatch)
+    const prefs = getEmployeePref(currentUser.id);
+    const update = (patch: Partial<typeof prefs>) => setEmployeePref(currentUser.id, patch);
 
     /* Password */
     const [pwOld, setPwOld] = useState("");
@@ -432,9 +406,9 @@ export default function EmployeeSettingsView() {
                             {activeSection === "notifications" && (
                                 <div className="divide-y divide-border/40">
                                     {([
-                                        { key: "emailAbsenceAlerts" as const, label: "Absence Alerts", desc: "Get notified when you are marked absent" },
-                                        { key: "emailLeaveUpdates" as const, label: "Leave Updates", desc: "Get notified when your leave request is approved or rejected" },
-                                        { key: "emailPayrollAlerts" as const, label: "Payroll Alerts", desc: "Get notified when new payslips are published" },
+                                        { key: "absenceAlerts" as const, label: "Absence Alerts", desc: "Get notified when you are marked absent" },
+                                        { key: "leaveUpdates" as const, label: "Leave Updates", desc: "Get notified when your leave request is approved or rejected" },
+                                        { key: "payrollAlerts" as const, label: "Payroll Alerts", desc: "Get notified when new payslips are published" },
                                     ]).map((n) => (
                                         <div key={n.key} className="flex items-center justify-between gap-4 px-5 py-3.5 hover:bg-muted/20 transition-colors">
                                             <div className="min-w-0">
