@@ -106,7 +106,7 @@ export const DEFAULT_EMPLOYEE_PREFS: EmployeeNotifPrefs = {
 
 /** Returns which pref key gates a given trigger, or null if always allowed. */
 export function prefKeyForTrigger(trigger: NotificationTrigger | string): keyof EmployeeNotifPrefs | null {
-    if (trigger === "leave_approved" || trigger === "leave_rejected") return "leaveUpdates";
+    if (trigger === "leave_submitted" || trigger === "leave_approved" || trigger === "leave_rejected") return "leaveUpdates";
     if (trigger === "absence" || trigger === "attendance_missing") return "absenceAlerts";
     if (
         trigger === "payslip_published" ||

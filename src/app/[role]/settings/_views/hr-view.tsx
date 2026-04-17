@@ -290,7 +290,7 @@ export default function HrSettingsView() {
             <Card className="border border-border/50">
                 <CardHeader className="pb-3"><div className="flex items-center gap-2"><Bell className="h-5 w-5 text-muted-foreground" /><CardTitle className="text-base font-semibold">Notifications</CardTitle></div></CardHeader>
                 <CardContent className="space-y-4">
-                    {([{ key: "absenceAlerts" as const, label: "Absence alerts", desc: "Notify when an employee is absent" }, { key: "leaveUpdates" as const, label: "Leave updates", desc: "Notify when leave is approved/rejected" }, { key: "payrollAlerts" as const, label: "Payroll alerts", desc: "Notify when payslips are issued" }]).map((n) => (
+                    {([{ key: "absenceAlerts" as const, label: "Absence alerts", desc: "Notify when an employee is absent" }, { key: "leaveUpdates" as const, label: "Leave updates", desc: "Notify when leave requests are submitted, approved, or rejected" }, { key: "payrollAlerts" as const, label: "Payroll alerts", desc: "Notify when payslips are issued" }]).map((n) => (
                         <div key={n.key} className="flex items-center justify-between">
                             <div><p className="text-sm font-medium">{n.label}</p><p className="text-xs text-muted-foreground">{n.desc}</p></div>
                             <Switch checked={notifPrefs[n.key]} onCheckedChange={(checked) => { updateNotif({ [n.key]: checked }); toast.success(`${n.label} ${checked ? "enabled" : "disabled"}`); }} />
