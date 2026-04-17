@@ -26,7 +26,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Check, X, Palmtree, Stethoscope, AlertTriangle, FileQuestion, FileText, Pencil, Trash2, Baby, Heart, Users } from "lucide-react";
 import { toast } from "sonner";
-import { dispatchNotification } from "@/lib/notifications";
 import { useAuditStore } from "@/store/audit.store";
 import type { LeaveType } from "@/types";
 import { EmployeeCombobox } from "@/components/ui/employee-combobox";
@@ -170,13 +169,7 @@ export default function AdminLeaveView() {
                 }));
             }
         }
-        const dates = `${startDate} – ${endDate}`;
-        dispatchNotification("leave_approved", {
-            name: getEmpName(employeeId),
-            leaveType: LEAVE_LABELS[leaveType as LeaveType] ?? leaveType,
-            dates,
-            status: "approved",
-        }, employeeId);
+        // Notification is dispatched inside updateStatus (leave.store.ts) — do NOT fire again here.
         useAuditStore.getState().log({ entityType: "leave", entityId: id, action: "leave_approved", performedBy: currentUser.id });
         toast.success("Leave approved & attendance updated");
     };
@@ -316,7 +309,7 @@ export default function AdminLeaveView() {
                                                             <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10" onClick={() => handleApprove(req.id, req.employeeId, req.startDate, req.endDate, req.type)}>
                                                                 <Check className="h-4 w-4" />
                                                             </Button>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-500/10" onClick={() => { updateStatus(req.id, "rejected", currentUser.id); dispatchNotification("leave_rejected", { name: getEmpName(req.employeeId), leaveType: LEAVE_LABELS[req.type] ?? req.type, dates: `${req.startDate} – ${req.endDate}`, status: "rejected" }, req.employeeId); useAuditStore.getState().log({ entityType: "leave", entityId: req.id, action: "leave_rejected", performedBy: currentUser.id }); toast.success("Leave rejected"); }}>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-500/10" onClick={() => { updateStatus(req.id, "rejected", currentUser.id); useAuditStore.getState().log({ entityType: "leave", entityId: req.id, action: "leave_rejected", performedBy: currentUser.id }); toast.success("Leave rejected"); }}>
                                                                 <X className="h-4 w-4" />
                                                             </Button>
                                                         </div>

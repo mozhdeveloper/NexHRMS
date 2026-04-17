@@ -7,6 +7,11 @@ import { SEED_LEAVES } from "@/data/seed";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useNotificationsStore } from "@/store/notifications.store";
 
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+    VL: "Vacation", SL: "Sick", EL: "Emergency", OTHER: "Other",
+    ML: "Maternity", PL: "Paternity", SPL: "Solo Parent",
+};
+
 /**
  * Calculate the number of leave days based on date range and duration type.
  * Half-day leaves count as 0.5 days. Hourly leaves count based on hours/8.
@@ -233,7 +238,7 @@ export const useLeaveStore = create<LeaveState>()(
                             trigger,
                             {
                                 name: requesterName,
-                                leaveType: req.type,
+                                leaveType: LEAVE_TYPE_LABELS[req.type] ?? req.type,
                                 dates: `${req.startDate} – ${req.endDate}`,
                                 status: actualStatus,
                             },
