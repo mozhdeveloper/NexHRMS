@@ -610,18 +610,17 @@ describe("Notification System — Recipient Correctness & Text Format", () => {
     });
 
     describe("notifyPayslipSigned()", () => {
-      it("should create notification for the signing employee", () => {
+      it("should NOT notify the signing employee (only admin/finance)", () => {
         notifyPayslipSigned({
           employeeId: "EMP-002",
           employeeName: "Bob Employee",
           period: "Apr 1-15 2026",
         });
 
+        // notifyPayslipSigned filters: e.id !== params.employeeId
+        // So the signer (EMP-002) should NOT receive a notification
         const empLogs = getLogsForEmployee("EMP-002").filter((l) => l.type === "payslip_signed");
-        expect(empLogs).toHaveLength(1);
-        expect(empLogs[0].subject).toBe("Payslip Signed: Bob Employee (Apr 1-15 2026)");
-        expect(empLogs[0].body).toContain("signed");
-        expect(empLogs[0].link).toBe("/payroll");
+        expect(empLogs).toHaveLength(0);
       });
 
       it("should also notify admin and finance users", () => {
@@ -666,17 +665,23 @@ describe("Notification System — Recipient Correctness & Text Format", () => {
     });
 
     describe("notifyLocationDisabled()", () => {
-      it("should dispatch to the employee ID (admin caller passes admin ID)", () => {
+      it("should notify admin users (excluding the offending employee)", () => {
+        // Pass EMP-002 as the offending employee — admin (EMP-001) should be notified
         notifyLocationDisabled({
-          employeeId: "EMP-001",
+          employeeId: "EMP-002",
           employeeName: "Bob Employee",
           time: "14:30",
         });
 
-        const log = getLatestLog();
-        expect(log.employeeId).toBe("EMP-001");
-        expect(log.subject).toContain("Bob Employee");
-        expect(log.body).toContain("14:30");
+        // EMP-001 (admin) should receive the notification
+        const adminLogs = getLogsForEmployee("EMP-001").filter((l) => l.type === "location_disabled");
+        expect(adminLogs).toHaveLength(1);
+        expect(adminLogs[0].subject).toContain("Bob Employee");
+        expect(adminLogs[0].body).toContain("14:30");
+
+        // EMP-002 (offending employee) should NOT receive it
+        const empLogs = getLogsForEmployee("EMP-002").filter((l) => l.type === "location_disabled");
+        expect(empLogs).toHaveLength(0);
       });
     });
   });
