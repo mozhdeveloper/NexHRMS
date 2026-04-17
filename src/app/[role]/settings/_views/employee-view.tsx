@@ -72,7 +72,7 @@ const CHANNEL_LABELS: Record<string, string> = {
 };
 
 export default function EmployeeSettingsView() {
-    const { theme, setTheme, currentUser, changePassword } = useAuthStore();
+    const { theme, setTheme, currentUser, changePassword, updateProfile } = useAuthStore();
     const { prefs, update } = useNotificationPrefs();
 
     /* Password */
@@ -83,6 +83,10 @@ export default function EmployeeSettingsView() {
     const [showNew, setShowNew] = useState(false);
     const [pwLoading, setPwLoading] = useState(false);
     const [resetLoading, setResetLoading] = useState(false);
+
+    /* Email change */
+    const [newEmail, setNewEmail] = useState("");
+    const [emailLoading, setEmailLoading] = useState(false);
 
     /* Profile */
     const [profileLoading, setProfileLoading] = useState(false);
@@ -185,6 +189,32 @@ export default function EmployeeSettingsView() {
         }
     };
 
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    const handleChangeEmail = async () => {
+        const sanitised = newEmail.trim().toLowerCase();
+        if (!EMAIL_REGEX.test(sanitised)) { toast.error("Please enter a valid email address."); return; }
+        if (sanitised === currentUser.email.toLowerCase()) { toast.error("New email must differ from your current one."); return; }
+        setEmailLoading(true);
+        try {
+            const res = await fetch("/api/auth/change-email", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ newEmail: sanitised }),
+            });
+            const data = await res.json();
+            if (!res.ok) { toast.error(data.error ?? "Failed to update email"); return; }
+            // Update local demo store so the UI reflects the new email immediately
+            updateProfile(currentUser.id, { email: sanitised });
+            toast.success(data.message ?? `Confirmation sent to ${sanitised}`);
+            setNewEmail("");
+        } catch {
+            toast.error("Could not update email. Check your connection.");
+        } finally {
+            setEmailLoading(false);
+        }
+    };
+
     const passwordReady = pwOld.length > 0 && pwNew.length >= 8 && pwConfirm.length > 0;
 
     const ActiveIcon = SECTIONS.find(s => s.id === activeSection)?.icon || Palette;
@@ -195,7 +225,7 @@ export default function EmployeeSettingsView() {
         profile: "Update your contact details and preferences",
         notifications: "Control which alerts you receive",
         push: "Receive real-time alerts on your device",
-        security: "Manage your account password",
+        security: "Manage your account email and password",
     };
 
     return (
@@ -530,6 +560,53 @@ export default function EmployeeSettingsView() {
                                         </div>
                                     </div>
 
+                                    {/* Change Email */}
+                                    <div className="grid gap-3">
+                                        <div>
+                                            <p className="text-sm font-medium">Change Email Address</p>
+                                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                                                Current: <span className="font-medium text-foreground">{currentUser.email}</span>
+                                            </p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="relative flex-1">
+                                                <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                                <Input
+                                                    type="email"
+                                                    value={newEmail}
+                                                    onChange={(e) => setNewEmail(e.target.value)}
+                                                    placeholder="Enter new email address"
+                                                    autoComplete="email"
+                                                    className="h-9 text-sm pl-8"
+                                                />
+                                            </div>
+                                            <Button
+                                                onClick={handleChangeEmail}
+                                                disabled={emailLoading || newEmail.trim().length === 0}
+                                                className="h-9 text-xs px-4 shrink-0 shadow-sm"
+                                            >
+                                                {emailLoading
+                                                    ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                                                    : <Mail className="w-3.5 h-3.5 mr-1.5" />
+                                                }
+                                                Update Email
+                                            </Button>
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground">
+                                            A confirmation link will be sent to your new address. Your email updates after you click it.
+                                        </p>
+                                    </div>
+
+                                    {/* Reset Password divider 2 */}
+                                    <div className="relative">
+                                        <div className="absolute inset-0 flex items-center">
+                                            <Separator />
+                                        </div>
+                                        <div className="relative flex justify-center">
+                                            <span className="bg-card px-2 text-[10px] text-muted-foreground">OR</span>
+                                        </div>
+                                    </div>
+
                                     {/* Reset via email */}
                                     <div className="rounded-lg border border-border/40 p-4 bg-muted/20">
                                         <p className="text-sm font-medium mb-0.5">Forgot your password?</p>
@@ -559,4 +636,4 @@ export default function EmployeeSettingsView() {
         </div>
     );
 }
-
+
