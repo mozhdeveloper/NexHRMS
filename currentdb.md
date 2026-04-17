@@ -293,6 +293,7 @@ CREATE TABLE public.employees (
   job_title text,
   deduction_exempt boolean NOT NULL DEFAULT false,
   deduction_exempt_reason text,
+  notification_preferences jsonb NOT NULL DEFAULT '{}'::jsonb,
   CONSTRAINT employees_pkey PRIMARY KEY (id),
   CONSTRAINT employees_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.profiles(id),
   CONSTRAINT fk_emp_shift FOREIGN KEY (shift_id) REFERENCES public.shift_templates(id)

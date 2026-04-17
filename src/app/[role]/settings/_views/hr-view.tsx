@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuthStore } from "@/store/auth.store";
+import { useEmployeesStore } from "@/store/employees.store";
 import { useNotificationsStore } from "@/store/notifications.store";
 import { useTimesheetStore } from "@/store/timesheet.store";
 import { usePayrollStore, DEFAULT_PAY_SCHEDULE } from "@/store/payroll.store";
@@ -52,9 +53,25 @@ function useOrgSettings() {
 export default function HrSettingsView() {
     const { theme, setTheme, currentUser, changePassword } = useAuthStore();
     const { settings, update } = useOrgSettings();
+    const employees = useEmployeesStore((s) => s.employees);
     const { getEmployeePref, setEmployeePref } = useNotificationsStore();
-    const notifPrefs = getEmployeePref(currentUser.id);
-    const updateNotif = (patch: Partial<typeof notifPrefs>) => setEmployeePref(currentUser.id, patch);
+
+    // Resolve auth user → employee record so prefs are keyed by employee ID (EMP-xxx)
+    const myEmployee = useMemo(
+        () => employees.find((e: { profileId?: string; email?: string; name?: string }) => e.profileId === currentUser.id || e.email?.toLowerCase() === currentUser.email?.toLowerCase() || e.name === currentUser.name),
+        [employees, currentUser.id, currentUser.email, currentUser.name],
+    );
+    const employeeId = myEmployee?.id ?? currentUser.id;
+    const notifPrefs = getEmployeePref(employeeId);
+    const updateNotif = (patch: Partial<typeof notifPrefs>) => {
+        setEmployeePref(employeeId, patch);
+        // Persist to DB (fire-and-forget)
+        fetch("/api/settings/notification-preferences", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ employeeId, preferences: { ...notifPrefs, ...patch } }),
+        }).catch(() => { /* best-effort */ });
+    };
     const { ruleSets, updateRuleSet, addRuleSet } = useTimesheetStore();
     const { paySchedule, updatePaySchedule } = usePayrollStore();
     const rh = useRoleHref();

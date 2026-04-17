@@ -237,6 +237,7 @@ export interface Employee {
   preferredChannel?: MessageChannel;
   deductionExempt?: boolean;       // true = skip ALL government deductions (contract-based employees)
   deductionExemptReason?: string;  // reason for exemption (e.g., "Contract-based", "Minimum wage earner")
+  notificationPreferences?: Record<string, boolean>; // per-employee notification opt-outs (from DB jsonb column)
   createdAt?: string;     // ISO timestamptz from DB
   updatedAt?: string;     // ISO timestamptz from DB
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuthStore } from "@/store/auth.store";
+import { useEmployeesStore } from "@/store/employees.store";
 import { useNotificationsStore } from "@/store/notifications.store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,11 +44,27 @@ const CHANNEL_LABELS: Record<string, string> = {
 
 export default function EmployeeSettingsView() {
     const { theme, setTheme, currentUser, changePassword, updateProfile } = useAuthStore();
+    const employees = useEmployeesStore((s) => s.employees);
     const { getEmployeePref, setEmployeePref } = useNotificationsStore();
 
+    // Resolve auth user → employee record so prefs are keyed by employee ID (EMP-xxx)
+    const myEmployee = useMemo(
+        () => employees.find((e) => e.profileId === currentUser.id || e.email?.toLowerCase() === currentUser.email?.toLowerCase() || e.name === currentUser.name),
+        [employees, currentUser.id, currentUser.email, currentUser.name],
+    );
+    const employeeId = myEmployee?.id ?? currentUser.id;
+
     // Read per-employee prefs from the notifications store (persisted, affects dispatch)
-    const prefs = getEmployeePref(currentUser.id);
-    const update = (patch: Partial<typeof prefs>) => setEmployeePref(currentUser.id, patch);
+    const prefs = getEmployeePref(employeeId);
+    const update = (patch: Partial<typeof prefs>) => {
+        setEmployeePref(employeeId, patch);
+        // Persist to DB (fire-and-forget)
+        fetch("/api/settings/notification-preferences", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ employeeId, preferences: { ...prefs, ...patch } }),
+        }).catch(() => { /* best-effort */ });
+    };
 
     /* Password */
     const [pwOld, setPwOld] = useState("");
@@ -73,6 +90,18 @@ export default function EmployeeSettingsView() {
     const [whatsappNumber, setWhatsappNumber] = useState("");
 
     const [activeSection, setActiveSection] = useState<SectionId>("appearance");
+
+    // Load notification preferences from DB on mount (ensures DB → store sync)
+    useEffect(() => {
+        fetch("/api/settings/notification-preferences")
+            .then((r) => r.json())
+            .then((d) => {
+                if (d.employeeId && d.preferences && Object.keys(d.preferences).length > 0) {
+                    setEmployeePref(d.employeeId, d.preferences);
+                }
+            })
+            .catch(() => { /* offline / demo mode */ });
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Load profile fields when section becomes active
     useEffect(() => {

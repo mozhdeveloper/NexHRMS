@@ -44,7 +44,8 @@ import { useEventsStore } from "@/store/events.store";
 import { useMessagingStore } from "@/store/messaging.store";
 import { useTasksStore } from "@/store/tasks.store";
 import { useTimesheetStore } from "@/store/timesheet.store";
-import { useNotificationsStore } from "@/store/notifications.store";
+import { useNotificationsStore, DEFAULT_EMPLOYEE_PREFS } from "@/store/notifications.store";
+import type { EmployeeNotifPrefs } from "@/store/notifications.store";
 import { useLocationStore } from "@/store/location.store";
 import { useAuthStore } from "@/store/auth.store";
 
@@ -299,6 +300,23 @@ async function hydrateAllStoresInternal(opts?: { skipSessionCheck?: boolean }): 
       logs: notificationLogs,
       ...(notificationRules.length > 0 ? { rules: notificationRules } : {}),
     });
+
+    // Hydrate per-employee notification preferences from DB employee records.
+    // Each employee row may have a notification_preferences jsonb column.
+    if (employees.length > 0) {
+      const dbPrefs: Record<string, EmployeeNotifPrefs> = {};
+      for (const emp of employees) {
+        if (emp.notificationPreferences && typeof emp.notificationPreferences === "object" && Object.keys(emp.notificationPreferences).length > 0) {
+          dbPrefs[emp.id] = { ...DEFAULT_EMPLOYEE_PREFS, ...emp.notificationPreferences } as EmployeeNotifPrefs;
+        }
+      }
+      if (Object.keys(dbPrefs).length > 0) {
+        const currentPrefs = useNotificationsStore.getState().employeePrefs;
+        useNotificationsStore.setState({
+          employeePrefs: { ...currentPrefs, ...dbPrefs },
+        });
+      }
+    }
 
     // Hydrate location store
     if (locationPings.length > 0 || sitePhotos.length > 0 || breakRecords.length > 0) {
