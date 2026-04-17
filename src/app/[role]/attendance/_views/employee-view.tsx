@@ -19,8 +19,15 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import {
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+    Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
     Clock, LogIn, LogOut, Download, MapPin, CheckCircle, XCircle,
     Navigation, ShieldCheck, Timer, Plus, ShieldAlert, Gauge, CalendarDays, RotateCcw,
+    TrendingUp, Coffee, ScanFace, ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { isWithinGeofence } from "@/lib/geofence";
@@ -497,319 +504,321 @@ export default function EmployeeView() {
     }
 
     return (
-        <div className="space-y-3">
-            <div className="max-w-5xl mx-auto w-full space-y-3">
-
-                {/* ── Header ──────────────────────────────────────────── */}
-                <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                        <h1 className="text-lg sm:text-xl font-bold tracking-tight truncate">
-                            {greeting}, {currentUser.name.split(" ")[0]}!
-                        </h1>
-                        <p className="text-[11px] sm:text-xs text-muted-foreground">
-                            {new Date().toLocaleDateString("en-PH", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                        <Button variant="ghost" size="sm" className="gap-1 text-[11px] text-muted-foreground h-7 px-2" onClick={handleExportCSV}>
-                            <Download className="h-3 w-3" /> <span className="hidden sm:inline">Export</span>
-                        </Button>
-                        {myEmployeeId && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="gap-1 text-[11px] text-orange-500 hover:text-orange-600 hover:bg-orange-500/10 h-7 px-2"
-                                onClick={async () => {
-                                    stopWriteThrough();
-                                    await new Promise((r) => setTimeout(r, 600));
-                                    try {
-                                        const res = await fetch("/api/attendance/reset-today", {
-                                            method: "POST",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({ employeeId: myEmployeeId }),
-                                        });
-                                        if (!res.ok) {
-                                            const data = await res.json().catch(() => ({}));
-                                            toast.error(data.message || "Failed to reset in database");
-                                            return;
-                                        }
-                                    } catch {
-                                        toast.error("Network error — couldn't reset in database");
-                                        return;
-                                    } finally {
-                                        startWriteThrough();
-                                    }
-                                    resetTodayLog(myEmployeeId);
-                                    clearPenalty(myEmployeeId);
-                                    await forceRehydrate();
-                                    toast.success("Today's attendance reset — ready to simulate again.");
-                                }}
-                            >
-                                <RotateCcw className="h-3 w-3" /> <span className="hidden sm:inline">Reset</span>
-                            </Button>
-                        )}
-                    </div>
+        <TooltipProvider delayDuration={200}>
+        <div className="space-y-4">
+            {/* ── Alert Banners (DevTools / Penalty) — top priority ──── */}
+            {devToolsOpen && (
+                <div className="flex items-center gap-2.5 rounded-lg border border-orange-500/40 bg-orange-500/5 px-3 py-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <ShieldAlert className="h-4 w-4 text-orange-500 animate-pulse shrink-0" />
+                    <p className="text-xs"><span className="font-semibold text-orange-700 dark:text-orange-400">Developer Tools Detected</span> — Close DevTools before checking in to avoid a penalty lockout.</p>
                 </div>
+            )}
+            {activePenalty && (() => {
+                const remainMs = penaltyRemainMs;
+                const remainMin = Math.floor(remainMs / 60000);
+                const remainSec = Math.floor((remainMs % 60000) / 1000);
+                return (
+                    <div className="flex items-center gap-2.5 rounded-lg border border-red-500/40 bg-red-500/5 px-3 py-2 animate-in fade-in slide-in-from-top-2 duration-500">
+                        <ShieldAlert className="h-4 w-4 text-red-500 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs"><span className="font-semibold text-red-700 dark:text-red-400">Check-In Locked</span> — {activePenalty.reason}</p>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-red-600 dark:text-red-400 shrink-0">{remainMin}:{String(remainSec).padStart(2, "0")}</span>
+                    </div>
+                );
+            })()}
 
-                {/* ── Alert Banners (DevTools / Penalty) ───────────────── */}
-                {devToolsOpen && (
-                    <Card className="border-2 border-orange-500/40 bg-orange-500/5 animate-in fade-in slide-in-from-top-2 duration-300">
-                        <CardContent className="p-3 flex items-center gap-3">
-                            <ShieldAlert className="h-5 w-5 text-orange-500 animate-pulse shrink-0" />
-                            <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-orange-700 dark:text-orange-400">Developer Tools Detected</p>
-                                <p className="text-[11px] text-muted-foreground">Close DevTools before checking in to avoid a penalty lockout.</p>
+            {/* ── Face Enrollment Reminder — compact inline banner ───── */}
+            {myProject?.verificationMethod === "face_only" && myEmployeeId && (
+                <EnrollmentReminder employeeId={myEmployeeId} compact />
+            )}
+
+            {/* ── Row 1: Clock Status + Weekly Stats (single visual row) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+                {/* Clock Status Card */}
+                <Card className={`lg:col-span-7 border ${
+                    !todayLog?.checkIn ? "border-primary/20" :
+                    todayLog?.checkOut ? "border-emerald-500/20" : "border-amber-500/20"
+                }`}>
+                    <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                            <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                !todayLog?.checkIn ? "bg-primary/10" :
+                                todayLog?.checkOut ? "bg-emerald-500/10" : "bg-amber-500/10"
+                            }`}>
+                                {!todayLog?.checkIn ? <LogIn className="h-4.5 w-4.5 text-primary" />
+                                 : todayLog?.checkOut ? <CheckCircle className="h-4.5 w-4.5 text-emerald-500" />
+                                 : <Clock className="h-4.5 w-4.5 text-amber-500 animate-pulse" />}
                             </div>
-                        </CardContent>
-                    </Card>
-                )}
-                {activePenalty && (() => {
-                    const remainMs = penaltyRemainMs;
-                    const remainMin = Math.floor(remainMs / 60000);
-                    const remainSec = Math.floor((remainMs % 60000) / 1000);
-                    return (
-                        <Card className="border-2 border-red-500/40 bg-red-500/5 animate-in fade-in slide-in-from-top-2 duration-500">
-                            <CardContent className="p-3 flex items-center gap-3">
-                                <ShieldAlert className="h-5 w-5 text-red-500 shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-semibold text-red-700 dark:text-red-400">Check-In Locked — Cooldown Active</p>
-                                    <p className="text-[11px] text-muted-foreground">{activePenalty.reason}</p>
-                                </div>
-                                <span className="text-xs font-mono font-bold text-red-600 dark:text-red-400 shrink-0">{remainMin}:{String(remainSec).padStart(2, "0")}</span>
-                            </CardContent>
-                        </Card>
-                    );
-                })()}
-
-                {/* ── Face Enrollment Reminder ─────────────────────────── */}
-                {myProject?.verificationMethod === "face_only" && myEmployeeId && (
-                    <EnrollmentReminder employeeId={myEmployeeId} />
-                )}
-
-                {/* ── Main Grid: Status + Stats ───────────────────────── */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                    {/* Status Card — compact horizontal */}
-                    <Card className={`border-2 lg:col-span-2 ${
-                        !todayLog?.checkIn ? "border-blue-500/30" :
-                        todayLog?.checkOut ? "border-emerald-500/30" : "border-amber-500/30"
-                    }`}>
-                        <CardContent className={`p-4 ${
-                            !todayLog?.checkIn ? "bg-gradient-to-r from-blue-500/5 to-indigo-500/5" :
-                            todayLog?.checkOut ? "bg-gradient-to-r from-emerald-500/5 to-teal-500/5" :
-                            "bg-gradient-to-r from-amber-500/5 to-orange-500/5"
-                        }`}>
-                            <div className="flex items-center gap-4">
-                                <div className={`h-12 w-12 sm:h-14 sm:w-14 rounded-full flex items-center justify-center ring-2 ring-offset-1 ring-offset-background shrink-0 ${
-                                    !todayLog?.checkIn ? "bg-blue-500/15 ring-blue-500/20" :
-                                    todayLog?.checkOut ? "bg-emerald-500/15 ring-emerald-500/20" : "bg-amber-500/15 ring-amber-500/20"
-                                }`}>
-                                    {!todayLog?.checkIn ? <LogIn className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" />
-                                     : todayLog?.checkOut ? <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500" />
-                                     : <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500 animate-pulse" />}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className={`text-base sm:text-lg font-semibold ${
-                                        !todayLog?.checkIn ? "text-blue-700 dark:text-blue-400" :
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <h2 className={`text-sm font-semibold ${
+                                        !todayLog?.checkIn ? "text-foreground" :
                                         todayLog?.checkOut ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"
                                     }`}>
                                         {!todayLog?.checkIn ? "Not Clocked In" : todayLog?.checkOut ? "Day Complete" : "Currently Working"}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {!todayLog?.checkIn ? "Tap to start your day" :
-                                         todayLog?.checkOut ? `${todayLog.hours}h logged today — great work!` :
-                                         `Clocked in at ${formatTimeAmPm(todayLog.checkIn)}`}
-                                    </p>
+                                    </h2>
+                                    {todayLog?.faceVerified && (
+                                        <Tooltip><TooltipTrigger asChild><ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /></TooltipTrigger><TooltipContent><p>Face verified</p></TooltipContent></Tooltip>
+                                    )}
                                 </div>
-                                <div className="shrink-0">
-                                    {!todayLog?.checkIn ? (
-                                        <Button onClick={startCheckIn} disabled={!!activePenalty} className="gap-1.5 h-10 px-5 rounded-lg shadow-sm">
-                                            <LogIn className="h-4 w-4" /> {activePenalty ? "Locked" : "Check In"}
-                                        </Button>
-                                    ) : !todayLog?.checkOut ? (
-                                        <Button onClick={() => { setCheckOutStep("idle"); setCheckOutOpen(true); }}
-                                            variant="outline" className="gap-1.5 h-10 px-5 rounded-lg">
-                                            <LogOut className="h-4 w-4" /> Check Out
-                                        </Button>
-                                    ) : null}
-                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    {!todayLog?.checkIn ? "Tap to start your day" :
+                                     todayLog?.checkOut ? `${todayLog.hours}h logged today` :
+                                     `In at ${formatTimeAmPm(todayLog.checkIn)}`}
+                                </p>
                             </div>
                             {todayLog?.checkIn && !todayLog?.checkOut && (
-                                <div className="mt-3 pt-3 border-t border-border/30">
+                                <div className="hidden sm:block text-right shrink-0 mr-2">
                                     <ElapsedTimeDisplay checkInTime={todayLog.checkIn} />
                                 </div>
                             )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Weekly Stats — stacked on the side */}
-                    <div className="grid grid-cols-3 lg:grid-cols-1 gap-2">
-                        <Card className="border">
-                            <CardContent className="p-3 text-center">
-                                <p className="text-xl sm:text-2xl font-bold text-emerald-600 dark:text-emerald-400 leading-none">
-                                    {empWeekStats.daysPresent}<span className="text-xs font-normal text-muted-foreground">/{empWeekStats.scheduledDays}</span>
-                                </p>
-                                <p className="text-[10px] text-muted-foreground mt-0.5">Days Present</p>
-                                <Progress value={empWeekStats.progressPct} className="h-1 mt-1.5" />
-                            </CardContent>
-                        </Card>
-                        <Card className="border">
-                            <CardContent className="p-3 text-center">
-                                <p className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400 leading-none">{empWeekStats.totalHours.toFixed(1)}</p>
-                                <p className="text-[10px] text-muted-foreground mt-0.5">Hours Worked</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="border">
-                            <CardContent className="p-3 text-center">
-                                <p className={`text-xl sm:text-2xl font-bold leading-none ${empWeekStats.lateDays > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                                    {empWeekStats.lateDays}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground mt-0.5">Late Days</p>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </div>
-
-                {/* ── Project + Break (inline row) ────────────────────── */}
-                {myProject && (
-                    <Card className="border border-blue-500/20 bg-blue-500/5">
-                        <CardContent className="p-2.5 sm:p-3 flex items-center gap-2.5">
-                            <div className="h-8 w-8 rounded-lg bg-blue-500/15 flex items-center justify-center shrink-0">
-                                <MapPin className="h-3.5 w-3.5 text-blue-500" />
+                            <div className="shrink-0">
+                                {!todayLog?.checkIn ? (
+                                    <Button onClick={startCheckIn} disabled={!!activePenalty} size="sm" className="gap-1.5 rounded-lg shadow-sm">
+                                        <LogIn className="h-3.5 w-3.5" /> {activePenalty ? "Locked" : "Check In"}
+                                    </Button>
+                                ) : !todayLog?.checkOut ? (
+                                    <Button onClick={() => { setCheckOutStep("idle"); setCheckOutOpen(true); }}
+                                        variant="outline" size="sm" className="gap-1.5 rounded-lg">
+                                        <LogOut className="h-3.5 w-3.5" /> Check Out
+                                    </Button>
+                                ) : null}
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium truncate">
-                                    <span className="text-blue-600 dark:text-blue-400">{myProject.name}</span>
-                                    <span className="text-muted-foreground ml-1">· {myProject.location.radius}m geofence</span>
-                                </p>
-                                <p className="text-[11px] text-muted-foreground truncate">
-                                    {projectAddress || `${myProject.location.lat.toFixed(4)}, ${myProject.location.lng.toFixed(4)}`}
-                                </p>
+                        </div>
+                        {/* Elapsed time on mobile */}
+                        {todayLog?.checkIn && !todayLog?.checkOut && (
+                            <div className="sm:hidden mt-2 pt-2 border-t border-border/40">
+                                <ElapsedTimeDisplay checkInTime={todayLog.checkIn} />
                             </div>
-                            {todayLog?.checkIn && !todayLog?.checkOut && locationConfig.enabled && (
-                                <LocationTracker employeeId={myEmployeeId} employeeName={currentUser.name} active={!!todayLog?.checkIn && !todayLog?.checkOut} />
-                            )}
-                        </CardContent>
-                    </Card>
-                )}
-                {todayLog?.checkIn && !todayLog?.checkOut && (
-                    <BreakTimer employeeId={myEmployeeId} employeeName={currentUser.name} />
-                )}
+                        )}
+                    </CardContent>
+                </Card>
 
-                {/* ── Bottom Grid: Logs | OT + Holidays ───────────────── */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                    {/* Recent Attendance */}
+                {/* Weekly Stats — compact horizontal strip */}
+                <div className="lg:col-span-5 grid grid-cols-3 gap-2">
                     <Card className="border">
-                        <CardContent className="p-3">
-                            <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Recent Attendance</h2>
-                            {empRecentLogs.length === 0 ? (
-                                <p className="py-4 text-center text-xs text-muted-foreground">No attendance records yet</p>
-                            ) : (
-                                <div className="space-y-1">
-                                    {empRecentLogs.slice(0, 5).map((log) => {
+                        <CardContent className="p-3 flex flex-col items-center justify-center h-full">
+                            <p className="text-2xl font-bold text-foreground leading-none tabular-nums">
+                                {empWeekStats.daysPresent}<span className="text-xs font-normal text-muted-foreground">/{empWeekStats.scheduledDays}</span>
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">Days Present</p>
+                            <Progress value={empWeekStats.progressPct} className="h-1 mt-1.5 w-full" />
+                        </CardContent>
+                    </Card>
+                    <Card className="border">
+                        <CardContent className="p-3 flex flex-col items-center justify-center h-full">
+                            <p className="text-2xl font-bold text-foreground leading-none tabular-nums">{empWeekStats.totalHours.toFixed(1)}</p>
+                            <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">Hours Worked</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="border">
+                        <CardContent className="p-3 flex flex-col items-center justify-center h-full">
+                            <p className={`text-2xl font-bold leading-none tabular-nums ${empWeekStats.lateDays > 0 ? "text-amber-600 dark:text-amber-400" : "text-foreground"}`}>
+                                {empWeekStats.lateDays}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">Late Days</p>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            {/* ── Row 2: Project/Geofence + Break Timer (compact strip) */}
+            {(myProject || (todayLog?.checkIn && !todayLog?.checkOut)) && (
+                <div className="flex flex-col sm:flex-row gap-2">
+                    {myProject && (
+                        <Card className="border border-muted flex-1">
+                            <CardContent className="p-2.5 flex items-center gap-2.5">
+                                <div className="h-7 w-7 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                                    <MapPin className="h-3.5 w-3.5 text-blue-500" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium truncate">
+                                        {myProject.name}
+                                        <span className="text-muted-foreground font-normal ml-1">· {myProject.location.radius}m radius</span>
+                                    </p>
+                                    <p className="text-[10px] text-muted-foreground truncate">
+                                        {projectAddress || `${myProject.location.lat.toFixed(4)}, ${myProject.location.lng.toFixed(4)}`}
+                                    </p>
+                                </div>
+                                {todayLog?.checkIn && !todayLog?.checkOut && locationConfig.enabled && (
+                                    <LocationTracker employeeId={myEmployeeId} employeeName={currentUser.name} active={!!todayLog?.checkIn && !todayLog?.checkOut} />
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
+                    {todayLog?.checkIn && !todayLog?.checkOut && (
+                        <BreakTimer employeeId={myEmployeeId} employeeName={currentUser.name} />
+                    )}
+                </div>
+            )}
+
+            {/* ── Row 3: Bottom Grid — Attendance Table | OT + Holidays */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+                {/* Recent Attendance — Table */}
+                <Card className="border lg:col-span-3">
+                    <CardContent className="p-0">
+                        <div className="flex items-center justify-between px-4 pt-3 pb-2">
+                            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recent Attendance</h3>
+                            <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="sm" className="gap-1 text-[11px] text-muted-foreground h-6 px-2" onClick={handleExportCSV}>
+                                    <Download className="h-3 w-3" /> Export
+                                </Button>
+                                {myEmployeeId && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="gap-1 text-[11px] text-orange-500 hover:text-orange-600 hover:bg-orange-500/10 h-6 px-2"
+                                        onClick={async () => {
+                                            stopWriteThrough();
+                                            await new Promise((r) => setTimeout(r, 600));
+                                            try {
+                                                const res = await fetch("/api/attendance/reset-today", {
+                                                    method: "POST",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({ employeeId: myEmployeeId }),
+                                                });
+                                                if (!res.ok) {
+                                                    const data = await res.json().catch(() => ({}));
+                                                    toast.error(data.message || "Failed to reset in database");
+                                                    return;
+                                                }
+                                            } catch {
+                                                toast.error("Network error — couldn't reset in database");
+                                                return;
+                                            } finally {
+                                                startWriteThrough();
+                                            }
+                                            resetTodayLog(myEmployeeId);
+                                            clearPenalty(myEmployeeId);
+                                            await forceRehydrate();
+                                            toast.success("Today's attendance reset — ready to simulate again.");
+                                        }}
+                                    >
+                                        <RotateCcw className="h-3 w-3" /> Reset
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                        {empRecentLogs.length === 0 ? (
+                            <div className="px-4 pb-4">
+                                <p className="py-6 text-center text-xs text-muted-foreground">No attendance records yet</p>
+                            </div>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableHead className="text-[10px] h-7 pl-4">Date</TableHead>
+                                        <TableHead className="text-[10px] h-7">In</TableHead>
+                                        <TableHead className="text-[10px] h-7">Out</TableHead>
+                                        <TableHead className="text-[10px] h-7 text-right">Hours</TableHead>
+                                        <TableHead className="text-[10px] h-7 text-right pr-4">Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {empRecentLogs.slice(0, 7).map((log) => {
                                         const isToday = log.date === todayDateStr;
                                         const dayLabel = isToday ? "Today" : new Date(log.date + "T12:00:00").toLocaleDateString("en-PH", { weekday: "short", month: "short", day: "numeric" });
                                         return (
-                                            <div key={log.id} className={`flex items-center gap-2.5 p-2 rounded-lg transition-colors ${isToday ? "bg-blue-500/5" : "hover:bg-muted/50"}`}>
-                                                <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${
-                                                    log.status === "present" ? "bg-emerald-500/15" : log.status === "absent" ? "bg-red-500/15" : "bg-amber-500/15"
-                                                }`}>
-                                                    {log.status === "present" ? <CheckCircle className={`h-3.5 w-3.5 ${isToday ? "text-blue-500" : "text-emerald-500"}`} />
-                                                     : log.status === "absent" ? <XCircle className="h-3.5 w-3.5 text-red-500" />
-                                                     : <Clock className="h-3.5 w-3.5 text-amber-500" />}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
+                                            <TableRow key={log.id} className={isToday ? "bg-primary/[0.03]" : ""}>
+                                                <TableCell className="py-2 pl-4">
                                                     <div className="flex items-center gap-1.5">
-                                                        <p className="text-xs font-medium">{dayLabel}</p>
-                                                        <Badge variant="secondary" className={`text-[9px] px-1.5 py-0 ${statusColors[log.status]}`}>{log.status.replace("_", " ")}</Badge>
-                                                        {log.faceVerified && <ShieldCheck className="h-3 w-3 text-emerald-500 shrink-0" />}
+                                                        <span className={`text-xs ${isToday ? "font-semibold" : "font-medium"}`}>{dayLabel}</span>
+                                                        {log.faceVerified && <ShieldCheck className="h-3 w-3 text-emerald-500" />}
                                                     </div>
-                                                    <p className="text-[11px] text-muted-foreground flex flex-wrap gap-x-1">
-                                                        <span>{log.checkIn || "—"} → {log.checkOut || "—"}</span>
-                                                        {log.hours ? <span>· {log.hours}h</span> : null}
-                                                        {(log.lateMinutes ?? 0) > 0 ? <span className="text-amber-600 dark:text-amber-400">+{log.lateMinutes}m late</span> : null}
+                                                </TableCell>
+                                                <TableCell className="py-2 text-xs text-muted-foreground tabular-nums">{formatTimeAmPm(log.checkIn) || "—"}</TableCell>
+                                                <TableCell className="py-2 text-xs text-muted-foreground tabular-nums">{formatTimeAmPm(log.checkOut) || "—"}</TableCell>
+                                                <TableCell className="py-2 text-xs font-medium text-right tabular-nums">{log.hours ? `${log.hours}h` : "—"}</TableCell>
+                                                <TableCell className="py-2 pr-4 text-right">
+                                                    <div className="flex items-center justify-end gap-1.5">
+                                                        {(log.lateMinutes ?? 0) > 0 && (
+                                                            <span className="text-[10px] text-amber-600 dark:text-amber-400">+{log.lateMinutes}m</span>
+                                                        )}
+                                                        <Badge variant="secondary" className={`text-[9px] px-1.5 py-0 ${statusColors[log.status]}`}>
+                                                            {log.status.replace("_", " ")}
+                                                        </Badge>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* Right column: OT + Holidays stacked */}
+                <div className="lg:col-span-2 space-y-3">
+                    {/* Overtime Requests */}
+                    <Card className="border">
+                        <CardContent className="p-0">
+                            <div className="flex items-center justify-between px-4 pt-3 pb-2">
+                                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">My Overtime</h3>
+                                <Button variant="outline" size="sm" className="gap-1 h-6 text-[11px] px-2" onClick={() => { setOtDate(todayDateStr); setOtOpen(true); }}>
+                                    <Plus className="h-3 w-3" /> Request
+                                </Button>
+                            </div>
+                            {myOTRequests.length === 0 ? (
+                                <div className="px-4 pb-3">
+                                    <p className="py-4 text-center text-xs text-muted-foreground">No overtime requests</p>
+                                </div>
+                            ) : (
+                                <div className="px-3 pb-3 space-y-1">
+                                    {myOTRequests.slice(0, 4).map((ot) => (
+                                        <div key={ot.id} className="flex items-center gap-2 px-1.5 py-1.5 rounded-md hover:bg-muted/50 transition-colors">
+                                            <Timer className={`h-3.5 w-3.5 shrink-0 ${
+                                                ot.status === "pending" ? "text-amber-500" : ot.status === "approved" ? "text-emerald-500" : "text-red-500"
+                                            }`} />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-xs font-medium">{new Date(ot.date + "T12:00:00").toLocaleDateString("en-PH", { month: "short", day: "numeric" })}</span>
+                                                    <span className="text-[10px] text-muted-foreground">{ot.hoursRequested}h</span>
+                                                    <Badge variant="secondary" className={`text-[9px] px-1 py-0 ${otStatusColor[ot.status]}`}>{ot.status}</Badge>
+                                                </div>
+                                                <p className="text-[10px] text-muted-foreground truncate">{ot.reason}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Upcoming Holidays */}
+                    {empUpcomingHolidays.length > 0 && (
+                        <Card className="border">
+                            <CardContent className="p-0">
+                                <div className="px-4 pt-3 pb-2">
+                                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Upcoming Holidays</h3>
+                                </div>
+                                <div className="px-3 pb-3 space-y-1">
+                                    {empUpcomingHolidays.slice(0, 4).map((h) => {
+                                        const isToday = h.date === todayDateStr;
+                                        return (
+                                            <div key={h.id} className={`flex items-center gap-2 px-1.5 py-1.5 rounded-md transition-colors ${isToday ? "bg-emerald-500/5" : "hover:bg-muted/50"}`}>
+                                                <CalendarDays className={`h-3.5 w-3.5 shrink-0 ${isToday ? "text-emerald-500" : "text-muted-foreground"}`} />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-medium truncate">
+                                                        {h.name}
+                                                        {isToday && <span className="text-emerald-500 ml-1 text-[10px]">Today!</span>}
+                                                    </p>
+                                                    <p className="text-[10px] text-muted-foreground">
+                                                        {new Date(h.date + "T00:00:00").toLocaleDateString("en-PH", { weekday: "short", month: "short", day: "numeric" })}
+                                                        {" · "}
+                                                        <span className={h.type === "regular" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}>
+                                                            {h.type === "regular" ? "Regular" : "Special"}
+                                                        </span>
                                                     </p>
                                                 </div>
-                                                {log.hours ? <span className="text-[11px] font-semibold text-muted-foreground shrink-0">{log.hours}h</span> : null}
                                             </div>
                                         );
                                     })}
                                 </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* OT + Holidays (stacked) */}
-                    <div className="space-y-3">
-                        {/* Overtime */}
-                        <Card className="border">
-                            <CardContent className="p-3">
-                                <div className="flex items-center justify-between mb-2">
-                                    <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">My Overtime</h2>
-                                    <Button variant="outline" size="sm" className="gap-1 h-6 text-[11px] px-2" onClick={() => { setOtDate(todayDateStr); setOtOpen(true); }}>
-                                        <Plus className="h-3 w-3" /> Request
-                                    </Button>
-                                </div>
-                                {myOTRequests.length === 0 ? (
-                                    <p className="py-3 text-center text-xs text-muted-foreground">No overtime requests</p>
-                                ) : (
-                                    <div className="space-y-1">
-                                        {myOTRequests.slice(0, 3).map((ot) => (
-                                            <div key={ot.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-muted/50 transition-colors">
-                                                <div className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 ${
-                                                    ot.status === "pending" ? "bg-amber-500/15" : ot.status === "approved" ? "bg-emerald-500/15" : "bg-red-500/15"
-                                                }`}>
-                                                    <Timer className={`h-3 w-3 ${
-                                                        ot.status === "pending" ? "text-amber-500" : ot.status === "approved" ? "text-emerald-500" : "text-red-500"
-                                                    }`} />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-1">
-                                                        <p className="text-xs font-medium">{ot.date}</p>
-                                                        <Badge variant="secondary" className={`text-[9px] px-1.5 py-0 ${otStatusColor[ot.status]}`}>{ot.status}</Badge>
-                                                    </div>
-                                                    <p className="text-[11px] text-muted-foreground truncate">{ot.hoursRequested}h — {ot.reason}</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
                             </CardContent>
                         </Card>
-
-                        {/* Upcoming Holidays */}
-                        {empUpcomingHolidays.length > 0 && (
-                            <Card className="border">
-                                <CardContent className="p-3">
-                                    <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Upcoming Holidays</h2>
-                                    <div className="space-y-1">
-                                        {empUpcomingHolidays.slice(0, 3).map((h) => {
-                                            const isToday = h.date === todayDateStr;
-                                            return (
-                                                <div key={h.id} className={`flex items-center gap-2 p-1.5 rounded-lg transition-colors ${isToday ? "bg-emerald-500/5" : "hover:bg-muted/50"}`}>
-                                                    <div className={`h-6 w-6 rounded-lg flex items-center justify-center shrink-0 ${isToday ? "bg-emerald-500/15" : "bg-blue-500/10"}`}>
-                                                        <CalendarDays className={`h-3 w-3 ${isToday ? "text-emerald-500" : "text-blue-500"}`} />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-xs font-medium truncate">
-                                                            {h.name}
-                                                            {isToday && <span className="text-emerald-600 dark:text-emerald-400 ml-1 text-[10px]">Today!</span>}
-                                                        </p>
-                                                        <p className="text-[11px] text-muted-foreground">
-                                                            {new Date(h.date + "T00:00:00").toLocaleDateString("en-PH", { weekday: "short", month: "short", day: "numeric" })}
-                                                            {" · "}
-                                                            <span className={h.type === "regular" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}>
-                                                                {h.type === "regular" ? "Regular" : "Special"}
-                                                            </span>
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
-                    </div>
+                    )}
                 </div>
             </div>
 
@@ -1018,5 +1027,6 @@ export default function EmployeeView() {
                 </DialogContent>
             </Dialog>
         </div>
+        </TooltipProvider>
     );
 }
