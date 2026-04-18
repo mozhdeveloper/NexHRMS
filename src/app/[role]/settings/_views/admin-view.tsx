@@ -51,8 +51,8 @@ const USE_DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
    Tab-based layout: General | Payroll & Time | Communication | System
    ═══════════════════════════════════════════════════════════════ */
 
-interface OrgSettings { companyName: string; industry: string; emailAbsenceAlerts: boolean; emailLeaveUpdates: boolean; emailPayrollAlerts: boolean; }
-const defaultOrgSettings: OrgSettings = { companyName: "Soren Data Solutions Inc.", industry: "technology", emailAbsenceAlerts: true, emailLeaveUpdates: true, emailPayrollAlerts: true };
+interface OrgSettings { emailAbsenceAlerts: boolean; emailLeaveUpdates: boolean; emailPayrollAlerts: boolean; }
+const defaultOrgSettings: OrgSettings = { emailAbsenceAlerts: true, emailLeaveUpdates: true, emailPayrollAlerts: true };
 function readOrgSettings() {
     if (typeof window === "undefined") return defaultOrgSettings;
     try { const s = localStorage.getItem("sdsi-org-settings"); if (s) return { ...defaultOrgSettings, ...JSON.parse(s) }; } catch { /* ignore */ }
@@ -208,38 +208,6 @@ export default function AdminSettingsView() {
     /* ── 1. GENERAL ───────────────────────────────── */
     const GeneralTab = () => (
         <div className="space-y-6">
-            {/* Company Information */}
-            <Card>
-                <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                        <Building2 className="h-5 w-5 text-primary" />
-                        <div>
-                            <CardTitle className="text-base">Company Information</CardTitle>
-                            <p className="text-xs text-muted-foreground mt-0.5">Basic details about your organization</p>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div>
-                        <label className="text-sm font-medium">Company Name</label>
-                        <Input value={settings.companyName} onChange={(e) => update({ companyName: e.target.value })} className="mt-1.5" />
-                    </div>
-                    <div>
-                        <label className="text-sm font-medium">Industry</label>
-                        <Select value={settings.industry} onValueChange={(v) => update({ industry: v })}>
-                            <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="technology">Technology</SelectItem>
-                                <SelectItem value="healthcare">Healthcare</SelectItem>
-                                <SelectItem value="finance">Finance</SelectItem>
-                                <SelectItem value="education">Education</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <Button onClick={() => toast.success("Organization settings saved")} size="sm">Save Changes</Button>
-                </CardContent>
-            </Card>
-
             {/* Appearance — Theme Toggle */}
             <Card>
                 <CardHeader className="pb-3">

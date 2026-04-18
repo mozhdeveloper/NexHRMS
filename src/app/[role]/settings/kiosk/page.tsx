@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { useKioskStore } from "@/store/kiosk.store";
 import type { KioskTheme, KioskClockFormat, KioskIdleAction, PenaltyApplyTo } from "@/store/kiosk.store";
@@ -87,8 +87,12 @@ function SliderRow({ label, hint, value, min, max, step, unit, onChange }: {
 
 export default function KioskSettingsPage() {
     const currentUser = useAuthStore((s) => s.currentUser);
-    const { settings, updateSettings, resetSettings } = useKioskStore();
+    const { settings, updateSettings, resetSettings, fetchConfig, hasFetchedConfig } = useKioskStore();
     const [resetOpen, setResetOpen] = useState(false);
+
+    useEffect(() => {
+        if (!hasFetchedConfig) { fetchConfig(); }
+    }, [hasFetchedConfig, fetchConfig]);
     const [showAdminPin, setShowAdminPin] = useState(false);
     const [changingPin, setChangingPin] = useState(false);
     const [newPin, setNewPin] = useState("");

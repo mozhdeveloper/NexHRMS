@@ -135,17 +135,58 @@ const DEFAULT_SETTINGS: KioskSettings = {
 
 interface KioskStore {
   settings: KioskSettings;
+  hasFetchedConfig: boolean;
   updateSettings: (patch: Partial<KioskSettings>) => void;
   resetSettings: () => void;
+  fetchConfig: () => Promise<void>;
 }
 
 export const useKioskStore = create<KioskStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       settings: { ...DEFAULT_SETTINGS },
-      updateSettings: (patch) =>
-        set((state) => ({ settings: { ...state.settings, ...patch } })),
-      resetSettings: () => set({ settings: { ...DEFAULT_SETTINGS } }),
+      hasFetchedConfig: false,
+
+      fetchConfig: async () => {
+        try {
+          const res = await fetch("/api/settings/kiosk");
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data && typeof data === "object") {
+            set((state) => ({
+              settings: { ...state.settings, ...data },
+              hasFetchedConfig: true,
+            }));
+          } else {
+            set({ hasFetchedConfig: true });
+          }
+        } catch {
+          // DB unavailable — keep local settings
+          set({ hasFetchedConfig: true });
+        }
+      },
+
+      updateSettings: (patch) => {
+        set((state) => ({ settings: { ...state.settings, ...patch } }));
+        // Fire-and-forget sync to DB (exclude adminPin — it has its own API)
+        const { adminPin: _drop, ...safeSettings } = get().settings;
+        void fetch("/api/settings/kiosk", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...safeSettings, ...patch }),
+        }).catch(() => {});
+      },
+
+      resetSettings: () => {
+        set({ settings: { ...DEFAULT_SETTINGS } });
+        // Sync defaults back to DB
+        const { adminPin: _drop, ...safeDefaults } = DEFAULT_SETTINGS;
+        void fetch("/api/settings/kiosk", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(safeDefaults),
+        }).catch(() => {});
+      },
     }),
     { name: "soren-kiosk-settings", storage: safePersistStorage }
   )

@@ -29,30 +29,10 @@ import { useRoleHref } from "@/lib/hooks/use-role-href";
    Org nav cards, pay schedule, rule sets, theme, notifications, security
    ═══════════════════════════════════════════════════════════════ */
 
-interface OrgSettings { companyName: string; industry: string; }
-const defaultOrgSettings: OrgSettings = { companyName: "Soren Data Solutions Inc.", industry: "technology" };
-function readOrgSettings() {
-    if (typeof window === "undefined") return defaultOrgSettings;
-    try { const s = localStorage.getItem("sdsi-org-settings"); if (s) return { ...defaultOrgSettings, ...JSON.parse(s) }; } catch { /* ignore */ }
-    return defaultOrgSettings;
-}
 
-function useOrgSettings() {
-    const [settings, setSettings] = useState(readOrgSettings);
-
-    const update = (patch: Partial<OrgSettings>) => {
-        setSettings((prev: OrgSettings) => {
-            const next = { ...prev, ...patch };
-            localStorage.setItem("sdsi-org-settings", JSON.stringify(next));
-            return next;
-        });
-    };
-    return { settings, update };
-}
 
 export default function HrSettingsView() {
     const { theme, setTheme, currentUser, changePassword } = useAuthStore();
-    const { settings, update } = useOrgSettings();
     const employees = useEmployeesStore((s) => s.employees);
     const { getEmployeePref, setEmployeePref } = useNotificationsStore();
 
@@ -182,24 +162,6 @@ export default function HrSettingsView() {
                             ))}
                         </div>
                     </div>
-                </CardContent>
-            </Card>
-
-            {/* Organization */}
-            <Card className="border border-border/50">
-                <CardHeader className="pb-3"><div className="flex items-center gap-2"><Building2 className="h-5 w-5 text-muted-foreground" /><CardTitle className="text-base font-semibold">Organization</CardTitle></div></CardHeader>
-                <CardContent className="space-y-4">
-                    <div><label className="text-sm font-medium">Company Name</label><Input value={settings.companyName} onChange={(e) => update({ companyName: e.target.value })} className="mt-1.5" /></div>
-                    <div>
-                        <label className="text-sm font-medium">Industry</label>
-                        <Select value={settings.industry} onValueChange={(v) => update({ industry: v })}>
-                            <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="technology">Technology</SelectItem><SelectItem value="healthcare">Healthcare</SelectItem><SelectItem value="finance">Finance</SelectItem><SelectItem value="education">Education</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <Button onClick={() => toast.success("Organization settings saved")} size="sm">Save Changes</Button>
                 </CardContent>
             </Card>
 

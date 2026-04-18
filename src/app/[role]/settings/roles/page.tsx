@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { useRolesStore, PERMISSION_GROUPS, ALL_PERMISSIONS } from "@/store/roles.store";
 import type { CustomRole, Permission } from "@/types";
@@ -24,9 +24,15 @@ export default function RolesPage() {
     const {
         roles, createRole, updateRole, deleteRole, duplicateRole,
         setPermissions, exportConfig, importConfig, resetToDefaults,
+        fetchRoles, hasFetchedFromDb,
     } = useRolesStore();
 
     const canManage = role === "admin";
+
+    // Fetch roles from DB on mount
+    useEffect(() => {
+        if (!hasFetchedFromDb) fetchRoles();
+    }, [hasFetchedFromDb, fetchRoles]);
 
     // Create dialog
     const [createOpen, setCreateOpen] = useState(false);

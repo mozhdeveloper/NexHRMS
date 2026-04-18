@@ -47,6 +47,7 @@ import { PH_EXEMPTION_REASONS } from "@/types";
 import { useDepartmentsStore } from "@/store/departments.store";
 import { useProjectsStore } from "@/store/projects.store";
 import { ThirteenthMonthModal } from "@/components/payroll/thirteenth-month-modal";
+import { ExportBackupDialog } from "@/components/export-backup-dialog";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -603,6 +604,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                         <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setThirteenthMonthOpen(true)}>
                             <Gift className="h-4 w-4" /> <span className="hidden sm:inline">13th Month</span>
                         </Button>
+                        <ExportBackupDialog module="payroll" />
                         <Dialog open={open} onOpenChange={setOpen}>
                             <DialogTrigger asChild>
                                 <div className="inline-block" title={isTodayLocked ? "Run is locked" : ""}>

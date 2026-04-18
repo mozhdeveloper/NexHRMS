@@ -56,6 +56,10 @@ interface NotificationsState {
     logs: NotificationLog[];
     rules: NotificationRule[];
     providerConfig: NotificationProviderConfig;
+    hasFetchedFromDb: boolean;
+
+    // DB sync
+    fetchFromDb: () => Promise<void>;
 
     // Log management
     addLog: (data: Omit<NotificationLog, "id" | "sentAt" | "status">) => void;
@@ -175,6 +179,35 @@ export const useNotificationsStore = create<NotificationsState>()(
             rules: [...DEFAULT_RULES],
             providerConfig: { ...DEFAULT_PROVIDER },
             employeePrefs: {} as Record<string, EmployeeNotifPrefs>,
+            hasFetchedFromDb: false,
+
+            fetchFromDb: async () => {
+                try {
+                    const res = await fetch("/api/settings/notifications");
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    if (data && typeof data === "object") {
+                        const patch: Partial<NotificationsState> = { hasFetchedFromDb: true };
+                        if (Array.isArray(data.rules) && data.rules.length > 0) {
+                            // Merge DB rules with local defaults for any triggers not in DB
+                            const dbTriggers = new Set(data.rules.map((r: { trigger: string }) => r.trigger));
+                            const merged = [
+                                ...data.rules,
+                                ...DEFAULT_RULES.filter((r) => !dbTriggers.has(r.trigger)),
+                            ];
+                            patch.rules = merged as NotificationRule[];
+                        }
+                        if (data.providerConfig) {
+                            patch.providerConfig = { ...DEFAULT_PROVIDER, ...data.providerConfig };
+                        }
+                        set(patch as Partial<NotificationsState> & object);
+                    } else {
+                        set({ hasFetchedFromDb: true });
+                    }
+                } catch {
+                    set({ hasFetchedFromDb: true });
+                }
+            },
 
             addLog: (data) => {
                 // Check per-employee category opt-out
@@ -263,23 +296,55 @@ export const useNotificationsStore = create<NotificationsState>()(
                 get().logs.filter((l) => l.employeeId === employeeId && !l.read),
 
             // ─── Rules ─────────────────────────────────
-            updateRule: (ruleId, patch) =>
+            updateRule: (ruleId, patch) => {
                 set((s) => ({
                     rules: s.rules.map((r) => (r.id === ruleId ? { ...r, ...patch } : r)),
-                })),
+                }));
+                // Sync updated rule to DB
+                const updated = get().rules.find((r) => r.id === ruleId);
+                if (updated) {
+                    void fetch("/api/settings/notifications", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ rule: updated }),
+                    }).catch(() => {});
+                }
+            },
 
-            toggleRule: (ruleId) =>
+            toggleRule: (ruleId) => {
                 set((s) => ({
                     rules: s.rules.map((r) => (r.id === ruleId ? { ...r, enabled: !r.enabled } : r)),
-                })),
+                }));
+                const updated = get().rules.find((r) => r.id === ruleId);
+                if (updated) {
+                    void fetch("/api/settings/notifications", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ rule: updated }),
+                    }).catch(() => {});
+                }
+            },
 
             getRuleByTrigger: (trigger) => get().rules.find((r) => r.trigger === trigger),
 
-            resetRules: () => set({ rules: [...DEFAULT_RULES] }),
+            resetRules: () => {
+                set({ rules: [...DEFAULT_RULES] });
+                void fetch("/api/settings/notifications", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ rules: DEFAULT_RULES }),
+                }).catch(() => {});
+            },
 
             // ─── Provider ──────────────────────────────
-            updateProviderConfig: (patch) =>
-                set((s) => ({ providerConfig: { ...s.providerConfig, ...patch } })),
+            updateProviderConfig: (patch) => {
+                set((s) => ({ providerConfig: { ...s.providerConfig, ...patch } }));
+                void fetch("/api/settings/notifications", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ providerConfig: { ...get().providerConfig, ...patch } }),
+                }).catch(() => {});
+            },
 
             // ─── Per-employee prefs ─────────────────────
             setEmployeePref: (employeeId, patch) =>
@@ -373,11 +438,24 @@ export const useNotificationsStore = create<NotificationsState>()(
                 }
             },
 
-            resetToSeed: () => set({ logs: [], rules: [...DEFAULT_RULES], providerConfig: { ...DEFAULT_PROVIDER }, employeePrefs: {} }),
+            resetToSeed: () => {
+                set({ logs: [], rules: [...DEFAULT_RULES], providerConfig: { ...DEFAULT_PROVIDER }, employeePrefs: {} });
+                // Sync defaults back to DB
+                void fetch("/api/settings/notifications", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ rules: DEFAULT_RULES }),
+                }).catch(() => {});
+                void fetch("/api/settings/notifications", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ providerConfig: DEFAULT_PROVIDER }),
+                }).catch(() => {});
+            },
         }),
         {
             name: "soren-notifications",
-            version: 4,
+            version: 5,
             storage: safePersistStorage,
             migrate: (persisted: unknown) => {
                 // Carry over rules and logs from previous versions; reset everything else.
