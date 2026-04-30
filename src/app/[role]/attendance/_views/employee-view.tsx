@@ -421,9 +421,27 @@ export default function EmployeeView() {
 
     const handleCheckOutFaceVerified = useCallback(() => {
         if (!myEmployeeId) return;
-        checkOut(myEmployeeId, myProject?.id);
-        setCheckOutStep("done");
-        toast.success("Checked out — see you tomorrow!");
+        (async () => {
+            try {
+                const res = await fetch("/api/attendance/self-checkin", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ deviceId: "WEB-FACE", timestampUTC: new Date().toISOString() }),
+                    credentials: "same-origin",
+                });
+                const data = await res.json();
+                if (res.ok && data.ok) {
+                    try { await forceRehydrate(); } catch { /* ignore */ }
+                    setCheckOutStep("done");
+                    toast.success("Checked out — see you tomorrow!");
+                } else {
+                    toast.error(data?.error || "Failed to record check-out");
+                }
+            } catch (err) {
+                console.error("check-out self-checkin error", err);
+                toast.error("Network error while checking out");
+            }
+        })();
     }, [myEmployeeId, myProject, checkOut]);
 
     const handleCheckOutQr = useCallback(async () => {
@@ -438,33 +456,59 @@ export default function EmployeeView() {
 
     const handleFaceVerified = useCallback(() => {
         if (!myEmployeeId) return;
-        checkIn(myEmployeeId, myProject?.id);
-        const todayStr = new Date().toISOString().split("T")[0];
-        const updatedLogs = useAttendanceStore.getState().logs.map((l) => {
-            if (l.employeeId === myEmployeeId && l.date === todayStr && l.checkIn) {
-                return { ...l, locationSnapshot: userLocation || undefined, faceVerified: true };
+        (async () => {
+            try {
+                const res = await fetch("/api/attendance/self-checkin", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ deviceId: "WEB-FACE", timestampUTC: new Date().toISOString() }),
+                    credentials: "same-origin",
+                });
+                const data = await res.json();
+                if (res.ok && data.ok) {
+                    // Refresh local attendance state from server
+                    try { await forceRehydrate(); } catch { /* ignore */ }
+                    if (selfieDataUrl && userLocation) {
+                        addPhoto({
+                            eventId: `checkin-${Date.now()}`, employeeId: myEmployeeId, photoDataUrl: selfieDataUrl,
+                            gpsLat: userLocation.lat, gpsLng: userLocation.lng, gpsAccuracyMeters: geoResult?.accuracy || 0,
+                            capturedAt: new Date().toISOString(), geofencePass: geoResult?.within ?? true, projectId: myProject?.id,
+                        });
+                    }
+                    setStep("done"); toast.success("Check-in successful!");
+                } else {
+                    toast.error(data?.error || "Check-in failed");
+                }
+            } catch (err) {
+                console.error("self-checkin error", err);
+                toast.error("Network error during check-in");
             }
-            return l;
-        });
-        useAttendanceStore.setState({ logs: updatedLogs });
-        if (selfieDataUrl && userLocation) {
-            addPhoto({
-                eventId: `checkin-${Date.now()}`, employeeId: myEmployeeId, photoDataUrl: selfieDataUrl,
-                gpsLat: userLocation.lat, gpsLng: userLocation.lng, gpsAccuracyMeters: geoResult?.accuracy || 0,
-                capturedAt: new Date().toISOString(), geofencePass: geoResult?.within ?? true, projectId: myProject?.id,
-            });
-        }
-        setStep("done"); toast.success("Check-in successful!");
+        })();
     }, [myEmployeeId, myProject, userLocation, selfieDataUrl, geoResult, checkIn, addPhoto]);
 
     // QR scan completion — kiosk already wrote to DB via /api/attendance/validate-qr
     // We just refresh data from DB to sync the UI
     const handleQrCheckedIn = useCallback(async () => {
         if (!myEmployeeId) return;
-        setStep("done");
-        toast.success("QR check-in confirmed!");
-        // Refresh attendance data from server to get the check-in the kiosk just recorded
-        try { await forceRehydrate(); } catch { /* ignore */ }
+        try {
+            const res = await fetch("/api/attendance/self-checkin", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ deviceId: "WEB-QR", timestampUTC: new Date().toISOString() }),
+                credentials: "same-origin",
+            });
+            const data = await res.json();
+            if (res.ok && data.ok) {
+                setStep("done");
+                toast.success("QR check-in confirmed!");
+                try { await forceRehydrate(); } catch { /* ignore */ }
+            } else {
+                toast.error(data?.error || "QR check-in failed");
+            }
+        } catch (err) {
+            console.error("qr self-checkin error", err);
+            toast.error("Network error during QR check-in");
+        }
     }, [myEmployeeId]);
 
     // ─── Computed ─────────────────────────────────────────────────

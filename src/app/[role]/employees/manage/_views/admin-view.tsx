@@ -356,7 +356,7 @@ export default function AdminEmployeesView() {
     const [pageSize, setPageSize] = useState(10);
     const [salaryRange, setSalaryRange] = useState([0, 200000]);
     const [visibleCols, setVisibleCols] = useState<Record<string, boolean>>({
-        id: true, name: true, status: true, role: true, department: false, project: true, teamLeader: true, productivity: true, joinDate: true, salary: true, workType: true,
+        id: true, biometricId: true, name: true, status: true, role: true, department: false, project: true, teamLeader: true, productivity: true, joinDate: true, salary: true, workType: true,
     });
 
     // Add Employee Dialog
@@ -368,6 +368,7 @@ export default function AdminEmployeesView() {
     const [newWorkType, setNewWorkType] = useState<WorkType>("WFO");
     const [newSalary, setNewSalary] = useState("");
     const [newPhone, setNewPhone] = useState("");
+    const [newBiometricId, setNewBiometricId] = useState("");
     const [newPayFreq, setNewPayFreq] = useState<string>("company");
     const [newSystemRole, setNewSystemRole] = useState<Role>("employee");
     const [newPassword, setNewPassword] = useState("");
@@ -415,6 +416,7 @@ export default function AdminEmployeesView() {
     const [editWorkType, setEditWorkType] = useState<WorkType>("WFO");
     const [editSalary, setEditSalary] = useState("");
     const [editPhone, setEditPhone] = useState("");
+    const [editBiometricId, setEditBiometricId] = useState("");
     const [editProductivity, setEditProductivity] = useState("80");
     const [editWorkDays, setEditWorkDays] = useState<string[]>(["Mon", "Tue", "Wed", "Thu", "Fri"]);
     const [editProjectId, setEditProjectId] = useState<string>("");
@@ -447,7 +449,7 @@ export default function AdminEmployeesView() {
     const salaryDialogEmp = salaryDialogEmpId ? employees.find((e) => e.id === salaryDialogEmpId) : null;
 
     const dirFiltered = useMemo(() => employees.filter((e) => {
-        const matchSearch = !dirSearch || e.name.toLowerCase().includes(dirSearch.toLowerCase()) || e.email.toLowerCase().includes(dirSearch.toLowerCase());
+        const matchSearch = !dirSearch || e.name.toLowerCase().includes(dirSearch.toLowerCase()) || e.email.toLowerCase().includes(dirSearch.toLowerCase()) || e.biometricId?.toLowerCase().includes(dirSearch.toLowerCase());
         const matchDept = dirDept === "all" || e.department === dirDept;
         const matchStatus = dirStatus === "all" || e.status === dirStatus;
         return matchSearch && matchDept && matchStatus;
@@ -480,7 +482,7 @@ export default function AdminEmployeesView() {
 
     const filtered = useMemo(() => {
         const result = employees.filter((e) => {
-            const matchSearch = !searchQuery || e.name.toLowerCase().includes(searchQuery.toLowerCase()) || e.email.toLowerCase().includes(searchQuery.toLowerCase()) || e.id.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchSearch = !searchQuery || e.name.toLowerCase().includes(searchQuery.toLowerCase()) || e.email.toLowerCase().includes(searchQuery.toLowerCase()) || e.id.toLowerCase().includes(searchQuery.toLowerCase()) || e.biometricId?.toLowerCase().includes(searchQuery.toLowerCase());
             const matchStatus = statusFilter === "all" || e.status === statusFilter;
             const matchWork = workTypeFilter === "all" || e.workType === workTypeFilter;
             const matchRole = roleFilter === "all" || e.role === roleFilter;
@@ -517,6 +519,7 @@ export default function AdminEmployeesView() {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim())) { toast.error("Please enter a valid email address"); return; }
         if (!newPassword || newPassword.length < 8) { toast.error("Password is required and must be at least 8 characters"); return; }
         if (employees.some((e) => e.email.toLowerCase() === newEmail.trim().toLowerCase())) { toast.error("An employee with this email already exists"); return; }
+        if (newBiometricId.trim() && employees.some((e) => e.biometricId === newBiometricId.trim())) { toast.error("This biometric ID is already assigned to another employee"); return; }
         const salaryVal = Number(newSalary);
         if (newSalary && (isNaN(salaryVal) || salaryVal < 0)) { toast.error("Salary must be a non-negative number"); return; }
         
@@ -538,7 +541,7 @@ export default function AdminEmployeesView() {
         const addResult = addEmployee({
             id, name: newName.trim(), email: newEmail.trim(), role: newSystemRole, jobTitle: newJobTitle, department: newDept, workType: newWorkType,
             salary: salaryVal || 0, joinDate: new Date().toISOString().split("T")[0], productivity: 0,
-            status: "active", location: "", phone: formattedPhone,
+            status: "active", location: "", phone: formattedPhone, biometricId: newBiometricId.trim() || undefined,
             workDays: newWorkDays.length ? newWorkDays : undefined,
             birthday: newBirthday || undefined,
             teamLeader: newTeamLeader !== "none" ? newTeamLeader : undefined,
@@ -559,7 +562,7 @@ export default function AdminEmployeesView() {
         
         // Reset form fields
         const resetForm = () => {
-            setNewName(""); setNewEmail(""); setNewJobTitle(""); setNewDept(""); setNewWorkType("WFO"); setNewSalary(""); setNewPhone(""); setNewPayFreq("company"); setNewSystemRole("employee"); setNewPassword(""); setNewMustChange(true); setNewWorkDays(["Mon", "Tue", "Wed", "Thu", "Fri"]); setNewProjectId("none"); setNewBirthday(""); setNewTeamLeader("none"); setNewShiftId("none"); setNewEmergencyContact(""); setNewAddress("");
+            setNewName(""); setNewEmail(""); setNewJobTitle(""); setNewDept(""); setNewWorkType("WFO"); setNewSalary(""); setNewPhone(""); setNewBiometricId(""); setNewPayFreq("company"); setNewSystemRole("employee"); setNewPassword(""); setNewMustChange(true); setNewWorkDays(["Mon", "Tue", "Wed", "Thu", "Fri"]); setNewProjectId("none"); setNewBirthday(""); setNewTeamLeader("none"); setNewShiftId("none"); setNewEmergencyContact(""); setNewAddress("");
             // Reset deduction/tax fields
             setNewDeductionTemplateIds([]); setNewSssMode("auto"); setNewSssValue(""); setNewPhilhealthMode("auto"); setNewPhilhealthValue(""); setNewPagibigMode("auto"); setNewPagibigValue(""); setNewBirMode("auto"); setNewBirValue("");
         };
@@ -619,6 +622,7 @@ export default function AdminEmployeesView() {
                     department: newDept,
                     mustChangePassword: newMustChange,
                     phone: formattedPhone,
+                    biometricId: newBiometricId.trim() || undefined,
                     birthday: newBirthday || undefined,
                     address: newAddress || undefined,
                     emergencyContact: newEmergencyContact || undefined,
@@ -644,7 +648,7 @@ export default function AdminEmployeesView() {
 
     const handleOpenEdit = (emp: Employee) => {
         setEditingEmp(emp); setEditName(emp.name); setEditEmail(emp.email); setEditRole(emp.role); setEditJobTitle(emp.jobTitle || ""); setEditDept(emp.department);
-        setEditWorkType(emp.workType); setEditSalary(String(emp.salary)); setEditPhone(emp.phone || "");
+        setEditWorkType(emp.workType); setEditSalary(String(emp.salary)); setEditPhone(emp.phone || ""); setEditBiometricId(emp.biometricId || "");
         setEditProductivity(String(emp.productivity)); setEditPayFreq(emp.payFrequency || "company");
         setEditWorkDays(emp.workDays || ["Mon", "Tue", "Wed", "Thu", "Fri"]);
         setEditBirthday(emp.birthday || ""); setEditTeamLeader(emp.teamLeader || "none"); setEditShiftId(emp.shiftId || "none");
@@ -682,6 +686,7 @@ export default function AdminEmployeesView() {
         if (!editDept) { toast.error("Department is required"); return; }
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editEmail.trim())) { toast.error("Please enter a valid email address"); return; }
         if (employees.some((e) => e.id !== editingEmp.id && e.email.toLowerCase() === editEmail.trim().toLowerCase())) { toast.error("An employee with this email already exists"); return; }
+        if (editBiometricId.trim() && employees.some((e) => e.id !== editingEmp.id && e.biometricId === editBiometricId.trim())) { toast.error("This biometric ID is already assigned to another employee"); return; }
         const editSalaryNum = Number(editSalary);
         if (editSalary && (isNaN(editSalaryNum) || editSalaryNum < 0)) { toast.error("Salary must be a non-negative number"); return; }
         
@@ -699,7 +704,7 @@ export default function AdminEmployeesView() {
         try {
         updateEmployee(editingEmp.id, {
             name: editName.trim(), email: editEmail.trim(), role: editRole, jobTitle: editJobTitle, department: editDept, workType: editWorkType,
-            salary: editSalaryNum || 0, phone: formattedPhone,
+            salary: editSalaryNum || 0, phone: formattedPhone, biometricId: editBiometricId.trim() || undefined,
             productivity: Number(editProductivity) || 80, payFrequency: editPayFreq !== "company" ? editPayFreq as PayFrequency : undefined,
             birthday: editBirthday || undefined,
             teamLeader: editTeamLeader !== "none" ? editTeamLeader : undefined,
@@ -817,6 +822,10 @@ export default function AdminEmployeesView() {
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div><label className="text-xs font-medium text-muted-foreground">Phone</label><Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+63 912 345 6789" className="mt-1 h-8 text-sm" /></div>
                                                 <div><label className="text-xs font-medium text-muted-foreground">Emergency Contact</label><Input value={newEmergencyContact} onChange={(e) => setNewEmergencyContact(e.target.value)} placeholder="Name / Phone" className="mt-1 h-8 text-sm" /></div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div><label className="text-xs font-medium text-muted-foreground">Biometric Scanner ID</label><Input value={newBiometricId} onChange={(e) => setNewBiometricId(e.target.value)} placeholder="e.g. 1001" className="mt-1 h-8 text-sm" /></div>
+                                                <div className="flex items-end"><p className="text-[11px] text-muted-foreground pb-1">Use the user ID created directly on the biometric scanner.</p></div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div><label className="text-xs font-medium text-muted-foreground">Birthday</label><Input type="date" value={newBirthday} onChange={(e) => setNewBirthday(e.target.value)} className="mt-1 h-8 text-sm" /></div>
@@ -1115,6 +1124,10 @@ export default function AdminEmployeesView() {
                                     <div><label className="text-sm font-medium">Emergency Contact</label><Input value={editEmergencyContact} onChange={(e) => setEditEmergencyContact(e.target.value)} placeholder="Name / Phone" className="mt-1" /></div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
+                                    <div><label className="text-sm font-medium">Biometric Scanner ID</label><Input value={editBiometricId} onChange={(e) => setEditBiometricId(e.target.value)} placeholder="e.g. 1001" className="mt-1" /></div>
+                                    <div className="flex items-end"><p className="text-xs text-muted-foreground pb-2">Must match the user ID stored in the scanner.</p></div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
                                     <div><label className="text-sm font-medium">Productivity (%)</label><Input type="number" min="0" max="100" value={editProductivity} onChange={(e) => setEditProductivity(e.target.value)} className="mt-1" /></div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
@@ -1309,7 +1322,7 @@ export default function AdminEmployeesView() {
                             <div className="flex flex-wrap items-center gap-3">
                                 <div className="relative flex-1 min-w-[200px]">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input placeholder="Search by name, email, or ID..." className="pl-9" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} />
+                                    <Input placeholder="Search by name, email, user ID, or biometric ID..." className="pl-9" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} />
                                 </div>
                                 <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as "all" | "active" | "inactive"); setPage(1); }}>
                                     <SelectTrigger className="w-full sm:w-[130px]"><SelectValue placeholder="Status" /></SelectTrigger>
@@ -1382,7 +1395,7 @@ export default function AdminEmployeesView() {
                                                 onClick={() => {
                                                     setDepartmentFilter("all");
                                                     setSalaryRange([0, 200000]);
-                                                    setVisibleCols({ id: true, name: true, status: true, role: true, department: false, project: true, teamLeader: true, productivity: true, joinDate: true, salary: true, workType: true });
+                                                    setVisibleCols({ id: true, biometricId: true, name: true, status: true, role: true, department: false, project: true, teamLeader: true, productivity: true, joinDate: true, salary: true, workType: true });
                                                 }}
                                             >
                                                 Reset all
@@ -1510,6 +1523,8 @@ export default function AdminEmployeesView() {
                                             </Badge>
                                         </div>
                                         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                                            <div><span className="text-muted-foreground">User ID:</span> <span className="font-medium">{emp.id}</span></div>
+                                            <div><span className="text-muted-foreground">Bio ID:</span> <span className="font-medium">{emp.biometricId || "—"}</span></div>
                                             <div><span className="text-muted-foreground">Role:</span> <span className="font-medium">{emp.role}</span></div>
                                             <div><span className="text-muted-foreground">Dept:</span> <span className="font-medium">{emp.department}</span></div>
                                             <div><span className="text-muted-foreground">Type:</span> <Badge variant="outline" className="text-[10px] ml-1">{emp.workType}</Badge></div>
@@ -1543,6 +1558,7 @@ export default function AdminEmployeesView() {
                                     <TableHeader>
                                         <TableRow>
                                             {visibleCols.id && <TableHead className="cursor-pointer text-xs" onClick={() => handleSort("id")}>ID{si("id")}</TableHead>}
+                                            {visibleCols.biometricId && <TableHead className="cursor-pointer text-xs" onClick={() => handleSort("biometricId")}>Biometric ID{si("biometricId")}</TableHead>}
                                             {visibleCols.name && <TableHead className="cursor-pointer text-xs" onClick={() => handleSort("name")}>Name{si("name")}</TableHead>}
                                             {visibleCols.status && <TableHead className="text-xs">Status</TableHead>}
                                             {visibleCols.role && <TableHead className="cursor-pointer text-xs" onClick={() => handleSort("role")}>Role{si("role")}</TableHead>}
@@ -1562,6 +1578,7 @@ export default function AdminEmployeesView() {
                                             return (
                                                 <TableRow key={emp.id} className="group">
                                                     {visibleCols.id && <TableCell className="text-xs text-muted-foreground">{emp.id}</TableCell>}
+                                                    {visibleCols.biometricId && <TableCell className="text-xs font-mono text-muted-foreground">{emp.biometricId || "—"}</TableCell>}
                                                     {visibleCols.name && <TableCell><div className="flex items-center gap-2"><Avatar className="h-8 w-8"><AvatarFallback className="text-[10px] bg-muted">{getInitials(emp.name)}</AvatarFallback></Avatar><div><p className="text-sm font-medium">{emp.name}</p><p className="text-xs text-muted-foreground">{emp.email}</p></div></div></TableCell>}
                                                     {visibleCols.status && <TableCell><Badge variant="secondary" className={emp.status === "active" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : emp.status === "resigned" ? "bg-orange-500/15 text-orange-700 dark:text-orange-400" : "bg-red-500/15 text-red-700 dark:text-red-400"}>{emp.status}</Badge></TableCell>}
                                                     {visibleCols.role && <TableCell className="text-xs">{emp.role}</TableCell>}

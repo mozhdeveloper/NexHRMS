@@ -93,6 +93,7 @@ export async function createUserAccount(input: {
   department?: string;
   mustChangePassword?: boolean;
   phone?: string;
+  biometricId?: string;
   birthday?: string;
   address?: string;
   emergencyContact?: string;
@@ -159,6 +160,7 @@ export async function createUserAccount(input: {
       await supabase.from("employees").update({
         profile_id: data.user.id,
         phone: input.phone ?? null,
+        biometric_id: input.biometricId?.trim() || null,
         birthday: input.birthday ?? null,
         address: input.address ?? null,
         emergency_contact: input.emergencyContact ?? null,
@@ -181,6 +183,7 @@ export async function createUserAccount(input: {
         productivity: 0,
         location: "",
         phone: input.phone ?? null,
+        biometric_id: input.biometricId?.trim() || null,
         birthday: input.birthday ?? null,
         address: input.address ?? null,
         emergency_contact: input.emergencyContact ?? null,

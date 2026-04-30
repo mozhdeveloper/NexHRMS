@@ -98,6 +98,9 @@ export const useEmployeesStore = create<EmployeesState>()(
                 if (employees.some((e) => e.email.toLowerCase() === emp.email.toLowerCase())) {
                     return { ok: false, error: `An employee with email "${emp.email}" already exists.` };
                 }
+                if (emp.biometricId && employees.some((e) => e.biometricId === emp.biometricId)) {
+                    return { ok: false, error: `Biometric ID "${emp.biometricId}" is already assigned.` };
+                }
                 set({ employees: [...employees, emp] });
                 return { ok: true };
             },
@@ -139,7 +142,8 @@ export const useEmployeesStore = create<EmployeesState>()(
                         !searchQuery ||
                         e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         e.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        e.id.toLowerCase().includes(searchQuery.toLowerCase());
+                        e.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        e.biometricId?.toLowerCase().includes(searchQuery.toLowerCase());
                     const matchesStatus = statusFilter === "all" || e.status === statusFilter;
                     const matchesWorkType = workTypeFilter === "all" || e.workType === workTypeFilter;
                     const matchesRole = roleFilter === "all" || e.role === roleFilter;
