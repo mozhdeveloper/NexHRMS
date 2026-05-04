@@ -24,7 +24,63 @@ function extractJsonFromBuffer(buf) {
   return null;
 }
 
+function parseBody(buf, contentType) {
+  const text = buf.toString('utf8');
+
+  if (contentType.includes('application/json')) {
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      return extractJsonFromBuffer(buf);
+    }
+  }
+
+  if (contentType.includes('application/x-www-form-urlencoded')) {
+    const form = new URLSearchParams(text);
+    return Object.fromEntries(form.entries());
+  }
+
+  return extractJsonFromBuffer(buf);
+}
+
+function decodeBlockJson(parsed) {
+  if (!parsed || typeof parsed.block !== 'string') return null;
+
+  try {
+    const blockBuf = Buffer.from(parsed.block, 'base64');
+    return extractJsonFromBuffer(blockBuf);
+  } catch (e) {
+    return null;
+  }
+}
+
+function firstValue(...values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number') return String(value);
+  }
+  return null;
+}
+
+function normalizeRequestCode(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
 const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+
+  if (req.method === 'GET' && url.pathname === '/health') {
+    res.setHeader('Content-Type', 'application/json');
+    res.statusCode = 200;
+    res.end(JSON.stringify({
+      ok: true,
+      bridge: 'fk-bridge',
+      listeningPort: LISTEN_PORT,
+      target: TARGET,
+    }));
+    return;
+  }
+
   if (req.method !== 'POST') {
     res.statusCode = 200;
     res.end('OK');
@@ -35,18 +91,8 @@ const server = http.createServer(async (req, res) => {
   req.on('data', (c) => chunks.push(c));
   req.on('end', async () => {
     const buf = Buffer.concat(chunks);
-    // Try to parse JSON body or extract JSON block from binary
-    let parsed = null;
-    try {
-      const ctype = req.headers['content-type'] || '';
-      if (ctype.includes('application/json')) {
-        parsed = JSON.parse(buf.toString('utf8'));
-      } else {
-        parsed = extractJsonFromBuffer(buf);
-      }
-    } catch (e) {
-      parsed = extractJsonFromBuffer(buf);
-    }
+    const ctype = String(req.headers['content-type'] || '').toLowerCase();
+    let parsed = parseBody(buf, ctype);
 
     if (!parsed) {
       console.log('[fk-bridge] accepted non-log/partial request', {
@@ -61,8 +107,24 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const requestCode = parsed.request_code || req.headers['request_code'] || '';
-    const isRealtimeLog = requestCode === 'realtime_glog' || parsed.user_id || parsed.userId;
+    const blockJson = decodeBlockJson(parsed);
+    if (blockJson) {
+      parsed = { ...parsed, ...blockJson };
+    }
+
+    const requestCode = normalizeRequestCode(parsed.request_code || req.headers['request_code']);
+    const biometricId = firstValue(
+      parsed.biometricId,
+      parsed.user_id,
+      parsed.userId,
+      parsed.enroll_id,
+      parsed.enrollId,
+      parsed.pin,
+      parsed.user,
+      parsed.uid,
+      parsed.id
+    );
+    const isRealtimeLog = requestCode === 'realtime_glog' || Boolean(biometricId);
 
     if (!isRealtimeLog) {
       console.log('[fk-bridge] accepted non-attendance request', { requestCode });
@@ -74,11 +136,19 @@ const server = http.createServer(async (req, res) => {
 
     // Normalize keys to HRMS-friendly names
     const payload = {
-      biometricId: parsed.user_id || parsed.userId || parsed.enroll_id || parsed.pin || parsed.user || null,
-      deviceId: parsed.dev_id || parsed.device_id || parsed.deviceId || parsed.dev || null,
-      timestampUTC: parsed.io_time || parsed.timestamp || parsed.scanTime || parsed.timestampUTC || null,
-      io_mode: parsed.io_mode || parsed.mode || null,
+      biometricId,
+      deviceId: firstValue(parsed.dev_id, parsed.device_id, parsed.deviceId, parsed.dev, req.headers['dev_id']),
+      timestampUTC: firstValue(parsed.io_time, parsed.timestamp, parsed.scanTime, parsed.timestampUTC, parsed.time),
+      io_mode: firstValue(parsed.io_mode, parsed.mode),
     };
+
+    if (!payload.biometricId) {
+      console.warn('[fk-bridge] realtime log missing biometric ID', {
+        requestCode,
+        devId: payload.deviceId,
+        keys: Object.keys(parsed),
+      });
+    }
 
     try {
       const headers = { 'Content-Type': 'application/json' };
