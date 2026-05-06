@@ -32,6 +32,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
     published: { label: "Published", color: "bg-violet-500/15 text-violet-700 dark:text-violet-400", icon: FileSignature, step: 2 },
     signed:    { label: "Signed",    color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400", icon: CheckCircle, step: 3 },
     paid:      { label: "Paid",      color: "bg-blue-500/15 text-blue-700 dark:text-blue-400",       icon: ShieldCheck,  step: 4 },
+    payment_hold: { label: "Held",   color: "bg-red-500/15 text-red-700 dark:text-red-400",          icon: AlertCircle,  step: 4 },
 };
 
 export default function EmployeePayrollView() {

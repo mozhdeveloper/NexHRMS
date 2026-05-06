@@ -184,7 +184,7 @@ describe("computeAllPHDeductions", () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe("Payslip Status Flow", () => {
-  const validStatuses = ["draft", "published", "signed"];
+  const validStatuses = ["draft", "published", "signed", "paid", "payment_hold"];
 
   it("should have correct status progression order", () => {
     // draft → published → signed
@@ -192,6 +192,8 @@ describe("Payslip Status Flow", () => {
       "draft",
       "published",
       "signed",
+      "paid",
+      "payment_hold",
     ]);
   });
 

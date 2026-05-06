@@ -68,7 +68,7 @@ interface AdminPayrollViewProps {
 export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewProps) {
     const params = useParams();
     const role = params.role as string;
-    const { payslips, runs, adjustments, finalPayComputations, issuePayslip, confirmPayslip, publishPayslip, recordPayment, confirmPaidByFinance, lockRun, unlockRun, publishRun, markRunPaid, approveAdjustment, applyAdjustment, createAdjustment, computeFinalPay, generate13thMonth, exportBankFile, createDraftRun, validateRun, resetToSeed, paySchedule, updatePaySchedule, signatureConfig, updateSignatureConfig, deductionOverrides, setDeductionOverride, removeDeductionOverride, clearEmployeeOverrides, getDeductionOverride, getEmployeeOverrides, globalDefaults, updateGlobalDefault, getGlobalDefault, updatePayslipFromServer, isPayslipRunLocked } = usePayrollStore();
+    const { payslips, runs, adjustments, finalPayComputations, issuePayslip, confirmPayslip, publishPayslip, recordPayment, confirmPaidByFinance, holdPayment, releasePaymentHold, lockRun, unlockRun, publishRun, markRunPaid, approveAdjustment, applyAdjustment, createAdjustment, computeFinalPay, generate13thMonth, exportBankFile, createDraftRun, validateRun, resetToSeed, paySchedule, updatePaySchedule, signatureConfig, updateSignatureConfig, deductionOverrides, setDeductionOverride, removeDeductionOverride, clearEmployeeOverrides, getDeductionOverride, getEmployeeOverrides, globalDefaults, updateGlobalDefault, getGlobalDefault, updatePayslipFromServer, isPayslipRunLocked } = usePayrollStore();
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
     const { getActiveByEmployee, recordDeduction } = useLoansStore();
@@ -436,7 +436,10 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                 published: runPayslips.filter((p) => p.status === "published" || p.status === "signed").length,
                 draftCount: runPayslips.filter((p) => p.status === "draft").length,
                 signedCount: runPayslips.filter((p) => p.status === "signed" || p.status === "paid").length,
-                allSigned: runPayslips.length > 0 && runPayslips.every((p) => p.status === "signed" || p.status === "paid"),
+                heldCount: runPayslips.filter((p) => p.status === "payment_hold").length,
+                payableCount: runPayslips.filter((p) => p.status === "signed").length,
+                resolvedCount: runPayslips.filter((p) => p.status === "paid" || p.status === "payment_hold").length,
+                allPaymentResolved: runPayslips.length > 0 && runPayslips.every((p) => p.status === "paid" || p.status === "payment_hold"),
             };
         }).sort((a, b) => b.date.localeCompare(a.date));
     }, [runs, payslips]);
@@ -465,12 +468,13 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
 
     // ─── Status summary counts ───────────────────────────────────
     const statusCounts = useMemo(() => {
-        const counts = { draft: 0, published: 0, signed: 0, paid: 0, publishedUnsigned: 0 };
+        const counts = { draft: 0, published: 0, signed: 0, paid: 0, held: 0, publishedUnsigned: 0 };
         payslips.forEach((p) => {
             if (p.status === "draft") counts.draft++;
             if (p.status === "published") counts.published++;
             if (p.status === "signed") counts.signed++;
             if (p.status === "paid") counts.paid++;
+            if (p.status === "payment_hold") counts.held++;
             if (p.status === "published" && !p.signedAt) counts.publishedUnsigned++;
         });
         return counts;
@@ -826,6 +830,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                             { key: "draft", label: "Draft", color: "text-amber-600 dark:text-amber-400" },
                             { key: "published", label: "Published", color: "text-violet-600 dark:text-violet-400" },
                             { key: "signed", label: "Signed", color: "text-emerald-600 dark:text-emerald-400" },
+                            { key: "held", label: "Held", color: "text-red-600 dark:text-red-400" },
                         ] as const).map(({ key, label, color }) => (
                             <Card key={key} className="border border-border/50">
                                 <CardContent className="p-3 text-center">
@@ -905,6 +910,9 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                 <SelectItem value="all">All Statuses</SelectItem>
                                 <SelectItem value="draft">Draft</SelectItem>
                                 <SelectItem value="published">Published</SelectItem>
+                                <SelectItem value="signed">Signed</SelectItem>
+                                <SelectItem value="paid">Paid</SelectItem>
+                                <SelectItem value="payment_hold">Held</SelectItem>
                             </SelectContent>
                         </Select>
                         <p className="text-xs text-muted-foreground self-center whitespace-nowrap">{filteredPayslips.length} result{filteredPayslips.length !== 1 ? "s" : ""}</p>
@@ -932,6 +940,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                     <Badge variant="secondary" className={`text-[10px] ${ps.status === "signed" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" :
                                                         ps.status === "published" ? "bg-violet-500/15 text-violet-700 dark:text-violet-400" :
                                                             ps.status === "draft" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" :
+                                                                ps.status === "payment_hold" ? "bg-red-500/15 text-red-700 dark:text-red-400" :
                                                                 "bg-slate-500/15 text-slate-700 dark:text-slate-400"
                                                         }`}>{ps.status}</Badge>
                                                 </TableCell>
@@ -1006,6 +1015,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                 { key: "published", label: "Published", color: "text-violet-600 dark:text-violet-400" },
                                 { key: "signed", label: "Signed", color: "text-emerald-600 dark:text-emerald-400" },
                                 { key: "paid", label: "Paid", color: "text-blue-600 dark:text-blue-400" },
+                                { key: "held", label: "Held", color: "text-red-600 dark:text-red-400" },
                             ] as const).map(({ key, label, color }) => (
                                 <Card key={key} className="border border-border/50">
                                     <CardContent className="p-3 text-center">
@@ -1067,7 +1077,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                     <TableCell className="text-xs text-muted-foreground">{ps.periodStart} – {ps.periodEnd}</TableCell>
                                                     <TableCell className="text-sm font-medium">₱{ps.netPay.toLocaleString()}</TableCell>
                                                     <TableCell>
-                                                        <Badge variant="secondary" className={`text-[10px] ${ps.status === "published" ? "bg-violet-500/15 text-violet-700 dark:text-violet-400" : ps.status === "draft" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" : ps.status === "signed" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-blue-500/15 text-blue-700 dark:text-blue-400"}`}>{ps.status}</Badge>
+                                                        <Badge variant="secondary" className={`text-[10px] ${ps.status === "published" ? "bg-violet-500/15 text-violet-700 dark:text-violet-400" : ps.status === "draft" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" : ps.status === "signed" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : ps.status === "payment_hold" ? "bg-red-500/15 text-red-700 dark:text-red-400" : "bg-blue-500/15 text-blue-700 dark:text-blue-400"}`}>{ps.status}</Badge>
                                                     </TableCell>
                                                     <TableCell>
                                                         {canIssue && ps.status === "draft" && isPayslipRunLocked(ps.id) ? (
@@ -1079,7 +1089,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                             }}><Send className="h-3 w-3" /> Publish</Button>
                                                         ) : ps.status === "published" ? (
                                                             <span className="text-[10px] text-violet-500 font-medium">✓ Published</span>
-                                                        ) : ps.status === "signed" || ps.status === "paid" ? (
+                                                        ) : ps.status === "signed" || ps.status === "paid" || ps.status === "payment_hold" ? (
                                                             <span className="text-[10px] text-emerald-500 font-medium">✓ {ps.status}</span>
                                                         ) : (
                                                             <span className="text-[10px] text-muted-foreground">Run not locked</span>
@@ -1166,7 +1176,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                     {wizardStep === "pay" && canIssue && (
                     <div className="space-y-3">
                         <h3 className="text-sm font-semibold flex items-center gap-2"><CreditCard className="h-4 w-4 text-muted-foreground" /> Record Payment</h3>
-                        <p className="text-xs text-muted-foreground">Mark signed payslips as paid after disbursement.</p>
+                        <p className="text-xs text-muted-foreground">Pay signed employees. Hold only unsigned employees so they do not block the rest of the run.</p>
                         <PayslipTable
                             payslips={payslips}
                             runs={runs}
@@ -1177,6 +1187,16 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                 const ps = payslips.find(p => p.id === id);
                                 if (ps) dispatchNotification("payment_confirmed", { name: getEmpName(ps.employeeId), period: `${ps.periodStart} — ${ps.periodEnd}`, method }, ps.employeeId);
                                 toast.success("Payment confirmed");
+                            }}
+                            onHoldPayment={(id) => {
+                                holdPayment(id, currentUser.name, "Unsigned payslip - individual payment held");
+                                const ps = payslips.find(p => p.id === id);
+                                if (ps) dispatchNotification("payslip_unsigned_reminder", { name: getEmpName(ps.employeeId), period: `${ps.periodStart} - ${ps.periodEnd}` }, ps.employeeId);
+                                toast.success("Employee payment held; the rest can continue");
+                            }}
+                            onReleaseHold={(id) => {
+                                releasePaymentHold(id);
+                                toast.success("Payment hold released");
                             }}
                         />
                     </div>
@@ -1210,7 +1230,11 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                             return (
                                                 <TableRow key={run.date}>
                                                     <TableCell className="text-sm">{periodDisplay}</TableCell>
-                                                    <TableCell className="text-sm">{run.count}{run.draftCount > 0 && <span className="text-amber-500 text-[10px] ml-1">({run.draftCount} draft)</span>}</TableCell>
+                                                    <TableCell className="text-sm">
+                                                        {run.count}
+                                                        {run.draftCount > 0 && <span className="text-amber-500 text-[10px] ml-1">({run.draftCount} draft)</span>}
+                                                        {run.heldCount > 0 && <span className="text-red-500 text-[10px] ml-1">({run.heldCount} held)</span>}
+                                                    </TableCell>
                                                     <TableCell className="text-sm">₱{run.totalGross.toLocaleString()}</TableCell>
                                                     <TableCell className="text-sm font-medium">₱{run.totalNet.toLocaleString()}</TableCell>
                                                     <TableCell>
@@ -1276,7 +1300,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                                 )}
                                                                 {locked && <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-500" title="Policy snapshot" onClick={() => setSnapshotRunDate(run.date)}><Shield className="h-3.5 w-3.5" /></Button>}
                                                                 {locked && (runStatus === "locked" || runStatus === "published") && (() => {
-                                                                    const canComplete = run.allSigned;
+                                                                    const canComplete = run.allPaymentResolved;
                                                                     return (
                                                                         <Button
                                                                             variant="ghost" size="icon"
@@ -1960,6 +1984,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                         <Badge variant="secondary" className={`text-[10px] ${viewedPayslip.status === "signed" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" :
                                             viewedPayslip.status === "published" ? "bg-violet-500/15 text-violet-700 dark:text-violet-400" :
                                                 viewedPayslip.status === "draft" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" :
+                                                    viewedPayslip.status === "payment_hold" ? "bg-red-500/15 text-red-700 dark:text-red-400" :
                                                     "bg-slate-500/15 text-slate-700 dark:text-slate-400"
                                             }`}>{viewedPayslip.status}</Badge>
                                     </div>

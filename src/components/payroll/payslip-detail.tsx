@@ -11,7 +11,7 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { SignaturePad } from "@/components/ui/signature-pad";
-import { FileText, PenTool, CheckCircle, Image as ImageIcon } from "lucide-react";
+import { FileText, PenTool, CheckCircle, Image as ImageIcon, PauseCircle } from "lucide-react";
 
 const paymentMethodLabels: Record<string, string> = {
     bank_transfer: "Bank Transfer",
@@ -25,6 +25,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
     published: { label: "Published", color: "bg-violet-500/15 text-violet-700 dark:text-violet-400" },
     signed: { label: "Signed", color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
     paid: { label: "Paid", color: "bg-blue-500/15 text-blue-700 dark:text-blue-400" },
+    payment_hold: { label: "Payment Held", color: "bg-red-500/15 text-red-700 dark:text-red-400" },
 };
 
 interface PayslipDetailProps {
@@ -93,6 +94,13 @@ export function PayslipDetail({ payslip, employeeName, onSign, onAcknowledge, op
 
                     {payslip.notes && (
                         <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">{payslip.notes}</p>
+                    )}
+
+                    {payslip.status === "payment_hold" && (
+                        <div className="border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/20 rounded-md p-3 text-xs text-red-700 dark:text-red-300 flex gap-2">
+                            <PauseCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                            <span>This employee&apos;s payment is held individually until the payslip is signed or finance releases the hold.</span>
+                        </div>
                     )}
 
                     {/* Signature status */}

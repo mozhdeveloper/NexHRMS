@@ -69,6 +69,7 @@ export async function recordPayment(
   paymentProofUrl?: string
 ): Promise<ServiceResult<Payslip>> {
   return updatePayslip(id, {
+    status: "paid",
     paidAt: new Date().toISOString(),
     paymentMethod: method,
     bankReferenceId: bankRef,

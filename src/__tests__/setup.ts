@@ -162,7 +162,7 @@ declare global {
     payFrequency: "monthly" | "semi_monthly" | "bi_weekly" | "weekly";
     grossPay: number;
     netPay: number;
-    status: "draft" | "published" | "signed" | "paid";
+    status: "draft" | "published" | "signed" | "paid" | "payment_hold";
     issuedAt: string;
     sssDeduction: number;
     philhealthDeduction: number;
