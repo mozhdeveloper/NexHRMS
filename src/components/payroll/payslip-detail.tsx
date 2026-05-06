@@ -11,7 +11,7 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { SignaturePad } from "@/components/ui/signature-pad";
-import { FileText, PenTool, CheckCircle, Image } from "lucide-react";
+import { FileText, PenTool, CheckCircle, Image as ImageIcon } from "lucide-react";
 
 const paymentMethodLabels: Record<string, string> = {
     bank_transfer: "Bank Transfer",
@@ -24,6 +24,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
     draft: { label: "Draft", color: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
     published: { label: "Published", color: "bg-violet-500/15 text-violet-700 dark:text-violet-400" },
     signed: { label: "Signed", color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
+    paid: { label: "Paid", color: "bg-blue-500/15 text-blue-700 dark:text-blue-400" },
 };
 
 interface PayslipDetailProps {
@@ -37,7 +38,7 @@ interface PayslipDetailProps {
 
 export function PayslipDetail({ payslip, employeeName, onSign, onAcknowledge, open, onClose }: PayslipDetailProps) {
     const [showSignature, setShowSignature] = useState(false);
-    const sc = statusConfig[payslip.status] ?? statusConfig.issued;
+    const sc = statusConfig[payslip.status] ?? { label: payslip.status, color: "bg-muted text-muted-foreground" };
 
     const handleSign = (dataUrl: string) => {
         onSign?.(dataUrl);
@@ -142,7 +143,7 @@ export function PayslipDetail({ payslip, employeeName, onSign, onAcknowledge, op
                             {payslip.paymentProofUrl && (
                                 <div className="mt-2">
                                     <p className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
-                                        <Image className="h-3 w-3" /> Proof of Payment
+                                        <ImageIcon className="h-3 w-3" /> Proof of Payment
                                     </p>
                                     <div className="border rounded-lg overflow-hidden">
                                         {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -17,7 +17,7 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Eye, CheckCircle, CreditCard, Search, FileText, Upload, Image, Lock } from "lucide-react";
+import { Eye, CheckCircle, CreditCard, Search, FileText, Upload, Lock } from "lucide-react";
 import { PayslipDetail } from "./payslip-detail";
 import { PayslipSignatureViewer } from "./payslip-signature-viewer";
 import { toast } from "sonner";
@@ -30,6 +30,9 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 };
 
 type PaymentMethod = "bank_transfer" | "gcash" | "cash" | "check";
+const PROOF_ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+const PROOF_ACCEPTED_LABEL = "JPG, PNG, GIF, or WebP";
+const PROOF_MAX_SIZE = 5 * 1024 * 1024;
 
 interface PayslipTableProps {
     payslips: Payslip[];
@@ -81,6 +84,18 @@ export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, isAd
     const handleProofFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            if (!PROOF_ACCEPTED_TYPES.includes(file.type)) {
+                toast.error(`Unsupported image type. Please upload ${PROOF_ACCEPTED_LABEL}.`);
+                e.target.value = "";
+                return;
+            }
+
+            if (file.size > PROOF_MAX_SIZE) {
+                toast.error("Proof image is too large. Maximum size is 5MB.");
+                e.target.value = "";
+                return;
+            }
+
             setProofFile(file);
             const reader = new FileReader();
             reader.onloadend = () => {
@@ -135,12 +150,13 @@ export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, isAd
                     const data = await response.json();
                     proofUrl = data.url;
                 } else {
-                    toast.error("Failed to upload proof of payment");
+                    const data = await response.json().catch(() => null);
+                    toast.error(data?.error || "Failed to upload proof of payment");
                     setIsUploading(false);
                     return;
                 }
-            } catch {
-                toast.error("Failed to upload proof of payment");
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Failed to upload proof of payment");
                 setIsUploading(false);
                 return;
             }
@@ -150,7 +166,6 @@ export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, isAd
         const finalCashAmount = payMethod === "cash" ? (cashAmount ?? markPaidPayslip?.netPay) : undefined;
         onMarkPaid?.(markPaidId, payMethod, payRef, finalCashAmount, proofUrl);
         resetPaymentDialog();
-        toast.success("Payment confirmed");
     };
 
     return (
@@ -174,6 +189,8 @@ export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, isAd
                         <SelectItem value="all">All Statuses</SelectItem>
                         <SelectItem value="draft">Draft</SelectItem>
                         <SelectItem value="published">Published</SelectItem>
+                        <SelectItem value="signed">Signed</SelectItem>
+                        <SelectItem value="paid">Paid</SelectItem>
                     </SelectContent>
                 </Select>
                 <Select value={signedFilter} onValueChange={setSignedFilter}>
@@ -214,7 +231,7 @@ export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, isAd
                                     </TableRow>
                                 ) : (
                                     filtered.map((ps) => {
-                                        const sc = statusConfig[ps.status] ?? statusConfig.issued;
+                                        const sc = statusConfig[ps.status] ?? { label: ps.status, color: "bg-muted text-muted-foreground" };
                                         return (
                                             <TableRow key={ps.id}>
                                                 <TableCell className="text-sm font-medium">{getEmpName(ps.employeeId)}</TableCell>
@@ -414,11 +431,12 @@ export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, isAd
                                         <div className="flex flex-col items-center justify-center pt-2 pb-3">
                                             <Upload className="h-6 w-6 text-muted-foreground mb-1" />
                                             <p className="text-xs text-muted-foreground">Click to upload image</p>
+                                            <p className="text-[11px] text-muted-foreground/70">{PROOF_ACCEPTED_LABEL} up to 5MB</p>
                                         </div>
                                         <input
                                             type="file"
                                             className="hidden"
-                                            accept="image/*"
+                                            accept={PROOF_ACCEPTED_TYPES.join(",")}
                                             onChange={handleProofFileChange}
                                         />
                                     </label>
