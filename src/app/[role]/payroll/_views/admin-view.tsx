@@ -1182,8 +1182,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                     </div>
                     )}
 
-                    {/* ═══ Payroll Runs (shown in issue/lock step) ═══ */}
-                    {(wizardStep === "issue" || wizardStep === "lock") && (
+                    {/* ═══ Payroll Runs — always visible so locked runs can be unlocked later ═══ */}
                     <div className="space-y-3">
                         <h3 className="text-sm font-semibold flex items-center gap-2"><Lock className="h-4 w-4 text-muted-foreground" /> Payroll Runs</h3>
                     <Card className="border border-border/50">
@@ -1305,7 +1304,6 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                         </CardContent>
                     </Card>
                     </div>
-                    )}
 
                         </div>
 

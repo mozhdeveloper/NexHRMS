@@ -83,14 +83,14 @@ export async function POST(request: NextRequest) {
     // In the simplified flow, "acknowledge" is now just confirming receipt.
     // The signing step already transitions the payslip to "signed".
     // If already signed, just record acknowledged_at timestamp.
-    if (payslip.status === "signed" && payslip.acknowledged_at) {
+    if ((payslip.status === "signed" || payslip.status === "paid") && payslip.acknowledged_at) {
       return NextResponse.json(
         { ok: false, message: "Payslip already acknowledged" },
         { status: 409 }
       );
     }
 
-    if (payslip.status !== "signed" && payslip.status !== "published") {
+    if (payslip.status !== "paid" && payslip.status !== "signed" && payslip.status !== "published") {
       return NextResponse.json(
         { ok: false, message: `Cannot acknowledge payslip in "${payslip.status}" status.` },
         { status: 400 }
