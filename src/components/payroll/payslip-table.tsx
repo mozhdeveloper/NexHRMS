@@ -17,7 +17,7 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Eye, CheckCircle, CreditCard, Search, FileText, Upload, Lock, PauseCircle, Undo2 } from "lucide-react";
+import { Eye, CheckCircle, CreditCard, Search, FileText, Upload, Lock } from "lucide-react";
 import { PayslipDetail } from "./payslip-detail";
 import { PayslipSignatureViewer } from "./payslip-signature-viewer";
 import { toast } from "sonner";
@@ -27,7 +27,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
     published: { label: "Published", color: "bg-violet-500/15 text-violet-700 dark:text-violet-400" },
     signed: { label: "Signed", color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
     paid: { label: "Paid", color: "bg-blue-500/15 text-blue-700 dark:text-blue-400" },
-    payment_hold: { label: "Held", color: "bg-red-500/15 text-red-700 dark:text-red-400" },
+    payment_hold: { label: "Published", color: "bg-violet-500/15 text-violet-700 dark:text-violet-400" },
 };
 
 type PaymentMethod = "bank_transfer" | "gcash" | "cash" | "check";
@@ -40,12 +40,10 @@ interface PayslipTableProps {
     runs?: PayrollRun[];
     getEmpName: (id: string) => string;
     onMarkPaid?: (id: string, method: PaymentMethod, reference: string, cashAmount?: number, paymentProofUrl?: string) => void;
-    onHoldPayment?: (id: string) => void;
-    onReleaseHold?: (id: string) => void;
     isAdmin?: boolean;
 }
 
-export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, onHoldPayment, onReleaseHold, isAdmin }: PayslipTableProps) {
+export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, isAdmin }: PayslipTableProps) {
     const isPayslipRunLocked = (ps: Payslip) => {
         if (!ps.payrollBatchId) return false;
         const run = runs.find((r) => r.id === ps.payrollBatchId);
@@ -194,7 +192,6 @@ export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, onHo
                         <SelectItem value="published">Published</SelectItem>
                         <SelectItem value="signed">Signed</SelectItem>
                         <SelectItem value="paid">Paid</SelectItem>
-                        <SelectItem value="payment_hold">Held</SelectItem>
                     </SelectContent>
                 </Select>
                 <Select value={signedFilter} onValueChange={setSignedFilter}>
@@ -251,12 +248,7 @@ export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, onHo
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {ps.status === "payment_hold" ? (
-                                                        <span className="flex items-center gap-1 text-red-600 text-xs">
-                                                            <PauseCircle className="h-3 w-3" />
-                                                            Held
-                                                        </span>
-                                                    ) : ps.signedAt ? (
+                                                    {ps.signedAt ? (
                                                         <button
                                                             onClick={() => setSigViewId(ps.id)}
                                                             className="flex items-center gap-1 text-emerald-600 hover:underline text-xs"
@@ -282,45 +274,18 @@ export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, onHo
                                                         {isAdmin && (ps.status === "published" || ps.status === "signed" || ps.status === "payment_hold") && (() => {
                                                             const runLocked = isPayslipRunLocked(ps);
                                                             const canPay = !!ps.signedAt && runLocked;
-                                                            const canHold = ps.status === "published" && !ps.signedAt && runLocked;
-                                                            const canRelease = ps.status === "payment_hold" && runLocked;
-                                                            const title = !runLocked ? "Payroll run must be locked first" : !ps.signedAt ? "Hold only this employee until signed" : "Mark as Paid";
+                                                            const title = !runLocked ? "Payroll run must be locked first" : !ps.signedAt ? "Unsigned - not eligible for payment" : "Mark as Paid";
                                                             return (
-                                                                <>
-                                                                    {ps.status === "payment_hold" ? (
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="sm"
-                                                                            className={`h-7 w-7 p-0 ${canRelease ? "text-amber-600" : "text-muted-foreground/40 cursor-not-allowed"}`}
-                                                                            onClick={() => canRelease ? onReleaseHold?.(ps.id) : null}
-                                                                            disabled={!canRelease}
-                                                                            title="Release hold so employee can sign"
-                                                                        >
-                                                                            <Undo2 className="h-3.5 w-3.5" />
-                                                                        </Button>
-                                                                    ) : canHold ? (
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="sm"
-                                                                            className="h-7 w-7 p-0 text-red-600"
-                                                                            onClick={() => onHoldPayment?.(ps.id)}
-                                                                            title={title}
-                                                                        >
-                                                                            <PauseCircle className="h-3.5 w-3.5" />
-                                                                        </Button>
-                                                                    ) : (
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="sm"
-                                                                            className={`h-7 w-7 p-0 ${canPay ? "text-emerald-600" : "text-muted-foreground/40 cursor-not-allowed"}`}
-                                                                            onClick={() => canPay ? setMarkPaidId(ps.id) : null}
-                                                                            disabled={!canPay}
-                                                                            title={title}
-                                                                        >
-                                                                            {!runLocked ? <Lock className="h-3.5 w-3.5" /> : <CreditCard className="h-3.5 w-3.5" />}
-                                                                        </Button>
-                                                                    )}
-                                                                </>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className={`h-7 w-7 p-0 ${canPay ? "text-emerald-600" : "text-muted-foreground/40 cursor-not-allowed"}`}
+                                                                    onClick={() => canPay ? setMarkPaidId(ps.id) : null}
+                                                                    disabled={!canPay}
+                                                                    title={title}
+                                                                >
+                                                                    {!runLocked ? <Lock className="h-3.5 w-3.5" /> : <CreditCard className="h-3.5 w-3.5" />}
+                                                                </Button>
                                                             );
                                                         })()}
                                                     </div>

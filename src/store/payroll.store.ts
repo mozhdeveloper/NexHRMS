@@ -53,7 +53,7 @@ interface PayrollState {
     signPayslip: (id: string, signatureDataUrl: string) => void;
     acknowledgePayslip: (id: string, employeeId: string) => void;
     confirmPaidByFinance: (id: string, confirmedBy: string, method: Payslip["paymentMethod"], reference: string, cashAmount?: number, paymentProofUrl?: string) => void;
-    holdPayment: (id: string, heldBy: string, reason?: string) => void;
+    holdPayment: (id: string) => void;
     releasePaymentHold: (id: string) => void;
     /** Update a payslip with data from server (avoids timestamp mismatch with write-through) */
     updatePayslipFromServer: (payslip: Partial<Payslip> & { id: string }) => void;
@@ -246,7 +246,7 @@ export const usePayrollStore = create<PayrollState>()(
             signPayslip: (id, signatureDataUrl) =>
                 set((s) => {
                     const ps = s.payslips.find((p) => p.id === id);
-                    if (!ps || ps.status !== "published") return {};
+                    if (!ps || (ps.status !== "published" && ps.status !== "payment_hold")) return {};
                     // Guard: payslip must belong to a locked payroll run
                     if (ps.payrollBatchId) {
                         const run = s.runs.find((r) => r.id === ps.payrollBatchId);
@@ -298,7 +298,7 @@ export const usePayrollStore = create<PayrollState>()(
                     };
                 }),
 
-            holdPayment: (id, heldBy, reason = "Payment held until employee signs payslip") =>
+            holdPayment: (id) =>
                 set((s) => {
                     const ps = s.payslips.find((p) => p.id === id);
                     if (!ps || ps.status !== "published" || ps.signedAt) return {};
@@ -306,16 +306,12 @@ export const usePayrollStore = create<PayrollState>()(
                         const run = s.runs.find((r) => r.id === ps.payrollBatchId);
                         if (!run || !run.locked) return {};
                     }
-                    const holdNote = `Payment hold: ${reason}`;
                     return {
                         payslips: s.payslips.map((p) =>
                             p.id === id
                                 ? {
                                     ...p,
                                     status: "payment_hold" as const,
-                                    paidConfirmedBy: heldBy,
-                                    paidConfirmedAt: new Date().toISOString(),
-                                    notes: p.notes ? `${p.notes}\n${holdNote}` : holdNote,
                                   }
                                 : p
                         ),
@@ -329,12 +325,6 @@ export const usePayrollStore = create<PayrollState>()(
                             ? {
                                 ...p,
                                 status: "published" as const,
-                                paidConfirmedBy: undefined,
-                                paidConfirmedAt: undefined,
-                                notes: p.notes
-                                    ?.split("\n")
-                                    .filter((line) => !line.startsWith("Payment hold:"))
-                                    .join("\n") || undefined,
                               }
                             : p
                     ),

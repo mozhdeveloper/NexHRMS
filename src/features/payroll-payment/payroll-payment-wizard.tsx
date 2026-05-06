@@ -70,10 +70,9 @@ export function useActiveRunSummary() {
             run: activeRun,
             total: runPs.length,
             draft: runPs.filter((p) => p.status === "draft").length,
-            published: runPs.filter((p) => p.status === "published").length,
+            published: runPs.filter((p) => p.status === "published" || p.status === "payment_hold").length,
             signed: runPs.filter((p) => p.status === "signed").length,
             paid: runPs.filter((p) => p.status === "paid").length,
-            held: runPs.filter((p) => p.status === "payment_hold").length,
             totalNet: runPs.reduce((sum, p) => sum + p.netPay, 0),
         };
     }, [payslips, runs]);
@@ -184,7 +183,6 @@ export default function PayrollPaymentWizard({ activeStep, onStepClick }: Payrol
                             { label: "Published", count: summary.published, color: "bg-violet-500", textColor: "text-violet-600 dark:text-violet-400" },
                             { label: "Signed", count: summary.signed, color: "bg-emerald-500", textColor: "text-emerald-600 dark:text-emerald-400" },
                             { label: "Paid", count: summary.paid, color: "bg-blue-500", textColor: "text-blue-600 dark:text-blue-400" },
-                            { label: "Held", count: summary.held, color: "bg-red-500", textColor: "text-red-600 dark:text-red-400" },
                         ].map(({ label, count, color, textColor }) => (
                             <div key={label} className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-1.5">
                                 <div className={cn("h-2 w-2 rounded-full shrink-0", color)} />
@@ -200,11 +198,10 @@ export default function PayrollPaymentWizard({ activeStep, onStepClick }: Payrol
                         <div className="mt-2">
                             <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
                                 <span>Overall completion</span>
-                                <span className="font-medium">{Math.round(((summary.paid + summary.held) / summary.total) * 100)}%</span>
+                                <span className="font-medium">{Math.round((summary.paid / summary.total) * 100)}%</span>
                             </div>
                             <div className="h-1.5 bg-muted rounded-full overflow-hidden flex">
                                 {summary.paid > 0 && <div className="bg-blue-500 transition-all duration-500" style={{ width: `${(summary.paid / summary.total) * 100}%` }} />}
-                                {summary.held > 0 && <div className="bg-red-500 transition-all duration-500" style={{ width: `${(summary.held / summary.total) * 100}%` }} />}
                                 {summary.signed > 0 && <div className="bg-emerald-500 transition-all duration-500" style={{ width: `${(summary.signed / summary.total) * 100}%` }} />}
                                 {summary.published > 0 && <div className="bg-violet-500 transition-all duration-500" style={{ width: `${(summary.published / summary.total) * 100}%` }} />}
                                 {summary.draft > 0 && <div className="bg-amber-500/40 transition-all duration-500" style={{ width: `${(summary.draft / summary.total) * 100}%` }} />}
