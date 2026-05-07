@@ -4,7 +4,7 @@ import { safePersistStorage } from "@/lib/storage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type KioskCheckInMethod = "pin" | "qr" | "face" | "nfc" | "all";
+export type KioskCheckInMethod = "pin" | "qr" | "face" | "nfc" | "t800" | "all";
 export type KioskTheme = "auto" | "dark" | "midnight" | "charcoal";
 export type KioskClockFormat = "12h" | "24h";
 export type KioskIdleAction = "none" | "screensaver" | "dim";
@@ -83,11 +83,12 @@ const DEFAULT_SETTINGS: KioskSettings = {
   welcomeMessage: "Choose a method to check in or out",
   footerMessage: "Unauthorized access is prohibited",
 
-  checkInMethod: "all",
-  enablePin: true,
-  enableQr: true,
-  enableFace: true,
-  enableNfc: true,
+  // Default kiosk runs T800-only: device + web use Wi‑Fi connectivity to the bridge/server.
+  checkInMethod: "t800",
+  enablePin: false,
+  enableQr: false,
+  enableFace: false,
+  enableNfc: false,
   allowCheckOut: true,
 
   pinLength: 6,
@@ -119,9 +120,9 @@ const DEFAULT_SETTINGS: KioskSettings = {
   selfieEnabled: false,
   selfieRequired: false,
 
-  faceRecEnabled: true,
+  faceRecEnabled: false,
   faceRecRequired: false,
-  faceRecAutoStart: true,
+  faceRecAutoStart: false,
   faceRecCountdown: 3,
   faceRecPosition: "bottom",
 

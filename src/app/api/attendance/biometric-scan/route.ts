@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { validateKioskAuth } from "@/lib/kiosk-auth";
+import { getT800Only } from "@/lib/env";
 import { createAdminSupabaseClient } from "@/services/supabase-server";
 
 type ScanBody = {
@@ -118,6 +119,9 @@ function calculateHours(checkIn: string, checkOut: string) {
  * - third and later scans: ignored until the next day
  */
 export async function POST(request: NextRequest) {
+    if (getT800Only()) {
+        return NextResponse.json({ ok: false, error: "Legacy biometric endpoints disabled: use /api/attendance/t800" }, { status: 410 });
+    }
     const kioskAuth = validateKioskAuth(request.headers);
     if (!kioskAuth.ok) {
         return NextResponse.json(

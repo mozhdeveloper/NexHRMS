@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports */
 // Simple FKWeb -> HRMS bridge
 // Listens on port 8088 and forwards scanner JSON payloads to local Next.js API
 
@@ -6,7 +7,7 @@ const http = require('http');
 const { URL } = require('url');
 
 const LISTEN_PORT = process.env.FK_BRIDGE_PORT ? Number(process.env.FK_BRIDGE_PORT) : 8088;
-const TARGET = process.env.HRMS_URL || 'http://localhost:3000/api/attendance/biometric-scan';
+const TARGET = process.env.T800_BRIDGE_TARGET_URL || process.env.HRMS_URL || 'http://localhost:3000/api/attendance/t800';
 const KIOSK_API_KEY = process.env.KIOSK_API_KEY || '';
 
 function extractJsonFromBuffer(buf) {
@@ -18,7 +19,7 @@ function extractJsonFromBuffer(buf) {
       const part = s.slice(start, end + 1);
       return JSON.parse(part);
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
   return null;
@@ -30,7 +31,7 @@ function parseBody(buf, contentType) {
   if (contentType.includes('application/json')) {
     try {
       return JSON.parse(text);
-    } catch (e) {
+    } catch {
       return extractJsonFromBuffer(buf);
     }
   }
@@ -49,7 +50,7 @@ function decodeBlockJson(parsed) {
   try {
     const blockBuf = Buffer.from(parsed.block, 'base64');
     return extractJsonFromBuffer(blockBuf);
-  } catch (e) {
+  } catch {
     return null;
   }
 }
