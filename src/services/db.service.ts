@@ -419,11 +419,18 @@ export const payrollDb = {
   },
 
   async upsertPayslip(ps: Payslip): Promise<boolean> {
-    return upsertRow("payslips", ps as unknown as Record<string, unknown>);
+    // Strip local-only fields that don't exist in the DB schema
+    const row: Record<string, unknown> = { ...(ps as unknown as Record<string, unknown>) };
+    delete row.holdNote;
+    delete row.heldAt;
+    return upsertRow("payslips", row);
   },
 
   async updatePayslip(id: string, patch: Partial<Payslip>): Promise<boolean> {
-    return updateRow("payslips", id, patch as unknown as Record<string, unknown>);
+    const row: Record<string, unknown> = { ...(patch as unknown as Record<string, unknown>) };
+    delete row.holdNote;
+    delete row.heldAt;
+    return updateRow("payslips", id, row);
   },
 
   async upsertRun(run: PayrollRun): Promise<boolean> {

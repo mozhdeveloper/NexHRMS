@@ -17,7 +17,7 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Eye, CheckCircle, CreditCard, Search, FileText, Upload, Lock } from "lucide-react";
+import { Eye, CheckCircle, CreditCard, Search, FileText, Upload, Lock, RotateCcw } from "lucide-react";
 import { PayslipDetail } from "./payslip-detail";
 import { PayslipSignatureViewer } from "./payslip-signature-viewer";
 import { toast } from "sonner";
@@ -27,7 +27,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
     published: { label: "Published", color: "bg-violet-500/15 text-violet-700 dark:text-violet-400" },
     signed: { label: "Signed", color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
     paid: { label: "Paid", color: "bg-blue-500/15 text-blue-700 dark:text-blue-400" },
-    payment_hold: { label: "Published", color: "bg-violet-500/15 text-violet-700 dark:text-violet-400" },
+    payment_hold: { label: "On Hold", color: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
 };
 
 type PaymentMethod = "bank_transfer" | "gcash" | "cash" | "check";
@@ -40,10 +40,11 @@ interface PayslipTableProps {
     runs?: PayrollRun[];
     getEmpName: (id: string) => string;
     onMarkPaid?: (id: string, method: PaymentMethod, reference: string, cashAmount?: number, paymentProofUrl?: string) => void;
+    onReissue?: (id: string) => void;
     isAdmin?: boolean;
 }
 
-export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, isAdmin }: PayslipTableProps) {
+export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, onReissue, isAdmin }: PayslipTableProps) {
     const isPayslipRunLocked = (ps: Payslip) => {
         if (!ps.payrollBatchId) return false;
         const run = runs.find((r) => r.id === ps.payrollBatchId);
@@ -288,6 +289,17 @@ export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, isAd
                                                                 </Button>
                                                             );
                                                         })()}
+                                                        {isAdmin && onReissue && ps.status === "payment_hold" && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-7 w-7 p-0 text-amber-600"
+                                                                onClick={() => onReissue(ps.id)}
+                                                                title="Re-Issue (release hold)"
+                                                            >
+                                                                <RotateCcw className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        )}
                                                     </div>
                                                 </TableCell>
                                             </TableRow>

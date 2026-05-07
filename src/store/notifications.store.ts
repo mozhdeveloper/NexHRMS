@@ -30,6 +30,7 @@ const DEFAULT_RULES: NotificationRule[] = [
     { id: "NR-18", trigger: "task_submitted", enabled: true, channel: "both", recipientRoles: ["admin", "hr"], timing: "immediate", subjectTemplate: "Task Submitted: {title}", bodyTemplate: "{name} has submitted \"{title}\" for your review." },
     { id: "NR-19", trigger: "task_verified", enabled: true, channel: "both", recipientRoles: ["employee"], timing: "immediate", subjectTemplate: "Task Approved: {title}", bodyTemplate: "Your task \"{title}\" has been verified and approved." },
     { id: "NR-20", trigger: "task_rejected", enabled: true, channel: "both", recipientRoles: ["employee"], timing: "immediate", subjectTemplate: "Task Rejected: {title}", bodyTemplate: "Your task \"{title}\" was rejected: {reason}." },
+    { id: "NR-22", trigger: "payslip_on_hold", enabled: true, channel: "both", recipientRoles: ["employee"], timing: "immediate", subjectTemplate: "Payslip On Hold: {period}", bodyTemplate: "Hi {name}, your payslip for {period} has been placed on hold. Reason: {reason}. Please coordinate with the payroll team to resolve this issue.", smsTemplate: "Your payslip for {period} is on hold. Contact payroll team." },
 ];
 
 // ─── Provider config (MVP — simulated) ───────────────────────
@@ -117,7 +118,8 @@ export function prefKeyForTrigger(trigger: NotificationTrigger | string): keyof 
         trigger === "payslip_published" ||
         trigger === "payment_confirmed" ||
         trigger === "payslip_unsigned_reminder" ||
-        trigger === "payslip_signed"
+        trigger === "payslip_signed" ||
+        trigger === "payslip_on_hold"
     ) return "payrollAlerts";
     return null;
 }
@@ -168,6 +170,7 @@ function getDefaultLinkForTrigger(trigger: NotificationTrigger): string {
         task_verified: "/tasks",
         task_rejected: "/tasks",
         cheat_detected: "/attendance",
+        payslip_on_hold: "/payroll",
     };
     return linkMap[trigger] || "/notifications";
 }

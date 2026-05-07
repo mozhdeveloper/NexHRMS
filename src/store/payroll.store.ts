@@ -53,7 +53,7 @@ interface PayrollState {
     signPayslip: (id: string, signatureDataUrl: string) => void;
     acknowledgePayslip: (id: string, employeeId: string) => void;
     confirmPaidByFinance: (id: string, confirmedBy: string, method: Payslip["paymentMethod"], reference: string, cashAmount?: number, paymentProofUrl?: string) => void;
-    holdPayment: (id: string) => void;
+    holdPayment: (id: string, note?: string) => void;
     releasePaymentHold: (id: string) => void;
     /** Update a payslip with data from server (avoids timestamp mismatch with write-through) */
     updatePayslipFromServer: (payslip: Partial<Payslip> & { id: string }) => void;
@@ -298,7 +298,7 @@ export const usePayrollStore = create<PayrollState>()(
                     };
                 }),
 
-            holdPayment: (id) =>
+            holdPayment: (id, note) =>
                 set((s) => {
                     const ps = s.payslips.find((p) => p.id === id);
                     if (!ps || ps.status !== "published" || ps.signedAt) return {};
@@ -312,6 +312,8 @@ export const usePayrollStore = create<PayrollState>()(
                                 ? {
                                     ...p,
                                     status: "payment_hold" as const,
+                                    holdNote: note || "Late compliance to payroll submission. Please coordinate with the payroll team to resolve this issue.",
+                                    heldAt: new Date().toISOString(),
                                   }
                                 : p
                         ),
@@ -325,6 +327,8 @@ export const usePayrollStore = create<PayrollState>()(
                             ? {
                                 ...p,
                                 status: "published" as const,
+                                holdNote: undefined,
+                                heldAt: undefined,
                               }
                             : p
                     ),
