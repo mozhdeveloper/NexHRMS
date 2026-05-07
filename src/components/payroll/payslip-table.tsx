@@ -53,6 +53,8 @@ export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, onRe
     const [statusFilter, setStatusFilter] = useState("all");
     const [signedFilter, setSignedFilter] = useState("all");
     const [searchTerm, setSearchTerm] = useState("");
+    const [page, setPage] = useState(1);
+    const pageSize = 50;
     const [detailId, setDetailId] = useState<string | null>(null);
     const [sigViewId, setSigViewId] = useState<string | null>(null);
     const [markPaidId, setMarkPaidId] = useState<string | null>(null);
@@ -77,6 +79,13 @@ export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, onRe
             return matchStatus && matchSigned && matchSearch;
         });
     }, [payslips, statusFilter, signedFilter, searchTerm, getEmpName]);
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    const safePage = Math.min(page, totalPages);
+    const paginated = useMemo(
+        () => filtered.slice((safePage - 1) * pageSize, safePage * pageSize),
+        [filtered, pageSize, safePage]
+    );
 
     const detailPayslip = payslips.find((p) => p.id === detailId);
     const sigViewPayslip = payslips.find((p) => p.id === sigViewId);
@@ -179,11 +188,11 @@ export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, onRe
                     <Input
                         placeholder="Search employee..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
                         className="w-[180px] h-8 text-xs"
                     />
                 </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
                     <SelectTrigger className="w-[140px] h-8 text-xs">
                         <SelectValue placeholder="Status" />
                     </SelectTrigger>
@@ -195,7 +204,7 @@ export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, onRe
                         <SelectItem value="paid">Paid</SelectItem>
                     </SelectContent>
                 </Select>
-                <Select value={signedFilter} onValueChange={setSignedFilter}>
+                <Select value={signedFilter} onValueChange={(v) => { setSignedFilter(v); setPage(1); }}>
                     <SelectTrigger className="w-[130px] h-8 text-xs">
                         <SelectValue placeholder="Signed" />
                     </SelectTrigger>
@@ -224,7 +233,7 @@ export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, onRe
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filtered.length === 0 ? (
+                                {paginated.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={6} className="text-center py-12">
                                             <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
@@ -232,7 +241,7 @@ export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, onRe
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    filtered.map((ps) => {
+                                    paginated.map((ps) => {
                                         const sc = statusConfig[ps.status] ?? { label: ps.status, color: "bg-muted text-muted-foreground" };
                                         return (
                                             <TableRow key={ps.id}>
@@ -311,6 +320,16 @@ export function PayslipTable({ payslips, runs = [], getEmpName, onMarkPaid, onRe
                     </div>
                 </CardContent>
             </Card>
+
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">Page {safePage} of {totalPages}</p>
+                    <div className="flex gap-1">
+                        <Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setPage((p) => p - 1)} className="h-8 text-xs">Previous</Button>
+                        <Button variant="outline" size="sm" disabled={safePage >= totalPages} onClick={() => setPage((p) => p + 1)} className="h-8 text-xs">Next</Button>
+                    </div>
+                </div>
+            )}
 
             {/* Detail dialog */}
             {detailPayslip && (
