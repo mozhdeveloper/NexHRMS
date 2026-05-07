@@ -217,6 +217,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
     const activeRun = useMemo(() => runs
         .filter((r) => r.status !== "completed")
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0], [runs]);
+    const hasActiveRun = Boolean(activeRun);
     const activeRunPayslipIds = useMemo(() => new Set(activeRun?.payslipIds ?? []), [activeRun]);
     const activeRunPayslips = useMemo(
         () => activeRun ? payslips.filter((p) => activeRunPayslipIds.has(p.id)) : [],
@@ -1584,11 +1585,22 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                                             {locked && (runStatus === "locked" || runStatus === "published") && (() => {
                                                                                 const rPs = payslips.filter((p) => (runObj?.payslipIds ?? []).includes(p.id));
                                                                                 const signedUnpaid = rPs.filter((p) => p.status === "signed").length;
-                                                                                const canEnd = signedUnpaid === 0;
+                                                                                const draftCount = rPs.filter((p) => p.status === "draft").length;
+                                                                                const zeroDeductionCount = rPs.filter((p) =>
+                                                                                    p.status === "draft" &&
+                                                                                    (p.sssDeduction || 0) + (p.philhealthDeduction || 0) + (p.pagibigDeduction || 0) + (p.taxDeduction || 0) === 0
+                                                                                ).length;
+                                                                                const unsCount = rPs.filter((p) => p.status === "published" && !p.signedAt).length;
+                                                                                const canEnd = signedUnpaid === 0 && draftCount === 0;
+                                                                                const endTitle = canEnd
+                                                                                    ? "End Cycle"
+                                                                                    : signedUnpaid > 0
+                                                                                        ? `${signedUnpaid} signed payslip${signedUnpaid !== 1 ? "s" : ""} not yet paid`
+                                                                                        : `${draftCount} unpublished payslip${draftCount !== 1 ? "s" : ""}`;
                                                                                 return (
                                                                                 <AlertDialog>
                                                                                     <AlertDialogTrigger asChild>
-                                                                                        <Button variant="ghost" size="icon" className={`h-7 w-7 ${canEnd ? "text-orange-500" : "text-muted-foreground/40 cursor-not-allowed"}`} title={canEnd ? "End Cycle" : `${signedUnpaid} signed payslip${signedUnpaid !== 1 ? "s" : ""} not yet paid`} disabled={!canEnd}><Flag className="h-3.5 w-3.5" /></Button>
+                                                                                        <Button variant="ghost" size="icon" className={`h-7 w-7 ${canEnd ? "text-orange-500" : "text-muted-foreground/40 cursor-not-allowed"}`} title={endTitle} disabled={!canEnd}><Flag className="h-3.5 w-3.5" /></Button>
                                                                                     </AlertDialogTrigger>
                                                                                     <AlertDialogContent>
                                                                                         <AlertDialogHeader>
@@ -1596,15 +1608,21 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                                                             <AlertDialogDescription asChild>
                                                                                                 <div className="space-y-2 text-sm">
                                                                                                     <p>This will end the cycle for <strong>{periodDisplay}</strong>.</p>
-                                                                                                    {(() => {
-                                                                                                        const rPs = payslips.filter((p) => (runObj?.payslipIds ?? []).includes(p.id));
-                                                                                                        const unsCount = rPs.filter((p) => p.status === "published" && !p.signedAt).length;
-                                                                                                        return unsCount > 0 ? (
-                                                                                                            <p className="text-amber-600 dark:text-amber-400">
-                                                                                                                ⚠ {unsCount} unsigned employee{unsCount !== 1 ? "s" : ""} will be automatically placed on hold.
-                                                                                                            </p>
-                                                                                                        ) : null;
-                                                                                                    })()}
+                                                                                                    {draftCount > 0 && (
+                                                                                                        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-amber-800 dark:text-amber-300">
+                                                                                                            <p className="font-semibold mb-1">⚠ Draft payslips still exist</p>
+                                                                                                            {zeroDeductionCount > 0 ? (
+                                                                                                                <p><strong>{zeroDeductionCount}</strong> of the {draftCount} draft payslip{draftCount !== 1 ? "s" : ""} still have <strong>₱0 government deductions</strong> (SSS, PhilHealth, Pag-IBIG, BIR Tax).</p>
+                                                                                                            ) : (
+                                                                                                                <p><strong>{draftCount}</strong> draft payslip{draftCount !== 1 ? "s" : ""} are not yet published. Consider publishing before ending the cycle.</p>
+                                                                                                            )}
+                                                                                                        </div>
+                                                                                                    )}
+                                                                                                    {unsCount > 0 && (
+                                                                                                        <p className="text-amber-600 dark:text-amber-400">
+                                                                                                            ⚠ {unsCount} unsigned employee{unsCount !== 1 ? "s" : ""} will be automatically placed on hold.
+                                                                                                        </p>
+                                                                                                    )}
                                                                                                     <p className="text-xs text-muted-foreground">After ending, on-hold employees can still sign and be approved. The run can then be marked as complete.</p>
                                                                                                 </div>
                                                                                             </AlertDialogDescription>
@@ -1754,8 +1772,6 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                                         ps.periodEnd.includes(q);
                                                                 })
                                                                 : heldPs;
-                                                            const unsignedCount = filteredHeld.filter((ps) => !ps.signedAt).length;
-                                                            const signedCount = filteredHeld.filter((ps) => !!ps.signedAt).length;
                                                             const holdTotalPages = Math.max(1, Math.ceil(filteredHeld.length / pageSize));
                                                             const holdSafePage = Math.min(holdPage, holdTotalPages);
                                                             const paginatedHeld = filteredHeld.slice((holdSafePage - 1) * pageSize, holdSafePage * pageSize);
@@ -1764,21 +1780,6 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
 
                                                             return (
                                                                 <>
-                                                                    <div className="grid grid-cols-2 gap-2">
-                                                                        <Card className="border border-border/50">
-                                                                            <CardContent className="p-3 text-center">
-                                                                                <p className="text-[10px] uppercase font-semibold text-muted-foreground">Unsigned</p>
-                                                                                <p className="text-xl font-bold mt-0.5 text-amber-600 dark:text-amber-400">{unsignedCount}</p>
-                                                                            </CardContent>
-                                                                        </Card>
-                                                                        <Card className="border border-border/50">
-                                                                            <CardContent className="p-3 text-center">
-                                                                                <p className="text-[10px] uppercase font-semibold text-muted-foreground">Signed</p>
-                                                                                <p className="text-xl font-bold mt-0.5 text-emerald-600 dark:text-emerald-400">{signedCount}</p>
-                                                                            </CardContent>
-                                                                        </Card>
-                                                                    </div>
-
                                                                     {filteredHeld.length === 0 ? (
                                                                         <p className="text-sm text-muted-foreground text-center py-6">No on-hold payslips match your search.</p>
                                                                     ) : (
@@ -1818,7 +1819,11 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                                                                         <Save className="h-3 w-3" /> Save Note
                                                                                                     </Button>
                                                                                                     <Button
-                                                                                                        variant="outline" size="sm" className="h-7 text-xs gap-1.5 text-emerald-600 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                                                                                                        variant="outline"
+                                                                                                        size="sm"
+                                                                                                        className={`h-7 text-xs gap-1.5 ${hasActiveRun ? "text-emerald-600 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30" : "text-muted-foreground/40 border-border/40 cursor-not-allowed"}`}
+                                                                                                        title={hasActiveRun ? "Re-Issue" : "Start a payroll run to re-issue"}
+                                                                                                        disabled={!hasActiveRun}
                                                                                                         onClick={() => {
                                                                                                             setHoldModalOpen(false);
                                                                                                             setReissueConfirmId(ps.id);

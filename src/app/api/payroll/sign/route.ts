@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (payslip.status !== "published" && payslip.status !== "payment_hold") {
+    if (payslip.status !== "published") {
       return NextResponse.json(
         { ok: false, message: `Cannot sign payslip in "${payslip.status}" status. Must be published.` },
         { status: 400 }
