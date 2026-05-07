@@ -462,13 +462,18 @@ export const payrollDb = {
       if (delErr) console.error("[db] payroll_run_payslips.delete:", delErr.message);
     }
 
-    // Add new payslips
+    // Add new payslips (upsert to handle duplicates gracefully)
     const toAdd = [...targetIds].filter((id) => !existingIds.has(id));
     if (toAdd.length > 0) {
-      const { error: insErr } = await supabase()
-        .from("payroll_run_payslips")
-        .insert(toAdd.map((pid) => ({ run_id: run.id, payslip_id: pid })));
-      if (insErr) console.error("[db] payroll_run_payslips.insert:", insErr.message);
+      try {
+        const { error: insErr } = await supabase()
+          .from("payroll_run_payslips")
+          .upsert(toAdd.map((pid) => ({ run_id: run.id, payslip_id: pid })), { onConflict: "run_id,payslip_id", ignoreDuplicates: true });
+        if (insErr) console.error("[db] payroll_run_payslips.upsert:", insErr.message);
+      } catch (e) {
+        // Suppress foreign key errors for payslips not yet synced to DB
+        console.warn("[db] payroll_run_payslips sync skipped:", (e as Error).message);
+      }
     }
 
     return true;
