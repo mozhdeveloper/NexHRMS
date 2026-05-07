@@ -174,6 +174,7 @@ const HR_PERMS: Permission[] = [
     "projects:manage",
     "page:tasks", "tasks:view", "tasks:create", "tasks:assign", "tasks:verify", "tasks:manage_groups",
     "page:messages", "messages:send_announcement", "messages:manage_channels", "messages:send_email",
+    "payroll:view_own",
 ];
 
 const FINANCE_PERMS: Permission[] = [
@@ -185,6 +186,7 @@ const FINANCE_PERMS: Permission[] = [
     "reports:view", "reports:government",
     "settings:organization",
     "messages:send_announcement",
+    "payroll:view_own",
 ];
 
 const PAYROLL_ADMIN_PERMS: Permission[] = [
@@ -197,6 +199,7 @@ const PAYROLL_ADMIN_PERMS: Permission[] = [
     "timesheets:view_all",
     "settings:organization",
     "messages:send_announcement",
+    "payroll:view_own",
 ];
 
 const SUPERVISOR_PERMS: Permission[] = [
@@ -208,6 +211,7 @@ const SUPERVISOR_PERMS: Permission[] = [
     "timesheets:view_all", "timesheets:approve",
     "page:tasks", "tasks:view", "tasks:create", "tasks:assign", "tasks:verify", "tasks:manage_groups",
     "page:messages", "messages:send_announcement",
+    "payroll:view_own",
 ];
 
 const EMPLOYEE_PERMS: Permission[] = [
@@ -226,6 +230,7 @@ const AUDITOR_PERMS: Permission[] = [
     "employees:view",
     "reports:view", "reports:government",
     "loans:view_all",
+    "payroll:view_own",
 ];
 
 // ─── Default dashboard layouts per system role ───────────────

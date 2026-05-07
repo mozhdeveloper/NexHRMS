@@ -118,7 +118,10 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const [page, setPage] = useState(1);
-    const pageSize = 15;
+    const [publishPage, setPublishPage] = useState(1);
+    const [signPage, setSignPage] = useState(1);
+    const [runsPage, setRunsPage] = useState(1);
+    const pageSize = 50;
 
     // ─── Dialog states ───────────────────────────────────────────
     const [printPayslipId, setPrintPayslipId] = useState<string | null>(null);
@@ -128,6 +131,8 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
     const [reissueConfirmId, setReissueConfirmId] = useState<string | null>(null);
     const [holdModalOpen, setHoldModalOpen] = useState(false);
     const [holdNotes, setHoldNotes] = useState<Record<string, string>>({});
+    const [holdSearchTerm, setHoldSearchTerm] = useState("");
+    const [holdPage, setHoldPage] = useState(1);
     // ─── On-hold approve payment dialog ──────────────────────────
     const [holdApprovePsId, setHoldApprovePsId] = useState<string | null>(null);
     const [holdPayMethod, setHoldPayMethod] = useState<"bank_transfer" | "gcash" | "cash" | "check">("bank_transfer");
@@ -209,10 +214,26 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
         return activeEmployees.filter((e) => e.name.toLowerCase().includes(q) || e.department.toLowerCase().includes(q) || e.role.toLowerCase().includes(q));
     }, [activeEmployees, empSearchTerm]);
 
+    const activeRun = useMemo(() => runs
+        .filter((r) => r.status !== "completed")
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0], [runs]);
+    const activeRunPayslipIds = useMemo(() => new Set(activeRun?.payslipIds ?? []), [activeRun]);
+    const activeRunPayslips = useMemo(
+        () => activeRun ? payslips.filter((p) => activeRunPayslipIds.has(p.id)) : [],
+        [payslips, activeRunPayslipIds, activeRun]
+    );
+
+    useEffect(() => {
+        setPage(1);
+        setPublishPage(1);
+        setSignPage(1);
+    }, [activeRun?.id]);
+
 
     // ─── Filtered & paginated payslips ───────────────────────────
     const filteredPayslips = useMemo(() => {
-        let filtered = payslips;
+        if (!activeRun) return [];
+        let filtered = activeRunPayslips;
         if (searchTerm) {
             const q = searchTerm.toLowerCase();
             filtered = filtered.filter((ps) =>
@@ -224,10 +245,29 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
             filtered = filtered.filter((ps) => statusFilter === "published" ? ps.status === "published" || ps.status === "payment_hold" : ps.status === statusFilter);
         }
         return filtered.sort((a, b) => b.issuedAt.localeCompare(a.issuedAt));
-    }, [payslips, searchTerm, statusFilter]);
+    }, [activeRun, activeRunPayslips, searchTerm, statusFilter]);
 
     const totalPages = Math.max(1, Math.ceil(filteredPayslips.length / pageSize));
-    const paginatedPayslips = useMemo(() => filteredPayslips.slice((page - 1) * pageSize, page * pageSize), [filteredPayslips, page]);
+    const safePage = Math.min(page, totalPages);
+    const paginatedPayslips = useMemo(() => filteredPayslips.slice((safePage - 1) * pageSize, safePage * pageSize), [filteredPayslips, pageSize, safePage]);
+
+    const publishTotalPages = Math.max(1, Math.ceil(filteredPayslips.length / pageSize));
+    const publishSafePage = Math.min(publishPage, publishTotalPages);
+    const paginatedPublishPayslips = useMemo(
+        () => filteredPayslips.slice((publishSafePage - 1) * pageSize, publishSafePage * pageSize),
+        [filteredPayslips, pageSize, publishSafePage]
+    );
+
+    const signPayslips = useMemo(
+        () => filteredPayslips.filter((p) => p.status === "published" || p.status === "payment_hold" || p.status === "signed"),
+        [filteredPayslips]
+    );
+    const signTotalPages = Math.max(1, Math.ceil(signPayslips.length / pageSize));
+    const signSafePage = Math.min(signPage, signTotalPages);
+    const paginatedSignPayslips = useMemo(
+        () => signPayslips.slice((signSafePage - 1) * pageSize, signSafePage * pageSize),
+        [signPayslips, pageSize, signSafePage]
+    );
 
     const eligibleFilteredEmployees = useMemo(() => filteredActiveEmployees.filter((e) => !payslips.some((p) => p.employeeId === e.id && p.periodStart === cutoffDates.start && p.periodEnd === cutoffDates.end)), [filteredActiveEmployees, payslips, cutoffDates]);
     const allSelected = eligibleFilteredEmployees.length > 0 && eligibleFilteredEmployees.every((e) => selectedEmployeeIds.includes(e.id));
@@ -472,6 +512,13 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
         }).sort((a, b) => b.date.localeCompare(a.date));
     }, [runs, payslips]);
 
+    const runsTotalPages = Math.max(1, Math.ceil(payrollRuns.length / pageSize));
+    const runsSafePage = Math.min(runsPage, runsTotalPages);
+    const paginatedRuns = useMemo(
+        () => payrollRuns.slice((runsSafePage - 1) * pageSize, runsSafePage * pageSize),
+        [payrollRuns, pageSize, runsSafePage]
+    );
+
     const isRunLocked = (runDate: string) => runs.find((r) => r.periodLabel === runDate)?.locked ?? false;
     const isCutoffPeriodLocked = useMemo(() => {
         if (!cutoffDates.start || !cutoffDates.end) return false;
@@ -496,16 +543,17 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
 
     // ─── Status summary counts ───────────────────────────────────
     const statusCounts = useMemo(() => {
-        const counts = { draft: 0, published: 0, signed: 0, paid: 0, publishedUnsigned: 0 };
-        payslips.forEach((p) => {
+        const counts = { draft: 0, published: 0, signed: 0, paid: 0, onHold: 0, publishedUnsigned: 0 };
+        activeRunPayslips.forEach((p) => {
             if (p.status === "draft") counts.draft++;
-            if (p.status === "published" || p.status === "payment_hold") counts.published++;
+            if (p.status === "published") counts.published++;
             if (p.status === "signed") counts.signed++;
             if (p.status === "paid") counts.paid++;
-            if ((p.status === "published" || p.status === "payment_hold") && !p.signedAt) counts.publishedUnsigned++;
+            if (p.status === "payment_hold") counts.onHold++;
+            if (p.status === "published" && !p.signedAt) counts.publishedUnsigned++;
         });
         return counts;
-    }, [payslips]);
+    }, [activeRunPayslips]);
 
     // ─── Batch handlers ──────────────────────────────────────────
     // Use store-first pattern (matching single-action buttons).
@@ -636,7 +684,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">{viewTitle}</h1>
-                    <p className="text-sm text-muted-foreground mt-0.5">{payslips.length} payslips</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">{activeRunPayslips.length} payslips</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     {canReset && (
@@ -928,9 +976,9 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                     <div className="flex flex-col sm:flex-row gap-2">
                                         <div className="relative flex-1">
                                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                            <Input placeholder="Search employee, period, or ID..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }} className="pl-9 h-9" />
+                                            <Input placeholder="Search employee, period, or ID..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setPage(1); setPublishPage(1); setSignPage(1); }} className="pl-9 h-9" />
                                         </div>
-                                        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+                                        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); setPublishPage(1); setSignPage(1); }}>
                                             <SelectTrigger className="w-[150px] h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="all">All Statuses</SelectItem>
@@ -1023,10 +1071,10 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                     {/* Pagination */}
                                     {totalPages > 1 && (
                                         <div className="flex items-center justify-between">
-                                            <p className="text-xs text-muted-foreground">Page {page} of {totalPages}</p>
+                                            <p className="text-xs text-muted-foreground">Page {safePage} of {totalPages}</p>
                                             <div className="flex gap-1">
-                                                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="h-8 text-xs">Previous</Button>
-                                                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="h-8 text-xs">Next</Button>
+                                                <Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setPage(p => p - 1)} className="h-8 text-xs">Previous</Button>
+                                                <Button variant="outline" size="sm" disabled={safePage >= totalPages} onClick={() => setPage(p => p + 1)} className="h-8 text-xs">Next</Button>
                                             </div>
                                         </div>
                                     )}
@@ -1099,13 +1147,13 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                     <TableBody>
                                                         {filteredPayslips.length === 0 ? (
                                                             <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">No payslips issued yet</TableCell></TableRow>
-                                                        ) : filteredPayslips.map((ps) => (
+                                                        ) : paginatedPublishPayslips.map((ps) => (
                                                             <TableRow key={ps.id}>
                                                                 <TableCell className="text-sm font-medium">{getEmpName(ps.employeeId)}</TableCell>
                                                                 <TableCell className="text-xs text-muted-foreground">{ps.periodStart} – {ps.periodEnd}</TableCell>
                                                                 <TableCell className="text-sm font-medium">₱{ps.netPay.toLocaleString()}</TableCell>
                                                                 <TableCell>
-                                                                    <Badge variant="secondary" className={`text-[10px] ${ps.status === "published" || ps.status === "payment_hold" ? "bg-violet-500/15 text-violet-700 dark:text-violet-400" : ps.status === "draft" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" : ps.status === "signed" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-blue-500/15 text-blue-700 dark:text-blue-400"}`}>{ps.status === "payment_hold" ? "published" : ps.status}</Badge>
+                                                                    <Badge variant="secondary" className={`text-[10px] ${ps.status === "payment_hold" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" : ps.status === "published" ? "bg-violet-500/15 text-violet-700 dark:text-violet-400" : ps.status === "draft" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" : ps.status === "signed" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-blue-500/15 text-blue-700 dark:text-blue-400"}`}>{ps.status === "payment_hold" ? "On Hold" : ps.status}</Badge>
                                                                 </TableCell>
                                                                 <TableCell>
                                                                     {canIssue && ps.status === "draft" && isPayslipRunLocked(ps.id) ? (
@@ -1130,6 +1178,15 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                             </div>
                                         </CardContent>
                                     </Card>
+                                    {publishTotalPages > 1 && (
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-xs text-muted-foreground">Page {publishSafePage} of {publishTotalPages}</p>
+                                            <div className="flex gap-1">
+                                                <Button variant="outline" size="sm" disabled={publishSafePage <= 1} onClick={() => setPublishPage((p) => p - 1)} className="h-8 text-xs">Previous</Button>
+                                                <Button variant="outline" size="sm" disabled={publishSafePage >= publishTotalPages} onClick={() => setPublishPage((p) => p + 1)} className="h-8 text-xs">Next</Button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -1142,7 +1199,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                         <Card className="border border-border/50">
                                             <CardContent className="p-3 text-center">
                                                 <p className="text-[10px] uppercase font-semibold text-muted-foreground">Awaiting Signature</p>
-                                                <p className="text-xl font-bold mt-0.5 text-violet-600 dark:text-violet-400">{statusCounts.published ?? 0}</p>
+                                                <p className="text-xl font-bold mt-0.5 text-violet-600 dark:text-violet-400">{statusCounts.publishedUnsigned ?? 0}</p>
                                             </CardContent>
                                         </Card>
                                         <Card className="border border-border/50">
@@ -1164,9 +1221,9 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                         <TableHead className="text-xs">Signing Status</TableHead>
                                                     </TableRow></TableHeader>
                                                     <TableBody>
-                                                        {filteredPayslips.filter((p) => p.status === "published" || p.status === "payment_hold" || p.status === "signed").length === 0 ? (
+                                                        {signPayslips.length === 0 ? (
                                                             <TableRow><TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-8">No payslips awaiting signature</TableCell></TableRow>
-                                                        ) : filteredPayslips.filter((p) => p.status === "published" || p.status === "payment_hold" || p.status === "signed").map((ps) => (
+                                                        ) : paginatedSignPayslips.map((ps) => (
                                                             <TableRow key={ps.id}>
                                                                 <TableCell className="text-sm font-medium">{getEmpName(ps.employeeId)}</TableCell>
                                                                 <TableCell className="text-xs text-muted-foreground">{ps.periodStart} – {ps.periodEnd}</TableCell>
@@ -1197,6 +1254,15 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                             </div>
                                         </CardContent>
                                     </Card>
+                                    {signTotalPages > 1 && (
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-xs text-muted-foreground">Page {signSafePage} of {signTotalPages}</p>
+                                            <div className="flex gap-1">
+                                                <Button variant="outline" size="sm" disabled={signSafePage <= 1} onClick={() => setSignPage((p) => p - 1)} className="h-8 text-xs">Previous</Button>
+                                                <Button variant="outline" size="sm" disabled={signSafePage >= signTotalPages} onClick={() => setSignPage((p) => p + 1)} className="h-8 text-xs">Next</Button>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="rounded-lg bg-muted/30 border border-border/50 p-3">
                                         <p className="text-xs text-muted-foreground text-center">
                                             Employees sign payslips from their portal. Once all are signed, proceed to <strong>Record Payment</strong>.
@@ -1211,8 +1277,35 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                     <h3 className="text-sm font-semibold flex items-center gap-2"><CreditCard className="h-4 w-4 text-muted-foreground" /> Record Payment</h3>
                                     <p className="text-xs text-muted-foreground">Pay signed employees. Hold only unsigned employees so they do not block the rest of the run.</p>
 
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                        <Card className="border border-border/50">
+                                            <CardContent className="p-3 text-center">
+                                                <p className="text-[10px] uppercase font-semibold text-muted-foreground">Awaiting Signature</p>
+                                                <p className="text-xl font-bold mt-0.5 text-violet-600 dark:text-violet-400">{statusCounts.publishedUnsigned ?? 0}</p>
+                                            </CardContent>
+                                        </Card>
+                                        <Card className="border border-border/50">
+                                            <CardContent className="p-3 text-center">
+                                                <p className="text-[10px] uppercase font-semibold text-muted-foreground">Signed</p>
+                                                <p className="text-xl font-bold mt-0.5 text-emerald-600 dark:text-emerald-400">{statusCounts.signed ?? 0}</p>
+                                            </CardContent>
+                                        </Card>
+                                        <Card className="border border-border/50">
+                                            <CardContent className="p-3 text-center">
+                                                <p className="text-[10px] uppercase font-semibold text-muted-foreground">Paid</p>
+                                                <p className="text-xl font-bold mt-0.5 text-blue-600 dark:text-blue-400">{statusCounts.paid ?? 0}</p>
+                                            </CardContent>
+                                        </Card>
+                                        <Card className="border border-border/50">
+                                            <CardContent className="p-3 text-center">
+                                                <p className="text-[10px] uppercase font-semibold text-muted-foreground">On Hold</p>
+                                                <p className="text-xl font-bold mt-0.5 text-amber-600 dark:text-amber-400">{statusCounts.onHold ?? 0}</p>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+
                                     <PayslipTable
-                                        payslips={payslips}
+                                        payslips={activeRunPayslips}
                                         runs={runs}
                                         getEmpName={getEmpName}
                                         isAdmin={canIssue}
@@ -1225,33 +1318,6 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                         onReissue={(id) => setReissueConfirmId(id)}
                                     />
 
-                                    {/* Held Payslips — Re-issue section */}
-                                    {(() => {
-                                        const heldPayslips = filteredPayslips.filter((p) => p.status === "payment_hold");
-                                        if (heldPayslips.length === 0) return null;
-                                        return (
-                                            <Card className="border border-amber-200 dark:border-amber-800/50 bg-amber-50/30 dark:bg-amber-950/10">
-                                                <CardContent className="p-3">
-                                                    <h4 className="text-xs font-semibold flex items-center gap-1.5 mb-2 text-amber-700 dark:text-amber-400">
-                                                        <AlertCircle className="h-3.5 w-3.5" /> Held Payslips ({heldPayslips.length})
-                                                    </h4>
-                                                    <div className="space-y-1.5">
-                                                        {heldPayslips.map((ps) => (
-                                                            <div key={ps.id} className="flex items-center justify-between gap-2 text-xs bg-background/60 rounded-md px-2.5 py-1.5">
-                                                                <div className="flex-1 min-w-0">
-                                                                    <span className="font-medium">{getEmpName(ps.employeeId)}</span>
-                                                                    <span className="text-muted-foreground ml-2">₱{ps.netPay.toLocaleString()}</span>
-                                                                </div>
-                                                                <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 text-amber-600 border-amber-200 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/30" onClick={() => setReissueConfirmId(ps.id)}>
-                                                                    <RotateCcw className="h-3 w-3" /> Re-Issue
-                                                                </Button>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-                                        );
-                                    })()}
                                 </div>
                             )}
 
@@ -1433,7 +1499,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                 <TableBody>
                                                     {payrollRuns.length === 0 ? (
                                                         <TableRow><TableCell colSpan={canIssue ? 6 : 5} className="text-center text-sm text-muted-foreground py-8">No payroll runs</TableCell></TableRow>
-                                                    ) : payrollRuns.map((run) => {
+                                                    ) : paginatedRuns.map((run) => {
                                                         const locked = isRunLocked(run.date);
                                                         const runObj = runs.find((r) => r.periodLabel === run.date);
                                                         const runStatus = runObj?.status ?? "draft";
@@ -1608,6 +1674,15 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                         </div>
                                     </CardContent>
                                 </Card>
+                                {runsTotalPages > 1 && (
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-xs text-muted-foreground">Page {runsSafePage} of {runsTotalPages}</p>
+                                        <div className="flex gap-1">
+                                            <Button variant="outline" size="sm" disabled={runsSafePage <= 1} onClick={() => setRunsPage((p) => p - 1)} className="h-8 text-xs">Previous</Button>
+                                            <Button variant="outline" size="sm" disabled={runsSafePage >= runsTotalPages} onClick={() => setRunsPage((p) => p + 1)} className="h-8 text-xs">Next</Button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                         </div>
@@ -1621,7 +1696,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                     </CardContent>
                                 </Card>
                                 {/* Held Payslips — Compact Trigger Card + Modal */}
-                                {(() => {
+                                {(wizardStep !== "pay" || !activeRun) && (() => {
                                     const heldPs = payslips.filter((p) => p.status === "payment_hold");
                                     if (heldPs.length === 0) return null;
                                     const heldTotal = heldPs.reduce((s, p) => s + p.netPay, 0);
@@ -1642,7 +1717,13 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                             </Card>
 
                                             {/* On-Hold Management Modal */}
-                                            <Dialog open={holdModalOpen} onOpenChange={setHoldModalOpen}>
+                                            <Dialog open={holdModalOpen} onOpenChange={(open) => {
+                                                setHoldModalOpen(open);
+                                                if (!open) {
+                                                    setHoldSearchTerm("");
+                                                    setHoldPage(1);
+                                                }
+                                            }}>
                                                 <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
                                                     <DialogHeader>
                                                         <DialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
@@ -1654,91 +1735,166 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                             <span className="text-sm text-muted-foreground">Total held amount</span>
                                                             <span className="text-lg font-bold text-amber-600 dark:text-amber-400 tabular-nums">₱{heldTotal.toLocaleString()}</span>
                                                         </div>
-                                                        <div className="space-y-2">
-                                                            {heldPs.map((ps) => {
-                                                                const empName = getEmpName(ps.employeeId);
-                                                                const noteKey = ps.id;
-                                                                const currentNote = holdNotes[noteKey] ?? ps.holdNote ?? "Late compliance to payroll submission. Please coordinate with the payroll team to resolve this issue.";
-                                                                const isSigned = !!ps.signedAt;
-                                                                return (
-                                                                    <div key={ps.id} className="rounded-lg border border-border/60 p-3 space-y-2">
+                                                        <div className="relative">
+                                                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                                            <Input
+                                                                placeholder="Search on-hold employee, ID, or period..."
+                                                                value={holdSearchTerm}
+                                                                onChange={(e) => { setHoldSearchTerm(e.target.value); setHoldPage(1); }}
+                                                                className="pl-9 h-9"
+                                                            />
+                                                        </div>
+                                                        {(() => {
+                                                            const filteredHeld = holdSearchTerm.trim()
+                                                                ? heldPs.filter((ps) => {
+                                                                    const q = holdSearchTerm.toLowerCase();
+                                                                    return getEmpName(ps.employeeId).toLowerCase().includes(q) ||
+                                                                        ps.id.toLowerCase().includes(q) ||
+                                                                        ps.periodStart.includes(q) ||
+                                                                        ps.periodEnd.includes(q);
+                                                                })
+                                                                : heldPs;
+                                                            const unsignedCount = filteredHeld.filter((ps) => !ps.signedAt).length;
+                                                            const signedCount = filteredHeld.filter((ps) => !!ps.signedAt).length;
+                                                            const holdTotalPages = Math.max(1, Math.ceil(filteredHeld.length / pageSize));
+                                                            const holdSafePage = Math.min(holdPage, holdTotalPages);
+                                                            const paginatedHeld = filteredHeld.slice((holdSafePage - 1) * pageSize, holdSafePage * pageSize);
+                                                            const unsignedHeld = paginatedHeld.filter((ps) => !ps.signedAt);
+                                                            const signedHeld = paginatedHeld.filter((ps) => !!ps.signedAt);
+
+                                                            return (
+                                                                <>
+                                                                    <div className="grid grid-cols-2 gap-2">
+                                                                        <Card className="border border-border/50">
+                                                                            <CardContent className="p-3 text-center">
+                                                                                <p className="text-[10px] uppercase font-semibold text-muted-foreground">Unsigned</p>
+                                                                                <p className="text-xl font-bold mt-0.5 text-amber-600 dark:text-amber-400">{unsignedCount}</p>
+                                                                            </CardContent>
+                                                                        </Card>
+                                                                        <Card className="border border-border/50">
+                                                                            <CardContent className="p-3 text-center">
+                                                                                <p className="text-[10px] uppercase font-semibold text-muted-foreground">Signed</p>
+                                                                                <p className="text-xl font-bold mt-0.5 text-emerald-600 dark:text-emerald-400">{signedCount}</p>
+                                                                            </CardContent>
+                                                                        </Card>
+                                                                    </div>
+
+                                                                    {filteredHeld.length === 0 ? (
+                                                                        <p className="text-sm text-muted-foreground text-center py-6">No on-hold payslips match your search.</p>
+                                                                    ) : (
+                                                                        <div className="space-y-4">
+                                                                            {unsignedHeld.length > 0 && (
+                                                                                <div className="space-y-2">
+                                                                                    <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Unsigned</p>
+                                                                                    {unsignedHeld.map((ps) => {
+                                                                                        const empName = getEmpName(ps.employeeId);
+                                                                                        const noteKey = ps.id;
+                                                                                        const currentNote = holdNotes[noteKey] ?? ps.holdNote ?? "Late compliance to payroll submission. Please coordinate with the payroll team to resolve this issue.";
+                                                                                        return (
+                                                                                            <div key={ps.id} className="rounded-lg border border-border/60 p-3 space-y-2">
+                                                                                                <div className="flex items-center justify-between">
+                                                                                                    <div>
+                                                                                                        <p className="text-sm font-semibold">{empName}</p>
+                                                                                                        <p className="text-xs text-muted-foreground">{ps.periodStart} – {ps.periodEnd}</p>
+                                                                                                    </div>
+                                                                                                    <span className="text-sm font-bold tabular-nums">₱{ps.netPay.toLocaleString()}</span>
+                                                                                                </div>
+                                                                                                {ps.heldAt && <p className="text-[10px] text-muted-foreground">Held on {new Date(ps.heldAt).toLocaleDateString()}</p>}
+                                                                                                <Textarea
+                                                                                                    value={currentNote}
+                                                                                                    onChange={(e) => setHoldNotes((prev) => ({ ...prev, [noteKey]: e.target.value }))}
+                                                                                                    placeholder="Reason for hold..."
+                                                                                                    className="text-xs min-h-[60px] resize-none"
+                                                                                                />
+                                                                                                <div className="flex items-center gap-2 justify-end">
+                                                                                                    <Button
+                                                                                                        variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+                                                                                                        onClick={() => {
+                                                                                                            const note = holdNotes[noteKey] ?? currentNote;
+                                                                                                            usePayrollStore.getState().updatePayslipFromServer({ id: ps.id, holdNote: note });
+                                                                                                            toast.success(`Note saved for ${empName}`);
+                                                                                                        }}
+                                                                                                    >
+                                                                                                        <Save className="h-3 w-3" /> Save Note
+                                                                                                    </Button>
+                                                                                                    <Button
+                                                                                                        variant="outline" size="sm" className="h-7 text-xs gap-1.5 text-emerald-600 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                                                                                                        onClick={() => {
+                                                                                                            setHoldModalOpen(false);
+                                                                                                            setReissueConfirmId(ps.id);
+                                                                                                        }}
+                                                                                                    >
+                                                                                                        <RotateCcw className="h-3 w-3" /> Re-Issue
+                                                                                                    </Button>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            )}
+
+                                                                            {signedHeld.length > 0 && (
+                                                                                <div className="space-y-2">
+                                                                                    <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Signed</p>
+                                                                                    {signedHeld.map((ps) => {
+                                                                                        const empName = getEmpName(ps.employeeId);
+                                                                                        return (
+                                                                                            <div key={ps.id} className="rounded-lg border border-border/60 p-3 space-y-2">
+                                                                                                <div className="flex items-center justify-between">
+                                                                                                    <div>
+                                                                                                        <p className="text-sm font-semibold">{empName}</p>
+                                                                                                        <p className="text-xs text-muted-foreground">{ps.periodStart} – {ps.periodEnd}</p>
+                                                                                                    </div>
+                                                                                                    <div className="flex items-center gap-2">
+                                                                                                        <Badge variant="secondary" className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                                                                                                            <CheckCircle className="h-3 w-3 mr-1" /> Signed
+                                                                                                        </Badge>
+                                                                                                        <span className="text-sm font-bold tabular-nums">₱{ps.netPay.toLocaleString()}</span>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                                {ps.heldAt && <p className="text-[10px] text-muted-foreground">Held on {new Date(ps.heldAt).toLocaleDateString()}</p>}
+                                                                                                {ps.signedAt && <p className="text-[10px] text-emerald-600 dark:text-emerald-400">Signed on {new Date(ps.signedAt).toLocaleDateString()}</p>}
+                                                                                                {ps.holdNote && <p className="text-[11px] text-muted-foreground">Hold note: {ps.holdNote}</p>}
+                                                                                                <div className="flex items-center gap-2 justify-end pt-1">
+                                                                                                    <Button
+                                                                                                        variant="outline" size="sm" className="h-7 text-xs gap-1.5 text-red-600 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                                                                                        onClick={() => {
+                                                                                                            rejectHoldSignature(ps.id);
+                                                                                                            toast.success(`Signature rejected for ${empName}. Employee must re-sign.`);
+                                                                                                        }}
+                                                                                                    >
+                                                                                                        <XCircle className="h-3 w-3" /> Disapprove
+                                                                                                    </Button>
+                                                                                                    <Button
+                                                                                                        size="sm" className="h-7 text-xs gap-1.5"
+                                                                                                        onClick={() => {
+                                                                                                            setHoldModalOpen(false);
+                                                                                                            setHoldApprovePsId(ps.id);
+                                                                                                        }}
+                                                                                                    >
+                                                                                                        <CheckCircle className="h-3 w-3" /> Approve & Pay
+                                                                                                    </Button>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+
+                                                                    {holdTotalPages > 1 && (
                                                                         <div className="flex items-center justify-between">
-                                                                            <div>
-                                                                                <p className="text-sm font-semibold">{empName}</p>
-                                                                                <p className="text-xs text-muted-foreground">{ps.periodStart} – {ps.periodEnd}</p>
-                                                                            </div>
-                                                                            <div className="flex items-center gap-2">
-                                                                                {isSigned && (
-                                                                                    <Badge variant="secondary" className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
-                                                                                        <CheckCircle className="h-3 w-3 mr-1" /> Signed
-                                                                                    </Badge>
-                                                                                )}
-                                                                                <span className="text-sm font-bold tabular-nums">₱{ps.netPay.toLocaleString()}</span>
+                                                                            <p className="text-xs text-muted-foreground">Page {holdSafePage} of {holdTotalPages}</p>
+                                                                            <div className="flex gap-1">
+                                                                                <Button variant="outline" size="sm" disabled={holdSafePage <= 1} onClick={() => setHoldPage((p) => p - 1)} className="h-8 text-xs">Previous</Button>
+                                                                                <Button variant="outline" size="sm" disabled={holdSafePage >= holdTotalPages} onClick={() => setHoldPage((p) => p + 1)} className="h-8 text-xs">Next</Button>
                                                                             </div>
                                                                         </div>
-                                                                        {ps.heldAt && <p className="text-[10px] text-muted-foreground">Held on {new Date(ps.heldAt).toLocaleDateString()}</p>}
-                                                                        {isSigned && ps.signedAt && <p className="text-[10px] text-emerald-600 dark:text-emerald-400">Signed on {new Date(ps.signedAt).toLocaleDateString()}</p>}
-
-                                                                        {/* Unsigned: show note editor + re-issue */}
-                                                                        {!isSigned && (
-                                                                            <>
-                                                                                <Textarea
-                                                                                    value={currentNote}
-                                                                                    onChange={(e) => setHoldNotes((prev) => ({ ...prev, [noteKey]: e.target.value }))}
-                                                                                    placeholder="Reason for hold..."
-                                                                                    className="text-xs min-h-[60px] resize-none"
-                                                                                />
-                                                                                <div className="flex items-center gap-2 justify-end">
-                                                                                    <Button
-                                                                                        variant="outline" size="sm" className="h-7 text-xs gap-1.5"
-                                                                                        onClick={() => {
-                                                                                            const note = holdNotes[noteKey] ?? currentNote;
-                                                                                            usePayrollStore.getState().updatePayslipFromServer({ id: ps.id, holdNote: note });
-                                                                                            toast.success(`Note saved for ${empName}`);
-                                                                                        }}
-                                                                                    >
-                                                                                        <Save className="h-3 w-3" /> Save Note
-                                                                                    </Button>
-                                                                                    <Button
-                                                                                        variant="outline" size="sm" className="h-7 text-xs gap-1.5 text-emerald-600 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-                                                                                        onClick={() => {
-                                                                                            setHoldModalOpen(false);
-                                                                                            setReissueConfirmId(ps.id);
-                                                                                        }}
-                                                                                    >
-                                                                                        <RotateCcw className="h-3 w-3" /> Re-Issue
-                                                                                    </Button>
-                                                                                </div>
-                                                                            </>
-                                                                        )}
-
-                                                                        {/* Signed: show approve/disapprove */}
-                                                                        {isSigned && (
-                                                                            <div className="flex items-center gap-2 justify-end pt-1">
-                                                                                <Button
-                                                                                    variant="outline" size="sm" className="h-7 text-xs gap-1.5 text-red-600 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/30"
-                                                                                    onClick={() => {
-                                                                                        rejectHoldSignature(ps.id);
-                                                                                        toast.success(`Signature rejected for ${empName}. Employee must re-sign.`);
-                                                                                    }}
-                                                                                >
-                                                                                    <XCircle className="h-3 w-3" /> Disapprove
-                                                                                </Button>
-                                                                                <Button
-                                                                                    size="sm" className="h-7 text-xs gap-1.5"
-                                                                                    onClick={() => {
-                                                                                        setHoldModalOpen(false);
-                                                                                        setHoldApprovePsId(ps.id);
-                                                                                    }}
-                                                                                >
-                                                                                    <CheckCircle className="h-3 w-3" /> Approve & Pay
-                                                                                </Button>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
+                                                                    )}
+                                                                </>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 </DialogContent>
                                             </Dialog>

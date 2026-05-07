@@ -365,6 +365,7 @@ export function Topbar() {
                             { label: "Attendance", href: "/attendance" },
                             { label: "Leave", href: "/leave" },
                             { label: "Payroll", href: "/payroll" },
+                            { label: "My Payslips", href: "/my-payslips" },
                             { label: "Settings", href: "/settings" },
                         ].map((p) => (
                             <CommandItem

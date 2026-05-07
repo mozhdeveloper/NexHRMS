@@ -34,7 +34,7 @@ export function usePayrollProgress() {
 
     return useMemo(() => {
         const activeRun = runs
-            .filter((r) => r.status !== "completed" && r.status !== "ended")
+            .filter((r) => r.status !== "completed")
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
 
         if (!activeRun) return "issue" as WizardStep;
@@ -60,7 +60,7 @@ export function useActiveRunSummary() {
 
     return useMemo(() => {
         const activeRun = runs
-            .filter((r) => r.status !== "completed" && r.status !== "ended")
+            .filter((r) => r.status !== "completed")
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
 
         if (!activeRun) return null;
@@ -118,12 +118,16 @@ export default function PayrollPaymentWizard({ activeStep, onStepClick }: Payrol
                         return (
                             <button
                                 key={step.key}
-                                onClick={() => onStepClick(step.key)}
+                                type="button"
+                                onClick={() => { if (!isFuture) onStepClick(step.key); }}
+                                disabled={isFuture}
                                 className={cn(
                                     "w-full flex items-center gap-3 px-2 py-2.5 rounded-xl text-left transition-all duration-200 group relative",
                                     isActive
                                         ? "bg-primary/8 shadow-sm ring-1 ring-primary/15"
-                                        : "hover:bg-muted/60",
+                                        : isFuture
+                                            ? "opacity-60 cursor-not-allowed"
+                                            : "hover:bg-muted/60",
                                 )}
                             >
                                 {/* Step circle */}
