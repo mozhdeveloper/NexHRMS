@@ -157,6 +157,7 @@ export interface ModuleFlags {
   attendance: boolean;
   leave: boolean;
   payroll: boolean;
+  myPayslips: boolean;
   loans: boolean;
   projects: boolean;
   reports: boolean;
@@ -174,6 +175,7 @@ export const DEFAULT_MODULE_FLAGS: ModuleFlags = {
   attendance: true,
   leave: true,
   payroll: true,
+  myPayslips: true,
   loans: true,
   projects: true,
   reports: true,
@@ -191,6 +193,7 @@ export const MODULE_INFO: Record<keyof ModuleFlags, { label: string; description
   attendance: { label: "Attendance", description: "Clock-in/out tracking, geofencing, daily logs", icon: "Clock" },
   leave: { label: "Leave Management", description: "Leave requests, balances, approvals", icon: "CalendarOff" },
   payroll: { label: "Payroll", description: "Salary processing, payslips, deductions", icon: "Wallet" },
+  myPayslips: { label: "My Payslips", description: "Personal payslip viewing, e-signatures, acknowledgements", icon: "FileText" },
   loans: { label: "Loans", description: "Employee loan management & repayment tracking", icon: "Banknote" },
   projects: { label: "Projects", description: "Project tracking, task management", icon: "FolderKanban" },
   reports: { label: "Reports", description: "Analytics, government reports, exports", icon: "BarChart3" },

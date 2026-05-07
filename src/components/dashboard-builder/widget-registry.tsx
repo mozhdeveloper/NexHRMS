@@ -648,7 +648,7 @@ function MyLatestPayslip() {
     }, [payslips, empRecord]);
 
     return (
-        <Link href={rh("/payroll")} className="block h-full">
+        <Link href={rh("/my-payslips")} className="block h-full">
             <Card className="border border-border/50 cursor-pointer hover:shadow-md hover:border-primary/40 transition-all h-full">
                 <CardContent className="p-5">
                     <div className="flex items-center gap-3">
