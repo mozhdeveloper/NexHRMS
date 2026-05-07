@@ -552,6 +552,9 @@ export interface Payslip {
   // ─── Custom Deductions ──
   customDeductions?: number;
   lineItemsJson?: PayslipLineItem[];
+  // ─── Hold Metadata ──
+  holdNote?: string;
+  heldAt?: string;
 }
 
 export interface PolicySnapshot {
@@ -703,7 +706,7 @@ export interface Project {
 export type NotificationType =
     | "assignment" | "reassignment" | "absence"
     | "task_assigned" | "task_submitted" | "task_verified" | "task_rejected"
-    | "payslip_published" | "payslip_signed" | "payslip_unsigned_reminder" | "payment_confirmed"
+    | "payslip_published" | "payslip_signed" | "payslip_unsigned_reminder" | "payment_confirmed" | "payslip_on_hold"
     | "leave_submitted" | "leave_approved" | "leave_rejected"
     | "attendance_missing" | "geofence_violation" | "location_disabled" | "cheat_detected"
     | "loan_reminder" | "overtime_submitted"

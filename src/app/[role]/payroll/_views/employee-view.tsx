@@ -32,7 +32,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
     published: { label: "Published", color: "bg-violet-500/15 text-violet-700 dark:text-violet-400", icon: FileSignature, step: 2 },
     signed:    { label: "Signed",    color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400", icon: CheckCircle, step: 3 },
     paid:      { label: "Paid",      color: "bg-blue-500/15 text-blue-700 dark:text-blue-400",       icon: ShieldCheck,  step: 4 },
-    payment_hold: { label: "Published", color: "bg-violet-500/15 text-violet-700 dark:text-violet-400", icon: FileSignature, step: 2 },
+    payment_hold: { label: "On Hold", color: "bg-amber-500/15 text-amber-700 dark:text-amber-400", icon: AlertCircle, step: 2 },
 };
 
 export default function EmployeePayrollView() {
@@ -46,10 +46,18 @@ export default function EmployeePayrollView() {
     const [signingInProgress, setSigningInProgress] = useState(false);
     const [acknowledging, setAcknowledging] = useState(false);
 
-    const myEmployee = useMemo(
-        () => employees.find((e) => e.profileId === currentUser.id || e.email?.toLowerCase() === currentUser.email?.toLowerCase() || e.name === currentUser.name),
-        [employees, currentUser.email, currentUser.id, currentUser.name],
-    );
+    const myEmployee = useMemo(() => {
+        const match = employees.find(
+            (e) =>
+                e.profileId === currentUser.id ||
+                (e.email && currentUser.email && e.email.trim().toLowerCase() === currentUser.email.trim().toLowerCase()) ||
+                (e.name && currentUser.name && e.name.trim().toLowerCase() === currentUser.name.trim().toLowerCase()),
+        );
+        if (!match && employees.length > 0) {
+            console.warn("[payroll/employee-view] No employee match for current user:", { id: currentUser.id, email: currentUser.email, name: currentUser.name });
+        }
+        return match;
+    }, [employees, currentUser.email, currentUser.id, currentUser.name]);
 
     const getEmpName = (id: string) => employees.find((e) => e.id === id)?.name || id;
 
@@ -67,7 +75,7 @@ export default function EmployeePayrollView() {
     const totalEarned = useMemo(() => myPayslips.reduce((s, p) => s + p.netPay, 0), [myPayslips]);
     const latestPayslip = myPayslips[0];
     // Employees can sign only when payslip is published AND its payroll run is locked
-    const pendingSign = useMemo(() => myPayslips.filter((p) => (p.status === "published" || p.status === "payment_hold") && !p.signedAt && isPayslipRunLocked(p.id)), [myPayslips, isPayslipRunLocked]);
+    const pendingSign = useMemo(() => myPayslips.filter((p) => p.status === "published" && !p.signedAt && isPayslipRunLocked(p.id)), [myPayslips, isPayslipRunLocked]);
     const pendingAck = useMemo(
         () => myPayslips.filter((p) => p.status === "paid" && !!p.signedAt && !p.acknowledgedAt),
         [myPayslips],
@@ -475,6 +483,18 @@ export default function EmployeePayrollView() {
                                             );
                                         })}
                                     </div>
+
+                                    {/* On-Hold Notice */}
+                                    {viewedPayslip.status === "payment_hold" && (
+                                        <div className="rounded-md bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30 p-2.5">
+                                            <p className="text-[10px] font-semibold uppercase text-amber-600 dark:text-amber-400 flex items-center gap-1 mb-1">
+                                                <AlertCircle className="h-3 w-3" /> On Hold
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {viewedPayslip.holdNote || "Late compliance to payroll submission. Please coordinate with the payroll team to resolve this issue."}
+                                            </p>
+                                        </div>
+                                    )}
 
                                     {/* Earnings */}
                                     <div className="border-t border-border/50 pt-3 space-y-1.5">
