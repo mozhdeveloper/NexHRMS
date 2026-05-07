@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import { Plus, CheckCircle, Eye, Lock, LockOpen, Gift, Download, CalendarDays, RotateCcw, Send, CreditCard, FileText, Sparkles, Shield, PenTool, Search, Settings, Building2, Printer, Clock, Percent, Trash2, AlertCircle, Info, Save, Pencil, X, Loader2, FileSignature, Calculator, Edit, Users, Bell } from "lucide-react";
+import { Plus, CheckCircle, Eye, Lock, LockOpen, Gift, Download, CalendarDays, RotateCcw, Send, CreditCard, FileText, Sparkles, Shield, PenTool, Search, Settings, Building2, Printer, Clock, Percent, Trash2, AlertCircle, Info, Save, Pencil, X, Loader2, FileSignature, Calculator, Edit, Users, Bell, XCircle, Upload, Flag } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { computeAllPHDeductions } from "@/lib/ph-deductions";
@@ -69,7 +69,7 @@ interface AdminPayrollViewProps {
 export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewProps) {
     const params = useParams();
     const role = params.role as string;
-    const { payslips, runs, adjustments, finalPayComputations, issuePayslip, confirmPayslip, publishPayslip, recordPayment, confirmPaidByFinance, holdPayment, releasePaymentHold, lockRun, unlockRun, publishRun, markRunPaid, approveAdjustment, applyAdjustment, createAdjustment, computeFinalPay, generate13thMonth, exportBankFile, createDraftRun, validateRun, resetToSeed, paySchedule, updatePaySchedule, signatureConfig, updateSignatureConfig, deductionOverrides, setDeductionOverride, removeDeductionOverride, clearEmployeeOverrides, getDeductionOverride, getEmployeeOverrides, globalDefaults, updateGlobalDefault, getGlobalDefault, updatePayslipFromServer, isPayslipRunLocked } = usePayrollStore();
+    const { payslips, runs, adjustments, finalPayComputations, issuePayslip, confirmPayslip, publishPayslip, recordPayment, confirmPaidByFinance, holdPayment, releasePaymentHold, rejectHoldSignature, lockRun, unlockRun, publishRun, endRun, markRunPaid, approveAdjustment, applyAdjustment, createAdjustment, computeFinalPay, generate13thMonth, exportBankFile, createDraftRun, validateRun, resetToSeed, paySchedule, updatePaySchedule, signatureConfig, updateSignatureConfig, deductionOverrides, setDeductionOverride, removeDeductionOverride, clearEmployeeOverrides, getDeductionOverride, getEmployeeOverrides, globalDefaults, updateGlobalDefault, getGlobalDefault, updatePayslipFromServer, isPayslipRunLocked } = usePayrollStore();
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
     const { getActiveByEmployee, recordDeduction } = useLoansStore();
@@ -128,6 +128,15 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
     const [reissueConfirmId, setReissueConfirmId] = useState<string | null>(null);
     const [holdModalOpen, setHoldModalOpen] = useState(false);
     const [holdNotes, setHoldNotes] = useState<Record<string, string>>({});
+    // ─── On-hold approve payment dialog ──────────────────────────
+    const [holdApprovePsId, setHoldApprovePsId] = useState<string | null>(null);
+    const [holdPayMethod, setHoldPayMethod] = useState<"bank_transfer" | "gcash" | "cash" | "check">("bank_transfer");
+    const [holdPayRef, setHoldPayRef] = useState("");
+    const [holdCashAmount, setHoldCashAmount] = useState<number | undefined>(undefined);
+    const [holdProofFile, setHoldProofFile] = useState<File | null>(null);
+    const [holdProofPreview, setHoldProofPreview] = useState<string | null>(null);
+    const [holdIsUploading, setHoldIsUploading] = useState(false);
+    const resetHoldPaymentDialog = () => { setHoldApprovePsId(null); setHoldPayRef(""); setHoldCashAmount(undefined); setHoldProofFile(null); setHoldProofPreview(null); setHoldPayMethod("bank_transfer"); };
 
     // ─── Signature config draft state ────────────────────────────
     const [sigEditing, setSigEditing] = useState(false);
@@ -467,7 +476,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
     const isCutoffPeriodLocked = useMemo(() => {
         if (!cutoffDates.start || !cutoffDates.end) return false;
         const periodKey = `${cutoffDates.start}/${cutoffDates.end}`;
-        return runs.some((r) => r.locked && r.periodLabel === periodKey);
+        return runs.some((r) => r.locked && r.status !== "completed" && r.periodLabel === periodKey);
     }, [runs, cutoffDates]);
     const viewedPayslip = viewSlip ? payslips.find((p) => p.id === viewSlip) : null;
 
@@ -665,13 +674,13 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                         }}>
                             <DialogTrigger asChild>
                                 <Button className="gap-1.5">
-                                    {isCutoffPeriodLocked ? <Lock className="h-4 w-4" /> : <Plus className="h-4 w-4" />} Issue Payslip
+                                    {isCutoffPeriodLocked ? <Lock className="h-4 w-4" /> : <Plus className="h-4 w-4" />} Run Payroll
                                 </Button>
                             </DialogTrigger>
                             <DialogContent className="!max-w-6xl w-[95vw] flex flex-col max-h-[90vh]">
                                 <DialogHeader className="shrink-0">
-                                    <DialogTitle>Issue Payslip — Bulk</DialogTitle>
-                                    <p className="text-sm text-muted-foreground mt-1">Configure pay period, select employees, and issue payslips.</p>
+                                    <DialogTitle>Run Payroll — Bulk</DialogTitle>
+                                    <p className="text-sm text-muted-foreground mt-1">Configure pay period, select employees, and generate payslips.</p>
                                 </DialogHeader>
                                 <div className="grid grid-cols-2 gap-6 pt-1 overflow-y-auto pr-1">
                                     {/* ── Left Column: Config ── */}
@@ -839,7 +848,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                         {/* ── Left: Step Content ── */}
                         <div className="flex-1 min-w-0 space-y-4">
 
-                            {/* ═══ STEP: Issue Payslips — Payslips ═══ */}
+                            {/* ═══ STEP: Run Payroll — Payslips ═══ */}
                             {(wizardStep === "issue" || wizardStep === "lock") && (
                                 <div className="space-y-3">
                                     <h3 className="text-sm font-semibold flex items-center gap-2"><FileText className="h-4 w-4 text-muted-foreground" /> Payslips</h3>
@@ -1246,6 +1255,134 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                 </div>
                             )}
 
+                            {/* ═══ Approve & Pay dialog for on-hold payslips (triggered from sidebar on-hold modal) ═══ */}
+                            {(() => {
+                                const holdApprovePs = holdApprovePsId ? payslips.find((p) => p.id === holdApprovePsId) : null;
+                                return (
+                                    <Dialog open={!!holdApprovePsId} onOpenChange={() => resetHoldPaymentDialog()}>
+                                        <DialogContent className="sm:max-w-md">
+                                            <DialogHeader>
+                                                <DialogTitle className="flex items-center gap-2">
+                                                    <CreditCard className="h-4 w-4" />
+                                                    Approve & Record Payment
+                                                </DialogTitle>
+                                            </DialogHeader>
+                                            {holdApprovePs && (
+                                                <div className="space-y-1 mb-2">
+                                                    <p className="text-sm font-semibold">{getEmpName(holdApprovePs.employeeId)}</p>
+                                                    <p className="text-xs text-muted-foreground">{holdApprovePs.periodStart} – {holdApprovePs.periodEnd} • Net: ₱{holdApprovePs.netPay.toLocaleString()}</p>
+                                                </div>
+                                            )}
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <Label className="text-xs font-medium text-muted-foreground">Payment Method</Label>
+                                                    <Select value={holdPayMethod} onValueChange={(v) => setHoldPayMethod(v as typeof holdPayMethod)}>
+                                                        <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                                                            <SelectItem value="gcash">GCash</SelectItem>
+                                                            <SelectItem value="cash">Cash</SelectItem>
+                                                            <SelectItem value="check">Check</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                {holdPayMethod === "bank_transfer" && (
+                                                    <div>
+                                                        <Label className="text-xs font-medium text-muted-foreground">Bank Reference Number</Label>
+                                                        <Input value={holdPayRef} onChange={(e) => setHoldPayRef(e.target.value)} placeholder="e.g. BPI-202401150001" className="mt-1 h-9" />
+                                                    </div>
+                                                )}
+                                                {holdPayMethod === "gcash" && (
+                                                    <div>
+                                                        <Label className="text-xs font-medium text-muted-foreground">GCash Reference ID</Label>
+                                                        <Input value={holdPayRef} onChange={(e) => setHoldPayRef(e.target.value)} placeholder="e.g. 1234567890123" className="mt-1 h-9" />
+                                                    </div>
+                                                )}
+                                                {holdPayMethod === "check" && (
+                                                    <div>
+                                                        <Label className="text-xs font-medium text-muted-foreground">Check Number</Label>
+                                                        <Input value={holdPayRef} onChange={(e) => setHoldPayRef(e.target.value)} placeholder="e.g. CHK-00012345" className="mt-1 h-9" />
+                                                    </div>
+                                                )}
+                                                {holdPayMethod === "cash" && (
+                                                    <div>
+                                                        <Label className="text-xs font-medium text-muted-foreground">
+                                                            Cash Amount <span className="text-muted-foreground/60">(defaults to net pay: {formatCurrency(holdApprovePs?.netPay ?? 0)})</span>
+                                                        </Label>
+                                                        <Input type="number" value={holdCashAmount ?? ""} onChange={(e) => setHoldCashAmount(e.target.value ? Number(e.target.value) : undefined)} placeholder={`${holdApprovePs?.netPay ?? 0}`} className="mt-1 h-9" />
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <Label className="text-xs font-medium text-muted-foreground">
+                                                        Proof of Payment <span className="text-muted-foreground/60">(optional)</span>
+                                                    </Label>
+                                                    <div className="mt-1">
+                                                        {holdProofPreview ? (
+                                                            <div className="relative border rounded-md overflow-hidden">
+                                                                <img src={holdProofPreview} alt="Payment proof preview" className="w-full h-32 object-cover" />
+                                                                <Button variant="destructive" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => { setHoldProofFile(null); setHoldProofPreview(null); }}>
+                                                                    Remove
+                                                                </Button>
+                                                            </div>
+                                                        ) : (
+                                                            <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                                                                <div className="flex flex-col items-center justify-center pt-2 pb-3">
+                                                                    <Upload className="h-6 w-6 text-muted-foreground mb-1" />
+                                                                    <p className="text-xs text-muted-foreground">Click to upload image</p>
+                                                                    <p className="text-[11px] text-muted-foreground/70">JPG, PNG, GIF, or WebP up to 5MB</p>
+                                                                </div>
+                                                                <input type="file" className="hidden" accept="image/jpeg,image/png,image/gif,image/webp" onChange={(e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (!file) return;
+                                                                    if (!["image/jpeg", "image/png", "image/gif", "image/webp"].includes(file.type)) { toast.error("Unsupported image type."); e.target.value = ""; return; }
+                                                                    if (file.size > 5 * 1024 * 1024) { toast.error("Image too large. Max 5MB."); e.target.value = ""; return; }
+                                                                    setHoldProofFile(file);
+                                                                    const reader = new FileReader();
+                                                                    reader.onloadend = () => setHoldProofPreview(reader.result as string);
+                                                                    reader.readAsDataURL(file);
+                                                                }} />
+                                                            </label>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2 justify-end pt-2">
+                                                    <Button variant="outline" size="sm" onClick={() => resetHoldPaymentDialog()} disabled={holdIsUploading}>Cancel</Button>
+                                                    <Button size="sm" className="gap-1.5" disabled={holdIsUploading} onClick={async () => {
+                                                        if (!holdApprovePsId) return;
+                                                        if (holdPayMethod !== "cash" && !holdPayRef.trim()) {
+                                                            toast.error(holdPayMethod === "bank_transfer" ? "Enter bank reference" : holdPayMethod === "gcash" ? "Enter GCash reference" : "Enter check number");
+                                                            return;
+                                                        }
+                                                        let proofUrl: string | undefined;
+                                                        if (holdProofFile) {
+                                                            setHoldIsUploading(true);
+                                                            try {
+                                                                const formData = new FormData();
+                                                                formData.append("file", holdProofFile);
+                                                                formData.append("bucket", "payment-proofs");
+                                                                formData.append("folder", holdApprovePsId);
+                                                                const response = await fetch("/api/upload", { method: "POST", body: formData });
+                                                                if (response.ok) { const data = await response.json(); proofUrl = data.url; }
+                                                                else { toast.error("Failed to upload proof"); setHoldIsUploading(false); return; }
+                                                            } catch { toast.error("Failed to upload proof"); setHoldIsUploading(false); return; }
+                                                            setHoldIsUploading(false);
+                                                        }
+                                                        const finalCash = holdPayMethod === "cash" ? (holdCashAmount ?? holdApprovePs?.netPay) : undefined;
+                                                        confirmPaidByFinance(holdApprovePsId, currentUser.name, holdPayMethod, holdPayRef, finalCash, proofUrl);
+                                                        const ps = payslips.find((p) => p.id === holdApprovePsId);
+                                                        if (ps) dispatchNotification("payment_confirmed", { name: getEmpName(ps.employeeId), period: `${ps.periodStart} — ${ps.periodEnd}`, method: holdPayMethod }, ps.employeeId);
+                                                        toast.success("Payment approved & recorded");
+                                                        resetHoldPaymentDialog();
+                                                    }}>
+                                                        {holdIsUploading ? <>Uploading...</> : <><CheckCircle className="h-4 w-4" /> Confirm</>}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </DialogContent>
+                                    </Dialog>
+                                );
+                            })()}
+
                             {/* Re-Issue Confirmation Dialog */}
                             <AlertDialog open={!!reissueConfirmId} onOpenChange={(open) => { if (!open) setReissueConfirmId(null); }}>
                                 <AlertDialogContent>
@@ -1316,6 +1453,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                                 <TableCell className="text-sm font-medium">₱{run.totalNet.toLocaleString()}</TableCell>
                                                                 <TableCell>
                                                                     <Badge variant="secondary" className={`text-[10px] ${runStatus === "completed" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" :
+                                                                        runStatus === "ended" ? "bg-orange-500/15 text-orange-700 dark:text-orange-400" :
                                                                         runStatus === "locked" ? "bg-red-500/15 text-red-700 dark:text-red-400" :
                                                                             runStatus === "published" ? "bg-violet-500/15 text-violet-700 dark:text-violet-400" :
                                                                                 runStatus === "draft" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" :
@@ -1376,29 +1514,89 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                                                 </AlertDialog>
                                                                             )}
                                                                             {locked && <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-500" title="Policy snapshot" onClick={() => setSnapshotRunDate(run.date)}><Shield className="h-3.5 w-3.5" /></Button>}
+                                                                            {/* End Cycle — auto-hold unsigned, enters evaluation phase */}
                                                                             {locked && (runStatus === "locked" || runStatus === "published") && (() => {
-                                                                                const canComplete = run.allPaymentResolved;
+                                                                                const rPs = payslips.filter((p) => (runObj?.payslipIds ?? []).includes(p.id));
+                                                                                const signedUnpaid = rPs.filter((p) => p.status === "signed").length;
+                                                                                const canEnd = signedUnpaid === 0;
                                                                                 return (
-                                                                                    <Button
-                                                                                        variant="ghost" size="icon"
-                                                                                        className={`h-7 w-7 ${canComplete ? "text-emerald-600" : "text-muted-foreground/40 cursor-not-allowed"}`}
-                                                                                        title={canComplete ? "Mark Completed" : `${run.resolvedCount}/${run.count} payslips resolved - pay signed employees first`}
-                                                                                        disabled={!canComplete}
-                                                                                        onClick={() => {
-                                                                                            if (!canComplete) return;
-                                                                                            payslips
-                                                                                                .filter((p) => (runObj?.payslipIds ?? []).includes(p.id) && p.status === "published" && !p.signedAt)
-                                                                                                .forEach((p) => {
-                                                                                                    holdPayment(p.id);
-                                                                                                    dispatchNotification("payslip_on_hold", { name: getEmpName(p.employeeId), period: `${p.periodStart} - ${p.periodEnd}`, reason: "Late compliance to payroll submission. Please coordinate with the payroll team to resolve this issue." }, p.employeeId);
-                                                                                                });
-                                                                                            markRunPaid(run.date);
-                                                                                            useAuditStore.getState().log({ entityType: "payroll_run", entityId: run.date, action: "payroll_completed", performedBy: currentUser.id });
-                                                                                            toast.success("Run completed");
-                                                                                        }}
-                                                                                    ><CheckCircle className="h-3.5 w-3.5" /></Button>
+                                                                                <AlertDialog>
+                                                                                    <AlertDialogTrigger asChild>
+                                                                                        <Button variant="ghost" size="icon" className={`h-7 w-7 ${canEnd ? "text-orange-500" : "text-muted-foreground/40 cursor-not-allowed"}`} title={canEnd ? "End Cycle" : `${signedUnpaid} signed payslip${signedUnpaid !== 1 ? "s" : ""} not yet paid`} disabled={!canEnd}><Flag className="h-3.5 w-3.5" /></Button>
+                                                                                    </AlertDialogTrigger>
+                                                                                    <AlertDialogContent>
+                                                                                        <AlertDialogHeader>
+                                                                                            <AlertDialogTitle>End Payroll Cycle?</AlertDialogTitle>
+                                                                                            <AlertDialogDescription asChild>
+                                                                                                <div className="space-y-2 text-sm">
+                                                                                                    <p>This will end the cycle for <strong>{periodDisplay}</strong>.</p>
+                                                                                                    {(() => {
+                                                                                                        const rPs = payslips.filter((p) => (runObj?.payslipIds ?? []).includes(p.id));
+                                                                                                        const unsCount = rPs.filter((p) => p.status === "published" && !p.signedAt).length;
+                                                                                                        return unsCount > 0 ? (
+                                                                                                            <p className="text-amber-600 dark:text-amber-400">
+                                                                                                                ⚠ {unsCount} unsigned employee{unsCount !== 1 ? "s" : ""} will be automatically placed on hold.
+                                                                                                            </p>
+                                                                                                        ) : null;
+                                                                                                    })()}
+                                                                                                    <p className="text-xs text-muted-foreground">After ending, on-hold employees can still sign and be approved. The run can then be marked as complete.</p>
+                                                                                                </div>
+                                                                                            </AlertDialogDescription>
+                                                                                        </AlertDialogHeader>
+                                                                                        <AlertDialogFooter>
+                                                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                                            <AlertDialogAction onClick={() => {
+                                                                                                payslips
+                                                                                                    .filter((p) => (runObj?.payslipIds ?? []).includes(p.id) && p.status === "published" && !p.signedAt)
+                                                                                                    .forEach((p) => {
+                                                                                                        holdPayment(p.id);
+                                                                                                        dispatchNotification("payslip_on_hold", { name: getEmpName(p.employeeId), period: `${p.periodStart} - ${p.periodEnd}`, reason: "Late compliance to payroll submission. Please coordinate with the payroll team to resolve this issue." }, p.employeeId);
+                                                                                                    });
+                                                                                                endRun(run.date);
+                                                                                                useAuditStore.getState().log({ entityType: "payroll_run", entityId: run.date, action: "payroll_ended", performedBy: currentUser.id });
+                                                                                                toast.success("Payroll cycle ended");
+                                                                                            }}>End Cycle</AlertDialogAction>
+                                                                                        </AlertDialogFooter>
+                                                                                    </AlertDialogContent>
+                                                                                </AlertDialog>
                                                                                 );
                                                                             })()}
+                                                                            {/* Mark as Complete — final step, unlocks Run Payroll */}
+                                                                            {locked && (runStatus === "ended") && (
+                                                                                <AlertDialog>
+                                                                                    <AlertDialogTrigger asChild>
+                                                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" title="Mark as Complete"><CheckCircle className="h-3.5 w-3.5" /></Button>
+                                                                                    </AlertDialogTrigger>
+                                                                                    <AlertDialogContent>
+                                                                                        <AlertDialogHeader>
+                                                                                            <AlertDialogTitle>Complete Payroll Run?</AlertDialogTitle>
+                                                                                            <AlertDialogDescription asChild>
+                                                                                                <div className="space-y-2 text-sm">
+                                                                                                    <p>This will finalize <strong>{periodDisplay}</strong> and mark it as complete.</p>
+                                                                                                    {(() => {
+                                                                                                        const rPs = payslips.filter((p) => (runObj?.payslipIds ?? []).includes(p.id));
+                                                                                                        const holdCount = rPs.filter((p) => p.status === "payment_hold").length;
+                                                                                                        return holdCount > 0 ? (
+                                                                                                            <p className="text-amber-600 dark:text-amber-400">
+                                                                                                                ⚠ {holdCount} employee{holdCount !== 1 ? "s" : ""} still on hold. They can be processed in the next payroll cycle.
+                                                                                                            </p>
+                                                                                                        ) : null;
+                                                                                                    })()}
+                                                                                                    <p className="text-xs text-muted-foreground">After completion, the &quot;Run Payroll&quot; button will unlock for the next cutoff period.</p>
+                                                                                                </div>
+                                                                                            </AlertDialogDescription>
+                                                                                        </AlertDialogHeader>
+                                                                                        <AlertDialogFooter>
+                                                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                                            <AlertDialogAction onClick={() => {
+                                                                                                markRunPaid(run.date);
+                                                                                                useAuditStore.getState().log({ entityType: "payroll_run", entityId: run.date, action: "payroll_completed", performedBy: currentUser.id });
+                                                                                                toast.success("Payroll run completed — Run Payroll unlocked");
+                                                                                            }}>Complete Run</AlertDialogAction>
+                                                                                        </AlertDialogFooter>
+                                                                                    </AlertDialogContent>
+                                                                                </AlertDialog>
+                                                                            )}
                                                                         </div>
                                                                     </TableCell>
                                                                 )}
@@ -1461,6 +1659,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                                 const empName = getEmpName(ps.employeeId);
                                                                 const noteKey = ps.id;
                                                                 const currentNote = holdNotes[noteKey] ?? ps.holdNote ?? "Late compliance to payroll submission. Please coordinate with the payroll team to resolve this issue.";
+                                                                const isSigned = !!ps.signedAt;
                                                                 return (
                                                                     <div key={ps.id} className="rounded-lg border border-border/60 p-3 space-y-2">
                                                                         <div className="flex items-center justify-between">
@@ -1468,67 +1667,77 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                                                 <p className="text-sm font-semibold">{empName}</p>
                                                                                 <p className="text-xs text-muted-foreground">{ps.periodStart} – {ps.periodEnd}</p>
                                                                             </div>
-                                                                            <span className="text-sm font-bold tabular-nums">₱{ps.netPay.toLocaleString()}</span>
+                                                                            <div className="flex items-center gap-2">
+                                                                                {isSigned && (
+                                                                                    <Badge variant="secondary" className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                                                                                        <CheckCircle className="h-3 w-3 mr-1" /> Signed
+                                                                                    </Badge>
+                                                                                )}
+                                                                                <span className="text-sm font-bold tabular-nums">₱{ps.netPay.toLocaleString()}</span>
+                                                                            </div>
                                                                         </div>
                                                                         {ps.heldAt && <p className="text-[10px] text-muted-foreground">Held on {new Date(ps.heldAt).toLocaleDateString()}</p>}
-                                                                        <Textarea
-                                                                            value={currentNote}
-                                                                            onChange={(e) => setHoldNotes((prev) => ({ ...prev, [noteKey]: e.target.value }))}
-                                                                            placeholder="Reason for hold..."
-                                                                            className="text-xs min-h-[60px] resize-none"
-                                                                        />
-                                                                        <div className="flex items-center gap-2 justify-end">
-                                                                            <Button
-                                                                                variant="outline" size="sm" className="h-7 text-xs gap-1.5"
-                                                                                onClick={() => {
-                                                                                    // Save note to store
-                                                                                    const note = holdNotes[noteKey] ?? currentNote;
-                                                                                    usePayrollStore.getState().updatePayslipFromServer({ id: ps.id, holdNote: note });
-                                                                                    toast.success(`Note saved for ${empName}`);
-                                                                                }}
-                                                                            >
-                                                                                <Save className="h-3 w-3" /> Save Note
-                                                                            </Button>
-                                                                            <Button
-                                                                                variant="outline" size="sm" className="h-7 text-xs gap-1.5 text-amber-600 border-amber-200 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/30"
-                                                                                onClick={() => {
-                                                                                    const note = holdNotes[noteKey] ?? currentNote;
-                                                                                    usePayrollStore.getState().updatePayslipFromServer({ id: ps.id, holdNote: note });
-                                                                                    dispatchNotification("payslip_on_hold", { name: empName, period: `${ps.periodStart} – ${ps.periodEnd}`, reason: note }, ps.employeeId);
-                                                                                    toast.success(`Notification sent to ${empName}`);
-                                                                                }}
-                                                                            >
-                                                                                <Bell className="h-3 w-3" /> Notify Employee
-                                                                            </Button>
-                                                                            <Button
-                                                                                variant="outline" size="sm" className="h-7 text-xs gap-1.5 text-emerald-600 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-                                                                                onClick={() => {
-                                                                                    setHoldModalOpen(false);
-                                                                                    setReissueConfirmId(ps.id);
-                                                                                }}
-                                                                            >
-                                                                                <RotateCcw className="h-3 w-3" /> Re-Issue
-                                                                            </Button>
-                                                                        </div>
+                                                                        {isSigned && ps.signedAt && <p className="text-[10px] text-emerald-600 dark:text-emerald-400">Signed on {new Date(ps.signedAt).toLocaleDateString()}</p>}
+
+                                                                        {/* Unsigned: show note editor + re-issue */}
+                                                                        {!isSigned && (
+                                                                            <>
+                                                                                <Textarea
+                                                                                    value={currentNote}
+                                                                                    onChange={(e) => setHoldNotes((prev) => ({ ...prev, [noteKey]: e.target.value }))}
+                                                                                    placeholder="Reason for hold..."
+                                                                                    className="text-xs min-h-[60px] resize-none"
+                                                                                />
+                                                                                <div className="flex items-center gap-2 justify-end">
+                                                                                    <Button
+                                                                                        variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+                                                                                        onClick={() => {
+                                                                                            const note = holdNotes[noteKey] ?? currentNote;
+                                                                                            usePayrollStore.getState().updatePayslipFromServer({ id: ps.id, holdNote: note });
+                                                                                            toast.success(`Note saved for ${empName}`);
+                                                                                        }}
+                                                                                    >
+                                                                                        <Save className="h-3 w-3" /> Save Note
+                                                                                    </Button>
+                                                                                    <Button
+                                                                                        variant="outline" size="sm" className="h-7 text-xs gap-1.5 text-emerald-600 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                                                                                        onClick={() => {
+                                                                                            setHoldModalOpen(false);
+                                                                                            setReissueConfirmId(ps.id);
+                                                                                        }}
+                                                                                    >
+                                                                                        <RotateCcw className="h-3 w-3" /> Re-Issue
+                                                                                    </Button>
+                                                                                </div>
+                                                                            </>
+                                                                        )}
+
+                                                                        {/* Signed: show approve/disapprove */}
+                                                                        {isSigned && (
+                                                                            <div className="flex items-center gap-2 justify-end pt-1">
+                                                                                <Button
+                                                                                    variant="outline" size="sm" className="h-7 text-xs gap-1.5 text-red-600 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                                                                    onClick={() => {
+                                                                                        rejectHoldSignature(ps.id);
+                                                                                        toast.success(`Signature rejected for ${empName}. Employee must re-sign.`);
+                                                                                    }}
+                                                                                >
+                                                                                    <XCircle className="h-3 w-3" /> Disapprove
+                                                                                </Button>
+                                                                                <Button
+                                                                                    size="sm" className="h-7 text-xs gap-1.5"
+                                                                                    onClick={() => {
+                                                                                        setHoldModalOpen(false);
+                                                                                        setHoldApprovePsId(ps.id);
+                                                                                    }}
+                                                                                >
+                                                                                    <CheckCircle className="h-3 w-3" /> Approve & Pay
+                                                                                </Button>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 );
                                                             })}
-                                                        </div>
-                                                        {/* Bulk Notify All */}
-                                                        <div className="border-t border-border/40 pt-3 flex justify-end">
-                                                            <Button
-                                                                variant="outline" size="sm" className="gap-1.5 text-amber-600 border-amber-200 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/30"
-                                                                onClick={() => {
-                                                                    heldPs.forEach((ps) => {
-                                                                        const note = holdNotes[ps.id] ?? ps.holdNote ?? "Late compliance to payroll submission. Please coordinate with the payroll team to resolve this issue.";
-                                                                        usePayrollStore.getState().updatePayslipFromServer({ id: ps.id, holdNote: note });
-                                                                        dispatchNotification("payslip_on_hold", { name: getEmpName(ps.employeeId), period: `${ps.periodStart} – ${ps.periodEnd}`, reason: note }, ps.employeeId);
-                                                                    });
-                                                                    toast.success(`Notified ${heldPs.length} employee${heldPs.length !== 1 ? "s" : ""}`);
-                                                                }}
-                                                            >
-                                                                <Bell className="h-3.5 w-3.5" /> Notify All ({heldPs.length})
-                                                            </Button>
                                                         </div>
                                                     </div>
                                                 </DialogContent>

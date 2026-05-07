@@ -34,7 +34,7 @@ export function usePayrollProgress() {
 
     return useMemo(() => {
         const activeRun = runs
-            .filter((r) => r.status !== "completed")
+            .filter((r) => r.status !== "completed" && r.status !== "ended")
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
 
         if (!activeRun) return "issue" as WizardStep;
@@ -60,7 +60,7 @@ export function useActiveRunSummary() {
 
     return useMemo(() => {
         const activeRun = runs
-            .filter((r) => r.status !== "completed")
+            .filter((r) => r.status !== "completed" && r.status !== "ended")
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
 
         if (!activeRun) return null;
@@ -70,7 +70,8 @@ export function useActiveRunSummary() {
             run: activeRun,
             total: runPs.length,
             draft: runPs.filter((p) => p.status === "draft").length,
-            published: runPs.filter((p) => p.status === "published" || p.status === "payment_hold").length,
+            published: runPs.filter((p) => p.status === "published").length,
+            onHold: runPs.filter((p) => p.status === "payment_hold").length,
             signed: runPs.filter((p) => p.status === "signed").length,
             paid: runPs.filter((p) => p.status === "paid").length,
             totalNet: runPs.reduce((sum, p) => sum + p.netPay, 0),
@@ -183,6 +184,7 @@ export default function PayrollPaymentWizard({ activeStep, onStepClick }: Payrol
                             { label: "Published", count: summary.published, color: "bg-violet-500", textColor: "text-violet-600 dark:text-violet-400" },
                             { label: "Signed", count: summary.signed, color: "bg-emerald-500", textColor: "text-emerald-600 dark:text-emerald-400" },
                             { label: "Paid", count: summary.paid, color: "bg-blue-500", textColor: "text-blue-600 dark:text-blue-400" },
+                            ...(summary.onHold > 0 ? [{ label: "On Hold", count: summary.onHold, color: "bg-amber-500", textColor: "text-amber-600 dark:text-amber-400" }] : []),
                         ].map(({ label, count, color, textColor }) => (
                             <div key={label} className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-1.5">
                                 <div className={cn("h-2 w-2 rounded-full shrink-0", color)} />

@@ -8,7 +8,7 @@ export type AttendanceStatus = "present" | "absent" | "on_leave";
 export type LeaveType = "SL" | "VL" | "EL" | "OTHER" | "ML" | "PL" | "SPL";
 export type LeaveStatus = "pending" | "approved" | "rejected";
 export type PayslipStatus = "draft" | "published" | "signed" | "paid" | "payment_hold";
-export type PayrollRunStatus = "draft" | "locked" | "published" | "completed";
+export type PayrollRunStatus = "draft" | "locked" | "published" | "ended" | "completed";
 
 // ─── Custom Deduction Templates ──────────────────────────────
 export type DeductionTemplateType = "deduction" | "allowance";
@@ -81,7 +81,7 @@ export type AuditAction =
   | "salary_proposed" | "salary_approved" | "salary_rejected"
   | "leave_approved" | "leave_rejected"
   | "overtime_approved" | "overtime_rejected"
-  | "payroll_locked" | "payroll_published" | "payroll_paid" | "payroll_completed"
+  | "payroll_locked" | "payroll_published" | "payroll_paid" | "payroll_ended" | "payroll_completed"
   | "adjustment_created" | "adjustment_approved" | "adjustment_applied"
   | "loan_created" | "loan_frozen" | "loan_unfrozen" | "loan_settled"
   | "payment_recorded" | "employee_resigned" | "employee_deleted" | "final_pay_created"
