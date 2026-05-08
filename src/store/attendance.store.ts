@@ -88,6 +88,26 @@ const DEFAULT_SHIFTS: ShiftTemplate[] = [
     { id: "SHIFT-NIGHT", name: "Night Shift", startTime: "22:00", endTime: "06:00", gracePeriod: 15, breakDuration: 60, workDays: [1, 2, 3, 4, 5] },
 ];
 
+function formatTimeWithSeconds(date: Date) {
+    return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")}`;
+}
+
+function timeToSeconds(time: string) {
+    const [hours = 0, minutes = 0, seconds = 0] = time.split(":").map(Number);
+    return hours * 3600 + minutes * 60 + seconds;
+}
+
+function calculateHours(checkIn: string, checkOut: string) {
+    const inTotal = timeToSeconds(checkIn);
+    const outTotal = timeToSeconds(checkOut);
+    const diffSeconds = outTotal >= inTotal
+        ? outTotal - inTotal
+        : 24 * 3600 - inTotal + outTotal;
+
+    if (diffSeconds > 0 && diffSeconds < 60) return 0.01;
+    return Math.round((diffSeconds / 3600) * 100) / 100;
+}
+
 export const useAttendanceStore = create<AttendanceState>()(
     persist(
         (set, get) => ({
@@ -371,7 +391,7 @@ export const useAttendanceStore = create<AttendanceState>()(
             checkIn: (employeeId, projectId) => {
                 const today = new Date().toISOString().split("T")[0];
                 const now = new Date();
-                const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+                const timeStr = formatTimeWithSeconds(now);
 
                 // Append to event ledger
                 const eventId = `EVT-${nanoid(8)}`;
@@ -431,7 +451,7 @@ export const useAttendanceStore = create<AttendanceState>()(
             checkOut: (employeeId, projectId) => {
                 const today = new Date().toISOString().split("T")[0];
                 const now = new Date();
-                const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+                const timeStr = formatTimeWithSeconds(now);
 
                 // Verify employee has checked in today before allowing check-out
                 const todayLog = get().logs.find(
@@ -452,14 +472,7 @@ export const useAttendanceStore = create<AttendanceState>()(
                 set((s) => ({
                     logs: s.logs.map((l) => {
                         if (l.employeeId === employeeId && l.date === today && l.checkIn) {
-                            const [inH, inM] = l.checkIn.split(":").map(Number);
-                            const outTotalMin = now.getHours() * 60 + now.getMinutes();
-                            const inTotalMin = inH * 60 + inM;
-                            // Handle overnight shifts (checkout next day is < checkin time)
-                            const diffMin = outTotalMin >= inTotalMin
-                                ? outTotalMin - inTotalMin
-                                : 24 * 60 - inTotalMin + outTotalMin;
-                            return { ...l, checkOut: timeStr, hours: Math.round((diffMin / 60) * 10) / 10, updatedAt: now.toISOString() };
+                            return { ...l, checkOut: timeStr, hours: calculateHours(l.checkIn, timeStr), updatedAt: now.toISOString() };
                         }
                         return l;
                     }),
@@ -565,14 +578,7 @@ export const useAttendanceStore = create<AttendanceState>()(
                         const updated = { ...l, ...patch, updatedAt: new Date().toISOString() };
                         // Recalculate hours if both times are present; handle overnight shifts
                         if (updated.checkIn && updated.checkOut) {
-                            const [inH, inM] = updated.checkIn.split(":").map(Number);
-                            const [outH, outM] = updated.checkOut.split(":").map(Number);
-                            const inTotal = inH * 60 + inM;
-                            const outTotal = outH * 60 + outM;
-                            const diffMin = outTotal >= inTotal
-                                ? outTotal - inTotal
-                                : 24 * 60 - inTotal + outTotal;
-                            updated.hours = Math.round((diffMin / 60) * 10) / 10;
+                            updated.hours = calculateHours(updated.checkIn, updated.checkOut);
                         }
                         return updated;
                     }),
@@ -591,9 +597,7 @@ export const useAttendanceStore = create<AttendanceState>()(
                             : { id: `ATT-${row.date}-${row.employeeId}`, ...row, createdAt: nowISO, updatedAt: nowISO };
                         // recalc hours
                         if (entry.checkIn && entry.checkOut) {
-                            const [inH, inM] = entry.checkIn.split(":").map(Number);
-                            const [outH, outM] = entry.checkOut.split(":").map(Number);
-                            entry.hours = Math.max(0, Math.round(((outH * 60 + outM) - (inH * 60 + inM)) / 60 * 10) / 10);
+                            entry.hours = calculateHours(entry.checkIn, entry.checkOut);
                         }
                         if (idx >= 0) logs[idx] = entry; else logs.push(entry);
                     }

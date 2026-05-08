@@ -32,11 +32,12 @@ import { parseISO, isAfter, startOfDay, isToday, format } from "date-fns";
 
 function formatTimeAmPm(time: string | null | undefined): string {
     if (!time) return "—";
-    const [h, m] = time.split(":").map(Number);
+    const [h, m, s] = time.split(":").map(Number);
     if (isNaN(h) || isNaN(m)) return time;
     const hour12 = h % 12 || 12;
     const ampm = h >= 12 ? "PM" : "AM";
-    return `${hour12}:${String(m).padStart(2, "0")} ${ampm}`;
+    const seconds = typeof s === "number" && Number.isFinite(s) && s > 0 ? `:${String(s).padStart(2, "0")}` : "";
+    return `${hour12}:${String(m).padStart(2, "0")}${seconds} ${ampm}`;
 }
 
 /* ─── Main Component ─────────────────────────────────────────── */

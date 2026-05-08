@@ -114,25 +114,27 @@ function getManilaParts(date: Date) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
     hour12: false,
   }).formatToParts(date);
 
   const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return {
     date: `${byType.year}-${byType.month}-${byType.day}`,
-    time: `${byType.hour}:${byType.minute}`,
+    time: `${byType.hour}:${byType.minute}:${byType.second}`,
   };
 }
 
 function calculateHours(checkIn: string, checkOut: string) {
-  const [inH, inM] = checkIn.split(":").map(Number);
-  const [outH, outM] = checkOut.split(":").map(Number);
-  const inTotal = inH * 60 + inM;
-  const outTotal = outH * 60 + outM;
-  const diffMin = outTotal >= inTotal
+  const [inH, inM, inS = 0] = checkIn.split(":").map(Number);
+  const [outH, outM, outS = 0] = checkOut.split(":").map(Number);
+  const inTotal = inH * 3600 + inM * 60 + inS;
+  const outTotal = outH * 3600 + outM * 60 + outS;
+  const diffSeconds = outTotal >= inTotal
     ? outTotal - inTotal
-    : 24 * 60 - inTotal + outTotal;
-  return Math.round((diffMin / 60) * 10) / 10;
+    : 24 * 3600 - inTotal + outTotal;
+  if (diffSeconds > 0 && diffSeconds < 60) return 0.01;
+  return Math.round((diffSeconds / 3600) * 100) / 100;
 }
 
 function buildResponse(responseCode: string, transId?: string | null, cmdCode?: string | null) {

@@ -42,14 +42,15 @@ import { findCurrentEmployee, getAttendanceEmployeeIds } from "@/lib/current-emp
 
 type CheckInStep = "idle" | "locating" | "location_result" | "done" | "error" | "selfie" | "qr_scan";
 
-/** Format "HH:MM" time string to "h:mm AM/PM" */
+/** Format "HH:MM" or "HH:MM:SS" time string to "h:mm[:ss] AM/PM" */
 function formatTimeAmPm(time: string | undefined): string {
     if (!time) return "";
-    const [h, m] = time.split(":").map(Number);
+    const [h, m, s] = time.split(":").map(Number);
     if (isNaN(h) || isNaN(m)) return time;
     const hour12 = h % 12 || 12;
     const ampm = h >= 12 ? "PM" : "AM";
-    return `${hour12}:${String(m).padStart(2, "0")} ${ampm}`;
+    const seconds = typeof s === "number" && Number.isFinite(s) && s > 0 ? `:${String(s).padStart(2, "0")}` : "";
+    return `${hour12}:${String(m).padStart(2, "0")}${seconds} ${ampm}`;
 }
 
 /* ─── Live elapsed‑time display ────────────────────────────── */
@@ -57,8 +58,8 @@ function ElapsedTimeDisplay({ checkInTime }: { checkInTime: string }) {
     const [elapsed, setElapsed] = useState("0h 0m");
     useEffect(() => {
         const tick = () => {
-            const [h, m] = checkInTime.split(":").map(Number);
-            const start = new Date(); start.setHours(h, m, 0, 0);
+            const [h, m, s = 0] = checkInTime.split(":").map(Number);
+            const start = new Date(); start.setHours(h, m, s, 0);
             const diff = Math.max(0, Date.now() - start.getTime());
             const hrs = Math.floor(diff / 3600000);
             const mins = Math.floor((diff % 3600000) / 60000);
