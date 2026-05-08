@@ -109,10 +109,10 @@ const detectLocationSpoofing = (coords: GeolocationCoordinates): string | null =
     // 4. Negative speed = impossible, indicates tampered data
     if (coords.speed !== null && coords.speed < 0) return "Invalid speed value in location data.";
 
-    // 5. iOS-specific: real GPS always provides altitude; mock tools often don't
-    if (isIOS && coords.altitude === null) return "Mock location suspected — iOS altitude data is missing.";
-
-    // 6. Android-specific: real GPS reports altitude accuracy with altitude; mock without
+    // 5. Android-specific: real GPS reports altitude accuracy when altitude is present; mock tools often skip it
+    //    NOTE: iOS altitude is intentionally NOT checked — Safari does not reliably expose altitude
+    //    via the Geolocation API (returns null for WiFi/cell positioning, indoor GPS, and precise
+    //    location disabled in iOS 14+). Checking it causes false positives for real users.
     if (isAndroid && coords.altitude !== null && coords.altitudeAccuracy === null) return "Mock location suspected — Android altitude accuracy data is missing.";
 
     // 7. Android: rounded coordinates suggest mock provider (whole degrees/minutes)

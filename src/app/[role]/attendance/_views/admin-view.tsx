@@ -72,7 +72,8 @@ const detectLocationSpoofing = (coords: GeolocationCoordinates): string | null =
     if (coords.accuracy > 0 && coords.accuracy < 1) return "Suspiciously precise GPS accuracy (possible mock provider).";
     if (coords.accuracy > 500) return "GPS accuracy is too poor to verify location reliably.";
     if (coords.speed !== null && coords.speed < 0) return "Invalid speed value in location data.";
-    if (isIOS && coords.altitude === null) return "Mock location suspected — iOS altitude data missing.";
+    // NOTE: iOS altitude is intentionally NOT checked — Safari does not reliably expose altitude
+    // (returns null for WiFi/cell positioning and when Precise Location is off on iOS 14+).
     if (isAndroid && coords.altitude !== null && coords.altitudeAccuracy === null) return "Mock location suspected — Android altitude accuracy missing.";
     return null;
 };
