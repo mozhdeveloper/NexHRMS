@@ -202,9 +202,24 @@ function isAllowedDevice(devId: string | null) {
   return allowedIds.includes(devId);
 }
 
-function inferEventType(existingLog: { check_in?: string | null; check_out?: string | null } | null) {
+function getManilaDayUtcRange(scanDay: string) {
+  const [year, month, day] = scanDay.split("-").map(Number);
+  const startMs = Date.UTC(year, month - 1, day) - MANILA_OFFSET_MS;
+  const endMs = startMs + 24 * 60 * 60 * 1000;
+
+  return {
+    start: new Date(startMs).toISOString(),
+    end: new Date(endMs).toISOString(),
+  };
+}
+
+function inferEventType(
+  existingLog: { check_in?: string | null; check_out?: string | null } | null,
+  latestEvent: { event_type?: string | null; timestamp_utc?: string | null } | null
+) {
+  if (existingLog?.check_in && !existingLog?.check_out) return "OUT";
+  if (latestEvent?.event_type === "IN") return "OUT";
   if (!existingLog?.check_in) return "IN";
-  if (!existingLog?.check_out) return "OUT";
   return null;
 }
 
@@ -395,12 +410,17 @@ export async function POST(request: NextRequest) {
 
     const scanDate = new Date(timestampUTC);
     const { date: scanDay, time: timeStr } = getManilaParts(scanDate);
+    const dayRange = getManilaDayUtcRange(scanDay);
     const supabase = await createAdminSupabaseClient();
 
     const { data: employee, error: employeeError } = await supabase
       .from("employees")
-      .select("id, biometric_id, status")
+      .select("id, biometric_id, status, updated_at, created_at")
       .eq("biometric_id", biometricId)
+      .eq("status", "active")
+      .order("updated_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false, nullsFirst: false })
+      .limit(1)
       .maybeSingle();
 
     if (employeeError) {
@@ -408,7 +428,7 @@ export async function POST(request: NextRequest) {
       return buildResponse("ERROR_EMPLOYEE_LOOKUP");
     }
 
-    if (!employee?.id || employee.status !== "active") {
+    if (!employee?.id) {
       console.warn("[t800] Unmapped or inactive biometric ID:", biometricId, "dev_id:", devId);
       return buildResponse("OK");
     }
@@ -418,13 +438,37 @@ export async function POST(request: NextRequest) {
       .select("id, check_in, check_out")
       .eq("employee_id", employee.id)
       .eq("date", scanDay)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { data: existingEvent } = await supabase
+      .from("attendance_events")
+      .select("id, event_type")
+      .eq("employee_id", employee.id)
+      .eq("timestamp_utc", timestampUTC)
+      .eq("device_id", devId || "T800")
+      .maybeSingle();
+
+    if (existingEvent) {
+      return buildResponse("OK");
+    }
+
+    const { data: latestTodayEvent } = await supabase
+      .from("attendance_events")
+      .select("event_type, timestamp_utc")
+      .eq("employee_id", employee.id)
+      .gte("timestamp_utc", dayRange.start)
+      .lt("timestamp_utc", dayRange.end)
+      .order("timestamp_utc", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (existingLog?.check_in && existingLog?.check_out) {
       return buildResponse("OK");
     }
 
-    const eventType = inferEventType(existingLog);
+    const eventType = inferEventType(existingLog, latestTodayEvent);
     if (!eventType) {
       return buildResponse("OK");
     }
@@ -465,17 +509,40 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (eventType === "OUT" && existingLog?.check_in) {
-      const { error: logError } = await supabase
-        .from("attendance_logs")
-        .update({
-          check_out: timeStr,
-          hours: calculateHours(existingLog.check_in, timeStr),
-          status: "present",
-          updated_at: nowISO,
-        })
-        .eq("employee_id", employee.id)
-        .eq("date", scanDay);
+    if (eventType === "OUT") {
+      const checkIn = existingLog?.check_in || (
+        latestTodayEvent?.event_type === "IN" && latestTodayEvent.timestamp_utc
+          ? getManilaParts(new Date(latestTodayEvent.timestamp_utc)).time
+          : null
+      );
+
+      if (!checkIn) {
+        return buildResponse("ERROR_MISSING_CHECK_IN");
+      }
+
+      const logUpdate = {
+        check_in: checkIn,
+        check_out: timeStr,
+        hours: calculateHours(checkIn, timeStr),
+        status: "present",
+        updated_at: nowISO,
+      };
+
+      const logResult = existingLog?.id
+        ? await supabase
+          .from("attendance_logs")
+          .update(logUpdate)
+          .eq("id", existingLog.id)
+        : await supabase
+          .from("attendance_logs")
+          .upsert({
+            id: `ATT-${scanDay}-${employee.id}`,
+            employee_id: employee.id,
+            date: scanDay,
+            ...logUpdate,
+          }, { onConflict: "employee_id,date" });
+
+      const logError = logResult.error;
 
       if (logError) {
         console.error("[t800] Check-out log update error:", logError);

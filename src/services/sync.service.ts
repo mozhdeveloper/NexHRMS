@@ -959,11 +959,13 @@ export function startRealtime(): void {
       safe(({ new: row }: { new: Record<string, unknown> }) => {
         const log = keysToCamel(row) as Record<string, unknown>;
         useAttendanceStore.setState((s) => ({
-          logs: s.logs.map((l) =>
-            l.id === log.id
-              ? (JSON.stringify(l) !== JSON.stringify(log) ? { ...l, ...log } as typeof l : l)
-              : l
-          ),
+          logs: s.logs.find((l) => l.id === log.id)
+            ? s.logs.map((l) =>
+              l.id === log.id
+                ? (JSON.stringify(l) !== JSON.stringify(log) ? { ...l, ...log } as typeof l : l)
+                : l
+            )
+            : [...s.logs, log as unknown as typeof s.logs[0]],
         }));
       })
     )

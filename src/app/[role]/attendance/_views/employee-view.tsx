@@ -38,6 +38,7 @@ import { BreakTimer } from "@/components/attendance/break-timer";
 import { EmployeeQRDisplay } from "@/components/attendance/employee-qr-display";
 import { EnrollmentReminder } from "@/components/attendance/enrollment-reminder";
 import { stopWriteThrough, startWriteThrough, forceRehydrate } from "@/services/sync.service";
+import { findCurrentEmployee, getAttendanceEmployeeIds } from "@/lib/current-employee";
 
 type CheckInStep = "idle" | "locating" | "location_result" | "done" | "error" | "selfie" | "qr_scan";
 
@@ -188,9 +189,26 @@ export default function EmployeeView() {
     const notificationsDispatch = useNotificationsStore((s) => s.dispatch);
     const notificationsAddLog = useNotificationsStore((s) => s.addLog);
 
-    const myEmployeeId = employees.find(
-        (e) => e.profileId === currentUser.id || e.email?.toLowerCase() === currentUser.email?.toLowerCase() || e.name === currentUser.name
-    )?.id;
+    useEffect(() => {
+        forceRehydrate().catch(() => { /* keep local state if refresh fails */ });
+
+        const refreshOnFocus = () => {
+            if (document.visibilityState === "visible") {
+                forceRehydrate().catch(() => { /* keep local state if refresh fails */ });
+            }
+        };
+
+        window.addEventListener("focus", refreshOnFocus);
+        document.addEventListener("visibilitychange", refreshOnFocus);
+        return () => {
+            window.removeEventListener("focus", refreshOnFocus);
+            document.removeEventListener("visibilitychange", refreshOnFocus);
+        };
+    }, []);
+
+    const currentEmployee = useMemo(() => findCurrentEmployee(employees, currentUser), [employees, currentUser]);
+    const attendanceEmployeeIds = useMemo(() => getAttendanceEmployeeIds(employees, currentEmployee), [employees, currentEmployee]);
+    const myEmployeeId = currentEmployee?.id;
     const todayLog = myEmployeeId ? getTodayLog(myEmployeeId) : undefined;
     const myProject = myEmployeeId ? getProjectForEmployee(myEmployeeId) : undefined;
     const myOTRequests = overtimeRequests.filter((r) => r.employeeId === myEmployeeId);
@@ -330,7 +348,7 @@ export default function EmployeeView() {
     };
 
     const handleExportCSV = () => {
-        const myLogs = logs.filter((l) => l.employeeId === myEmployeeId).sort((a, b) => b.date.localeCompare(a.date));
+        const myLogs = logs.filter((l) => attendanceEmployeeIds.includes(l.employeeId)).sort((a, b) => b.date.localeCompare(a.date));
         const rows = [
             ["Date", "Check In", "Check Out", "Hours", "Late (min)", "Status"],
             ...myLogs.map((l) => [l.date, l.checkIn || "", l.checkOut || "", l.hours ?? "", l.lateMinutes ?? "", l.status]),
@@ -519,7 +537,7 @@ export default function EmployeeView() {
         const now = new Date();
         const weekStart = new Date(now); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
         const weekDates = Array.from({ length: 7 }, (_, i) => { const d = new Date(weekStart); d.setDate(d.getDate() + i); return d.toISOString().split("T")[0]; });
-        const weekLogs = logs.filter((l) => l.employeeId === myEmployeeId && weekDates.includes(l.date));
+        const weekLogs = logs.filter((l) => attendanceEmployeeIds.includes(l.employeeId) && weekDates.includes(l.date));
         const daysPresent = weekLogs.filter((l) => l.status === "present").length;
         const totalHours = weekLogs.reduce((sum, l) => sum + (l.hours || 0), 0);
         const lateDays = weekLogs.filter((l) => (l.lateMinutes || 0) > 0).length;
@@ -527,12 +545,12 @@ export default function EmployeeView() {
         const scheduledDays = myEmp?.workDays?.length || 5;
         const progressPct = Math.min(100, Math.round((daysPresent / scheduledDays) * 100));
         return { daysPresent, totalHours, lateDays, scheduledDays, progressPct };
-    }, [myEmployeeId, logs, employees]);
+    }, [attendanceEmployeeIds, myEmployeeId, logs, employees]);
 
     const empRecentLogs = useMemo(() => {
         if (!myEmployeeId) return [];
-        return logs.filter((l) => l.employeeId === myEmployeeId).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7);
-    }, [myEmployeeId, logs]);
+        return logs.filter((l) => attendanceEmployeeIds.includes(l.employeeId)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7);
+    }, [attendanceEmployeeIds, myEmployeeId, logs]);
 
     const empUpcomingHolidays = useMemo(() => {
         const str = new Date().toISOString().split("T")[0];

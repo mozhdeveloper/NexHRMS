@@ -55,6 +55,7 @@ import { SiteSurveyGallery } from "@/components/attendance/site-survey-gallery";
 import { LocationTrail } from "@/components/attendance/location-trail";
 import { AttendanceHeatmap } from "@/components/attendance/attendance-heatmap";
 import type { Holiday, AttendanceFlag } from "@/types";
+import { forceRehydrate } from "@/services/sync.service";
 
 type CheckInStep = "idle" | "locating" | "location_result" | "done" | "error" | "selfie";
 
@@ -132,6 +133,7 @@ export default function AdminView({ mode = "admin" }: AdminViewProps) {
     // ─── Filters ──────────────────────────────────────────────────
     const [dateFilter, setDateFilter] = useState(() => new Date().toISOString().split("T")[0]);
     const [empFilter, setEmpFilter] = useState("all");
+    const [dateFilterTouched, setDateFilterTouched] = useState(false);
 
     // Event ledger filters
     const [eventTypeFilter, setEventTypeFilter] = useState("all");
@@ -148,6 +150,40 @@ export default function AdminView({ mode = "admin" }: AdminViewProps) {
             .sort((a, b) => b.date.localeCompare(a.date))
             .slice(0, 50);
     }, [logs, dateFilter, empFilter, teamEmployeeIds]);
+
+    useEffect(() => {
+        forceRehydrate().catch(() => { /* keep local state if refresh fails */ });
+
+        const refreshOnFocus = () => {
+            if (document.visibilityState === "visible") {
+                forceRehydrate().catch(() => { /* keep local state if refresh fails */ });
+            }
+        };
+
+        window.addEventListener("focus", refreshOnFocus);
+        document.addEventListener("visibilitychange", refreshOnFocus);
+        return () => {
+            window.removeEventListener("focus", refreshOnFocus);
+            document.removeEventListener("visibilitychange", refreshOnFocus);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (dateFilterTouched || logs.length === 0 || filteredLogs.length > 0) return;
+
+        const visibleLogDates = logs
+            .filter((l) => {
+                const matchEmp = empFilter === "all" || l.employeeId === empFilter;
+                const matchTeam = !teamEmployeeIds || teamEmployeeIds.has(l.employeeId);
+                return matchEmp && matchTeam;
+            })
+            .map((l) => l.date)
+            .sort((a, b) => b.localeCompare(a));
+
+        if (visibleLogDates[0]) {
+            setDateFilter(visibleLogDates[0]);
+        }
+    }, [dateFilterTouched, empFilter, filteredLogs.length, logs, teamEmployeeIds]);
 
     const filteredEvents = useMemo(() => {
         return events
@@ -659,7 +695,15 @@ export default function AdminView({ mode = "admin" }: AdminViewProps) {
                     <Card className="border border-border/40 shadow-sm">
                         <CardContent className="p-3">
                             <div className="flex flex-wrap items-center gap-2">
-                                <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-full sm:w-[170px] h-9" />
+                                <Input
+                                    type="date"
+                                    value={dateFilter}
+                                    onChange={(e) => {
+                                        setDateFilterTouched(true);
+                                        setDateFilter(e.target.value);
+                                    }}
+                                    className="w-full sm:w-[170px] h-9"
+                                />
                                 <EmployeeCombobox value={empFilter} onValueChange={setEmpFilter} allLabel={mode === "supervisor" ? "All Team Members" : "All Employees"} className="w-full sm:w-[220px]" />
                             </div>
                         </CardContent>

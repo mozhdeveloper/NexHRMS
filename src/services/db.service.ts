@@ -260,7 +260,25 @@ export const leaveDb = {
 // ─── Attendance ─────────────────────────────────────────────────
 
 export const attendanceDb = {
-  fetchLogs: () => fetchAll<AttendanceLog>("attendance_logs"),
+  fetchLogs: async () => {
+    if (typeof window !== "undefined" && !isDemoMode) {
+      try {
+        const res = await fetch("/api/attendance/logs", {
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const data = await res.json() as { logs?: AttendanceLog[] };
+          return data.logs ?? [];
+        }
+        console.warn("[db] attendance_logs API:", res.status);
+      } catch (error) {
+        console.warn("[db] attendance_logs API failed:", error);
+      }
+    }
+
+    return fetchAll<AttendanceLog>("attendance_logs");
+  },
   fetchEvents: async (): Promise<AttendanceEvent[]> => {
     const rows = await fetchAll<AttendanceEvent>("attendance_events", { order: { column: "timestamp_utc", ascending: false } });
     // keysToCamel converts "timestamp_utc" → "timestampUtc" but the type expects "timestampUTC".

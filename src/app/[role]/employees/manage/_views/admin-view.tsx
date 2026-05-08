@@ -52,6 +52,7 @@ import { useAuditStore } from "@/store/audit.store";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Employee, WorkType, PayFrequency, Role, JobTitle, Department, DeductionType, DeductionOverrideMode } from "@/types";
+import { forceRehydrate } from "@/services/sync.service";
 
 const USE_DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
@@ -103,6 +104,36 @@ export default function AdminEmployeesView() {
         if (result.ok) setRealAccounts(result.accounts);
         setAccountsLoading(false);
     }, []);
+
+    const handleDeleteEmployee = async (emp: Employee) => {
+        if (!canManage) return;
+
+        try {
+            const res = await fetch(`/api/employees/${encodeURIComponent(emp.id)}`, {
+                method: "DELETE",
+                credentials: "same-origin",
+            });
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok || data.ok === false) {
+                toast.error(data.error || "Failed to delete employee from database");
+                return;
+            }
+
+            removeEmployee(emp.id);
+            useAuditStore.getState().log({
+                entityType: "employee",
+                entityId: emp.id,
+                action: "employee_deleted",
+                performedBy: currentUser.id,
+            });
+            toast.success(`${emp.name} removed`);
+            try { await forceRehydrate(); } catch { /* keep local state if refresh fails */ }
+        } catch (error) {
+            console.error("[employees] delete failed:", error);
+            toast.error("Network error while deleting employee");
+        }
+    };
 
     useEffect(() => {
         if (USE_DEMO_MODE) return;
@@ -1630,7 +1661,7 @@ export default function AdminEmployeesView() {
                                                                         <AlertDialogHeader><AlertDialogTitle>Delete Employee</AlertDialogTitle><AlertDialogDescription>Are you sure you want to permanently remove <strong>{emp.name}</strong>{emp.status === "active" ? " (currently active)" : ""}? This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
                                                                         <AlertDialogFooter>
                                                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => { removeEmployee(emp.id); useAuditStore.getState().log({ entityType: "employee", entityId: emp.id, action: "employee_deleted", performedBy: currentUser.id }); toast.success(`${emp.name} removed`); }}>Delete</AlertDialogAction>
+                                                                            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => { void handleDeleteEmployee(emp); }}>Delete</AlertDialogAction>
                                                                         </AlertDialogFooter>
                                                                     </AlertDialogContent>
                                                                 </AlertDialog>
