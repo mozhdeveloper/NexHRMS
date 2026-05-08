@@ -45,6 +45,7 @@ import { nanoid } from "nanoid";
 import { Search, SlidersHorizontal, Eye, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Plus, Trash2, UserMinus, Pencil, Mail, MapPin, Phone, Cake, DollarSign, RefreshCw, KeyRound, ShieldCheck, Briefcase, User, FolderKanban, Users, Tag, Crown, Building2, Receipt, Calculator, XCircle } from "lucide-react";
 import { getInitials, formatCurrency, formatDate, validatePhone } from "@/lib/format";
 import Link from "next/link";
+import { ImportDataDialog } from "@/components/import-data-dialog";
 import { useRoleHref } from "@/lib/hooks/use-role-href";
 import { sendNotification } from "@/lib/notifications";
 import { toast } from "sonner";
@@ -829,10 +830,21 @@ export default function AdminEmployeesView() {
                 <TabsContent value="management" className="mt-4 space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <p className="text-sm text-muted-foreground">{filtered.length} employees found</p>
-                        <Dialog open={addOpen} onOpenChange={setAddOpen}>
-                            <DialogTrigger asChild>
-                                <Button className="gap-1.5" disabled={!canManage}><Plus className="h-4 w-4" /> Add Employee</Button>
-                            </DialogTrigger>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {canManage && <ImportDataDialog module="employees" />}
+                            {canManage && (
+                                <Button
+                                    variant="outline"
+                                    className="gap-1.5"
+                                    onClick={() => { window.location.href = "/api/export/employees"; }}
+                                >
+                                    Export
+                                </Button>
+                            )}
+                            <Dialog open={addOpen} onOpenChange={setAddOpen}>
+                                <DialogTrigger asChild>
+                                    <Button className="gap-1.5" disabled={!canManage}><Plus className="h-4 w-4" /> Add Employee</Button>
+                                </DialogTrigger>
                             <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
                                 <div className="px-6 pt-5 pb-4 border-b">
                                     <DialogTitle className="text-base font-semibold">Add New Employee</DialogTitle>
@@ -1115,7 +1127,8 @@ export default function AdminEmployeesView() {
                                     <Button onClick={handleAddEmployee} disabled={addingEmployee || !newPassword || newPassword.length < 8} className="gap-1.5 h-8 text-sm"><Plus className="h-3.5 w-3.5" /> {addingEmployee ? "Adding…" : "Add Employee"}</Button>
                                 </div>
                             </DialogContent>
-                        </Dialog>
+                            </Dialog>
+                        </div>
                     </div>
 
                     {/* Edit Employee Dialog */}

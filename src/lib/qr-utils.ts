@@ -136,12 +136,14 @@ export async function parseEmployeeQRPayload(
 
 /* ─── Detect QR type ─────────────────────────────────────────── */
 
-export type QRType = "daily" | "static" | "dynamic" | "unknown";
+export type QRType = "daily" | "static" | "dynamic" | "project" | "unknown";
 
 export function detectQRType(payload: string): QRType {
     if (payload.startsWith(DAILY_PREFIX)) return "daily";
     if (payload.startsWith(QR_PREFIX)) return "static";
     if (payload.startsWith("SDS-DYN-")) return "dynamic";
+    // Project QR is JSON: {"v":1,"type":"project",...}
+    if (payload.startsWith("{") && payload.includes('"type":"project"')) return "project";
     return "unknown";
 }
 

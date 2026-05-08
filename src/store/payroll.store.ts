@@ -16,6 +16,12 @@ export const DEFAULT_PAY_SCHEDULE: PayScheduleConfig = {
     biWeeklyStartDate: "2026-01-05",
     weeklyPayDay: 5, // Friday
     deductGovFrom: "second",
+    // Auto-deduction toggles (migration 055) — default ON for backwards-compat
+    autoDeductLate: true,
+    autoDeductAbsent: true,
+    autoDeductUndertime: true,
+    autoAddOvertime: true,
+    workDaysPerMonth: 22,
 };
 
 export const DEFAULT_SIGNATURE_CONFIG: PayrollSignatureConfig = {
@@ -63,7 +69,7 @@ interface PayrollState {
     getSignedPayslips: () => Payslip[];
     getUnsignedPublished: () => Payslip[];
     // ─── Payroll runs ─────────────────────────────────
-    createDraftRun: (runDate: string, payslipIds: string[], runType?: PayrollRun["runType"]) => void;
+    createDraftRun: (runDate: string, payslipIds: string[], runType?: PayrollRun["runType"], periodStart?: string, periodEnd?: string) => void;
     validateRun: (runDate: string) => void;
     lockRun: (runDate: string, lockedBy?: string) => void;
     unlockRun: (runDate: string, unlockedBy?: string) => void;
@@ -193,6 +199,8 @@ export const usePayrollStore = create<PayrollState>()(
                             locked: false,
                             payslipIds: [newId],
                             runType: "regular" as const,
+                            periodStart: data.periodStart,
+                            periodEnd: data.periodEnd,
                         }];
                     } else if (existingRun.status === "draft") {
                         updatedRuns = s.runs.map((r) =>
@@ -359,7 +367,7 @@ export const usePayrollStore = create<PayrollState>()(
             getUnsignedPublished: () => get().payslips.filter((p) => p.status === "published" && !p.signedAt),
 
             // ─── Payroll runs — draft → locked → completed ───────────
-            createDraftRun: (runDate, payslipIds, runType = "regular") =>
+            createDraftRun: (runDate, payslipIds, runType = "regular", periodStart, periodEnd) =>
                 set((s) => {
                     const existing = s.runs.find((r) => r.periodLabel === runDate);
                     if (existing) return {}; // already exists
@@ -375,6 +383,8 @@ export const usePayrollStore = create<PayrollState>()(
                                 locked: false,
                                 payslipIds,
                                 runType,
+                                periodStart,
+                                periodEnd,
                             },
                         ],
                         payslips: s.payslips.map((p) =>
@@ -698,7 +708,7 @@ export const usePayrollStore = create<PayrollState>()(
         }),
         {
             name: "soren-payroll",
-            version: 8,
+            version: 9,
             storage: safePersistStorage,
             migrate: () => ({
                 payslips: [],

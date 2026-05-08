@@ -157,6 +157,12 @@ export interface PayScheduleConfig {
   biWeeklyStartDate: string;        // ISO reference date for bi-weekly
   weeklyPayDay: number;             // 0=Sun … 6=Sat (default 5=Fri)
   deductGovFrom: "first" | "second" | "both"; // which cutoff gets gov deductions (semi-monthly)
+  // ─── Auto-deduction toggles (migration 055) ───
+  autoDeductLate: boolean;          // auto-compute late-arrival deduction
+  autoDeductAbsent: boolean;        // auto-compute absent-day deduction
+  autoDeductUndertime: boolean;     // auto-compute undertime (shift_hours - actual_hours) deduction
+  autoAddOvertime: boolean;         // auto-add approved OT hours to payslip earnings
+  workDaysPerMonth: number;         // for daily_rate = monthly_salary / workDaysPerMonth (default 22)
 }
 
 // ─── Payroll Signature Configuration ─────────────────────────
@@ -381,6 +387,12 @@ export interface AttendanceRuleSet {
   nightDiffStart?: string; // e.g. "22:00"
   nightDiffEnd?: string;   // e.g. "06:00"
   holidayMultiplier: number;
+  // ─── OT multipliers (migration 055) — DOLE PH defaults ───
+  otMultiplierRegular: number;        // default 1.25 — OT on regular workday
+  otMultiplierRestDay: number;        // default 1.30 — OT on rest day
+  otMultiplierSpecialHoliday: number; // default 1.30 — OT on special non-working holiday
+  otMultiplierRegularHoliday: number; // default 2.00 — OT on regular holiday
+  otMultiplierNightDiff: number;      // default 1.10 — night differential
 }
 
 export interface TimesheetSegment {
@@ -555,6 +567,13 @@ export interface Payslip {
   // ─── Hold Metadata ──
   holdNote?: string;
   heldAt?: string;
+  // ─── Itemized auto-deductions (migration 055) ──
+  lateDeduction?: number;        // auto: (late_minutes/60) * hourly_rate
+  absentDeduction?: number;      // auto: absent_days * daily_rate
+  undertimeDeduction?: number;   // auto: (shift_hours - actual_hours) * hourly_rate
+  overtimePay?: number;          // auto: ot_hours * hourly_rate * multiplier
+  dailyRate?: number;            // snapshot at issuance
+  hourlyRate?: number;           // snapshot at issuance
 }
 
 export interface PolicySnapshot {
@@ -581,6 +600,9 @@ export interface PayrollRun {
   policySnapshot?: PolicySnapshot;
   runType?: "regular" | "adjustment" | "13th_month" | "final_pay";
   completedAt?: string;
+  // ─── Customizable cut-off period (migration 055) ──
+  periodStart?: string;          // ISO date, e.g. "2026-04-16"
+  periodEnd?: string;            // ISO date, e.g. "2026-04-30"
 }
 
 // ─── Payroll Adjustments (§5) ────────────────────────────────
@@ -699,6 +721,9 @@ export interface Project {
   requireGeofence?: boolean;
   verificationMethod?: "face_only" | "qr_only" | "face_or_qr" | "manual_only";
   geofenceRadiusMeters?: number;
+  // ─── Per-project fixed QR (migration 055) ──
+  qrSecret?: string;             // SERVER-ONLY — never expose to unauthenticated clients
+  qrEnabled?: boolean;           // when false, kiosk rejects this project's QR
 }
 
 // ─── Notification System ─────────────────────────────────────

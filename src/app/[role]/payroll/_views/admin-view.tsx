@@ -9,6 +9,8 @@ import { useLoansStore } from "@/store/loans.store";
 import { useLeaveStore } from "@/store/leave.store";
 import { useAttendanceStore } from "@/store/attendance.store";
 import { useDeductionsStore } from "@/store/deductions.store";
+import { useTimesheetStore } from "@/store/timesheet.store";
+import { buildPayslipDeductions, computeDailyRate, computeHourlyRate } from "@/lib/payroll-deductions";
 import { PH_HOLIDAY_MULTIPLIERS } from "@/lib/constants";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -76,6 +78,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
     const { getEmployeeBalances } = useLeaveStore();
     const holidays = useAttendanceStore((s) => s.holidays);
     const attendanceLogs = useAttendanceStore((s) => s.logs);
+    const ruleSets = useTimesheetStore((s) => s.ruleSets);
     const { hasPermission } = useRolesStore();
     const { templates: deductionTemplates, computeDeductionsForEmployee } = useDeductionsStore();
 
@@ -456,7 +459,46 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                     else { if (worked) holidayPaySupp += Math.round(dailyRate * (PH_HOLIDAY_MULTIPLIERS.special_holiday.worked - 1)); else holidayPaySupp -= dailyRate; }
                 });
 
-                const netPay = grossPay + allowances + holidayPaySupp + otPay + nightDiffPay + customAllowanceTotal - totalGovDed - otherDed - empLoanDeduction - customDedTotal;
+                // ─── Auto-deductions from attendance (migration 055) ──────────
+                // Aggregates attendance logs in the cutoff period and applies the
+                // late/absent/undertime deductions gated by paySchedule toggles.
+                // OT pay continues to come from the form input (manual override),
+                // but its itemized snapshot is stored on the payslip below.
+                const periodLogs = attendanceLogs.filter(
+                    (l) => l.employeeId === empId && l.date >= cutoffDates.start && l.date <= cutoffDates.end
+                );
+                const lateMinutesAgg = periodLogs.reduce((sum, l) => sum + (l.lateMinutes || 0), 0);
+                const absentDaysAgg = periodLogs.filter((l) => l.status === "absent").length;
+                const activeRuleSet = ruleSets[0]; // RS-DEFAULT
+                const stdHours = activeRuleSet?.standardHoursPerDay ?? 8;
+                const presentLogs = periodLogs.filter((l) => l.status === "present");
+                const expectedHoursTotal = presentLogs.length * stdHours;
+                const actualHoursTotal = presentLogs.reduce((sum, l) => sum + (l.hours || 0), 0);
+                const libDailyRate = computeDailyRate(emp.salary, paySchedule.workDaysPerMonth);
+                const libHourlyRate = computeHourlyRate(libDailyRate, stdHours);
+                const autoBreakdown = buildPayslipDeductions({
+                    autoDeductLate: paySchedule.autoDeductLate,
+                    autoDeductAbsent: paySchedule.autoDeductAbsent,
+                    autoDeductUndertime: paySchedule.autoDeductUndertime,
+                    autoAddOvertime: false, // OT comes from form here, not auto
+                    dailyRate: libDailyRate,
+                    hourlyRate: libHourlyRate,
+                    lateMinutes: lateMinutesAgg,
+                    absentDays: absentDaysAgg,
+                    shiftHours: expectedHoursTotal,
+                    actualHours: actualHoursTotal,
+                    overtimeEntries: [],
+                    multipliers: {
+                        otMultiplierRegular: activeRuleSet?.otMultiplierRegular ?? 1.25,
+                        otMultiplierRestDay: activeRuleSet?.otMultiplierRestDay ?? 1.30,
+                        otMultiplierSpecialHoliday: activeRuleSet?.otMultiplierSpecialHoliday ?? 1.30,
+                        otMultiplierRegularHoliday: activeRuleSet?.otMultiplierRegularHoliday ?? 2.00,
+                        otMultiplierNightDiff: activeRuleSet?.otMultiplierNightDiff ?? 1.10,
+                    },
+                });
+                const autoDedTotal = autoBreakdown.totalDeductions;
+
+                const netPay = grossPay + allowances + holidayPaySupp + otPay + nightDiffPay + customAllowanceTotal - totalGovDed - otherDed - empLoanDeduction - customDedTotal - autoDedTotal;
                 if (netPay <= 0) { toast.error(`Skipped ${emp.name}: Net pay would be ≤ 0`); return; }
 
                 issuePayslip({
@@ -466,6 +508,13 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                     otherDeductions: otherDed, loanDeduction: empLoanDeduction,
                     customDeductions: customDedTotal,
                     holidayPay: holidayPaySupp !== 0 ? holidayPaySupp : undefined, netPay,
+                    // Itemized auto-deduction snapshots (migration 055)
+                    lateDeduction: autoBreakdown.lateDeduction,
+                    absentDeduction: autoBreakdown.absentDeduction,
+                    undertimeDeduction: autoBreakdown.undertimeDeduction,
+                    overtimePay: otPay,
+                    dailyRate: libDailyRate,
+                    hourlyRate: libHourlyRate,
                     notes: formNotes || [otHours > 0 ? `OT: ${otHours}hrs (\u20B1${otPay})` : "", nightDiffHours > 0 ? `ND: ${nightDiffHours}hrs (\u20B1${nightDiffPay})` : ""].filter(Boolean).join(", ") || undefined, issuedAt: formIssuedAt,
                 });
 

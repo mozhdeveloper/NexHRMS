@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { sendNotification } from "@/lib/notifications";
 import { FolderKanban, Plus, MapPin, UserPlus, Trash2, ScanFace, QrCode, UserCheck, Pencil, Search } from "lucide-react";
 import type { Project, VerificationMethod } from "@/types";
+import { ProjectQrDialog } from "@/components/projects/project-qr-dialog";
 
 const MapSelector = dynamic(
     () => import("@/components/projects/map-selector").then((m) => m.MapSelector),
@@ -47,6 +48,7 @@ export default function AdminProjectsView() {
     const [assignOpen, setAssignOpen] = useState(false);
     const [assignProjectId, setAssignProjectId] = useState<string | null>(null);
     const [selectedEmpIds, setSelectedEmpIds] = useState<string[]>([]);
+    const [qrProject, setQrProject] = useState<{ id: string; name: string } | null>(null);
     const [assignSearch, setAssignSearch] = useState("");
 
     // ── Edit project state ──────────────────────────────────────
@@ -306,6 +308,9 @@ export default function AdminProjectsView() {
                                                 <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => openAssignDialog(project.id)}>
                                                     <UserPlus className="h-3.5 w-3.5" /> Assign
                                                 </Button>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" title="View QR" onClick={() => setQrProject({ id: project.id, name: project.name })}>
+                                                    <QrCode className="h-3.5 w-3.5" />
+                                                </Button>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditDialog(project)}>
                                                     <Pencil className="h-3.5 w-3.5" />
                                                 </Button>
@@ -418,6 +423,14 @@ export default function AdminProjectsView() {
                     </div>
                 </DialogContent>
             </Dialog>
+            {qrProject && (
+                <ProjectQrDialog
+                    open={!!qrProject}
+                    onOpenChange={(o) => !o && setQrProject(null)}
+                    projectId={qrProject.id}
+                    projectName={qrProject.name}
+                />
+            )}
         </div>
     );
 }
