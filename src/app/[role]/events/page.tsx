@@ -40,11 +40,10 @@ import {
 } from "@/components/ui/select";
 import {
     Tabs,
-    TabsContent,
     TabsList,
     TabsTrigger,
 } from "@/components/ui/tabs";
-import { Calendar, Plus, Pencil, Trash2, Clock, CalendarDays, Filter, Video, Users, XCircle, LayoutGrid, Table2 } from "lucide-react";
+import { Calendar, Plus, Pencil, Trash2, Clock, CalendarDays, Filter, Video, Users, XCircle, Table2 } from "lucide-react";
 import { FullScreenCalendar, type CalendarItem, type CalendarItemColor } from "@/components/ui/fullscreen-calendar";
 import { format, parseISO, isAfter, isBefore, isToday, startOfDay } from "date-fns";
 import { toast } from "sonner";

@@ -170,7 +170,8 @@ export const useKioskStore = create<KioskStore>()(
       updateSettings: (patch) => {
         set((state) => ({ settings: { ...state.settings, ...patch } }));
         // Fire-and-forget sync to DB (exclude adminPin — it has its own API)
-        const { adminPin: _drop, ...safeSettings } = get().settings;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { adminPin, ...safeSettings } = get().settings;
         void fetch("/api/settings/kiosk", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -181,7 +182,8 @@ export const useKioskStore = create<KioskStore>()(
       resetSettings: () => {
         set({ settings: { ...DEFAULT_SETTINGS } });
         // Sync defaults back to DB
-        const { adminPin: _drop, ...safeDefaults } = DEFAULT_SETTINGS;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { adminPin, ...safeDefaults } = DEFAULT_SETTINGS;
         void fetch("/api/settings/kiosk", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, memo, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAttendanceStore } from "@/store/attendance.store";
 import { useAppearanceStore } from "@/store/appearance.store";
@@ -508,11 +509,13 @@ export default function QRKioskPage() {
                 <KioskClock clockFormat={ks.clockFormat} showClock={ks.showClock} showDate={ks.showDate} />
                 <div className="flex items-center gap-3">
                     {ks.showLogo && logoUrl ? (
-                        <img 
-                            src={logoUrl} 
+                        <Image
+                            src={logoUrl}
                             alt={companyName}
+                            width={120}
+                            height={32}
                             className="object-contain brightness-0 invert opacity-90"
-                            style={{ height: "clamp(1.5rem, 3vh, 2rem)", maxWidth: "clamp(80px, 10vw, 120px)" }}
+                            style={{ height: "clamp(1.5rem, 3vh, 2rem)", maxWidth: "clamp(80px, 10vw, 120px)", width: "auto" }}
                         />
                     ) : (
                         <span className="font-semibold text-white/40" style={{ fontSize: "clamp(0.75rem, 1.2vw, 0.875rem)" }}>
