@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useAuthStore } from "@/store/auth.store";
 import { useEmployeesStore } from "@/store/employees.store";
@@ -12,6 +12,7 @@ import { useEventsStore } from "@/store/events.store";
 import { useAuditStore } from "@/store/audit.store";
 import { useRoleHref } from "@/lib/hooks/use-role-href";
 import { formatCurrency, getInitials, formatDate } from "@/lib/format";
+import { forceRehydrate } from "@/services/sync.service";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -98,6 +99,23 @@ function KpiStatsRow() {
     const leaveRequests = useLeaveStore((s) => s.requests);
     const overtimeRequests = useAttendanceStore((s) => s.overtimeRequests);
     const rh = useRoleHref();
+
+    useEffect(() => {
+        forceRehydrate().catch(() => { /* keep current dashboard state if refresh fails */ });
+
+        const refreshOnFocus = () => {
+            if (document.visibilityState === "visible") {
+                forceRehydrate().catch(() => { /* keep current dashboard state if refresh fails */ });
+            }
+        };
+
+        window.addEventListener("focus", refreshOnFocus);
+        document.addEventListener("visibilitychange", refreshOnFocus);
+        return () => {
+            window.removeEventListener("focus", refreshOnFocus);
+            document.removeEventListener("visibilitychange", refreshOnFocus);
+        };
+    }, []);
 
     const activeEmployees = employees.filter((e) => e.status === "active").length;
 

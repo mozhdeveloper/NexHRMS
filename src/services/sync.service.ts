@@ -190,14 +190,15 @@ async function hydrateAllStoresInternal(opts?: { skipSessionCheck?: boolean }): 
     // Fetch employee-shift assignments separately (returns a mapping, not an array)
     const employeeShiftsMap = await attendanceDb.fetchEmployeeShifts();
 
-    // Hydrate employees store
-    if (employees.length > 0) {
-      useEmployeesStore.setState({
-        employees,
-        salaryRequests,
-        salaryHistory,
-      });
-    }
+    // Hydrate employees store. Always replace from Supabase so DB-side deletes
+    // clear local state instead of leaving stale rows around.
+    const deletedEmployeeIds = useEmployeesStore.getState().deletedEmployeeIds ?? [];
+    const deletedEmployeeIdSet = new Set(deletedEmployeeIds);
+    useEmployeesStore.setState({
+      employees: employees.filter((employee) => !deletedEmployeeIdSet.has(employee.id)),
+      salaryRequests,
+      salaryHistory,
+    });
 
     // Hydrate leave store
     if (leavePolicies.length > 0 || leaveRequests.length > 0 || leaveBalances.length > 0) {
