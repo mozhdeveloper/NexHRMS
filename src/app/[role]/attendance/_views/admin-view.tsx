@@ -49,6 +49,7 @@ import { SelfieCapture } from "@/components/attendance/selfie-capture";
 import { LocationTracker } from "@/components/attendance/location-tracker";
 import { BreakTimer } from "@/components/attendance/break-timer";
 import { ExportBackupDialog } from "@/components/export-backup-dialog";
+import { ImportDataDialog } from "@/components/import-data-dialog";
 import { EmployeeCombobox } from "@/components/ui/employee-combobox";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { SiteSurveyGallery } from "@/components/attendance/site-survey-gallery";
@@ -552,6 +553,11 @@ export default function AdminView({ mode = "admin" }: AdminViewProps) {
                         <ExportBackupDialog module="attendance" trigger={
                             <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-7 px-2.5 rounded-md">
                                 <Download className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Backup</span>
+                            </Button>
+                        } />
+                        <ImportDataDialog module="attendance" trigger={
+                            <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-7 px-2.5 rounded-md">
+                                <UploadCloud className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Import DB</span>
                             </Button>
                         } />
                         {canImportCSV && (<>

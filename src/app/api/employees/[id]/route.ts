@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient, createServerSupabaseClient } from "@/services/supabase-server";
 
@@ -157,4 +158,88 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
       { status: 500 }
     );
   }
+=======
+import { NextResponse } from "next/server";
+import { createServerSupabaseClient, createAdminSupabaseClient } from "@/services/supabase-server";
+import { hasPermissionServer } from "@/lib/permissions-server";
+
+/**
+ * DELETE /api/employees/:id
+ * Hard-deletes an employee record from Supabase and the linked auth user account.
+ * Requires employees:edit permission.
+ */
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const supabase = await createServerSupabaseClient();
+
+  // Auth guard
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    console.debug(`[api/employees/DELETE] 401 — no session for id=${id}`);
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Permission guard — fetch caller's role from profiles
+  const { data: callerProfile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  const callerRole = callerProfile?.role ?? "";
+  if (!hasPermissionServer(callerRole, "employees:edit")) {
+    console.debug(`[api/employees/DELETE] 403 — role "${callerRole}" lacks employees:edit for id=${id}`);
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const admin = await createAdminSupabaseClient();
+
+  // Fetch the employee first so we can log and get profile_id
+  const { data: emp, error: fetchErr } = await admin
+    .from("employees")
+    .select("id, name, email, profile_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (fetchErr) {
+    console.error(`[api/employees/DELETE] fetch error for id=${id}:`, fetchErr.message);
+    return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+  }
+
+  if (!emp) {
+    // Not in DB — nothing to delete. Return 200 so the client-side store removal still succeeds.
+    console.debug(`[api/employees/DELETE] employee id=${id} not found in DB — already absent`);
+    return NextResponse.json({ deleted: false, reason: "not_found" }, { status: 200 });
+  }
+
+  console.debug(`[api/employees/DELETE] deleting employee id=${id} name="${emp.name}" email="${emp.email}" profile_id=${emp.profile_id ?? "none"}`);
+
+  // Delete employee row (cascades to related tables via FK ON DELETE CASCADE in schema)
+  const { error: deleteErr } = await admin
+    .from("employees")
+    .delete()
+    .eq("id", id);
+
+  if (deleteErr) {
+    console.error(`[api/employees/DELETE] delete error for id=${id}:`, deleteErr.message);
+    return NextResponse.json({ error: deleteErr.message }, { status: 500 });
+  }
+
+  // If there's a linked auth account, also delete it so they cannot log back in
+  if (emp.profile_id) {
+    const { error: authErr } = await admin.auth.admin.deleteUser(emp.profile_id);
+    if (authErr) {
+      // Non-fatal: employee row is gone, auth user might not exist
+      console.warn(`[api/employees/DELETE] auth user delete warning for profile_id=${emp.profile_id}:`, authErr.message);
+    } else {
+      console.debug(`[api/employees/DELETE] auth user ${emp.profile_id} deleted`);
+    }
+  }
+
+  console.debug(`[api/employees/DELETE] ✓ employee ${id} fully deleted`);
+  return NextResponse.json({ deleted: true, id, name: emp.name }, { status: 200 });
+>>>>>>> 3a470fc (fix: employee delete tombstone, 401 session refresh, delete API route, import dryRun validation)
 }
