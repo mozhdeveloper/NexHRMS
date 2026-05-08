@@ -320,7 +320,7 @@ export default function EmployeePayrollView() {
                                         ) : myPayslips.map((ps) => {
                                             const sc = statusConfig[ps.status] || statusConfig.draft;
                                             const totalDed = (ps.sssDeduction || 0) + (ps.philhealthDeduction || 0) + (ps.pagibigDeduction || 0) + (ps.taxDeduction || 0) + (ps.otherDeductions || 0) + (ps.loanDeduction || 0);
-                                            const canSign = (ps.status === "published" || ps.status === "payment_hold") && !ps.signedAt && isPayslipRunLocked(ps.id);
+                                            const canSign = ps.status === "published" && !ps.signedAt && isPayslipRunLocked(ps.id);
                                             return (
                                                 <TableRow key={ps.id}>
                                                     <TableCell className="text-xs text-muted-foreground">{ps.periodStart} – {ps.periodEnd}</TableCell>
@@ -339,6 +339,10 @@ export default function EmployeePayrollView() {
                                                                 <CheckCircle className="h-3.5 w-3.5" />
                                                                 <span className="text-[10px] font-medium">Signed</span>
                                                             </span>
+                                                        ) : ps.status === "payment_hold" ? (
+                                                            <span className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1" title="Payslip is on hold — awaiting re-issue">
+                                                                <AlertCircle className="h-3 w-3" /> On Hold
+                                                            </span>
                                                         ) : canSign ? (
                                                             <Button
                                                                 variant="ghost" size="sm"
@@ -348,7 +352,7 @@ export default function EmployeePayrollView() {
                                                                 <PenTool className="h-3.5 w-3.5" />
                                                                 <span className="text-xs font-medium">E-Sign</span>
                                                             </Button>
-                                                        ) : (ps.status === "published" || ps.status === "payment_hold") && !ps.signedAt ? (
+                                                        ) : ps.status === "published" && !ps.signedAt ? (
                                                             <span className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1" title="Payroll run must be locked before you can sign">
                                                                 <AlertCircle className="h-3 w-3" /> Run not locked
                                                             </span>

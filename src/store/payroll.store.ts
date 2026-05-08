@@ -249,7 +249,7 @@ export const usePayrollStore = create<PayrollState>()(
             signPayslip: (id, signatureDataUrl) =>
                 set((s) => {
                     const ps = s.payslips.find((p) => p.id === id);
-                    if (!ps || (ps.status !== "published" && ps.status !== "payment_hold")) return {};
+                    if (!ps || ps.status !== "published") return {};
                     // Guard: payslip must belong to a locked payroll run
                     if (ps.payrollBatchId) {
                         const run = s.runs.find((r) => r.id === ps.payrollBatchId);

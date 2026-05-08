@@ -29,8 +29,8 @@ export async function signIn(email: string, password: string) {
       .ilike("email", data.user.email)
       .single();
 
-    if (empByEmail && !empByEmail.profile_id) {
-      // Link the employee to this profile
+    if (empByEmail && (!empByEmail.profile_id || empByEmail.profile_id !== data.user.id)) {
+      // Link the employee to this profile (also fixes stale seed profile_ids like "U001")
       const adminSupabase = await createAdminSupabaseClient();
       await adminSupabase
         .from("employees")

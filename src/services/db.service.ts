@@ -437,6 +437,10 @@ export const payrollDb = {
     // Separate payslipIds for junction table
     const payslipIds = run.payslipIds ?? [];
     const row: Record<string, unknown> = { ...(run as unknown as Record<string, unknown>) };
+    // DB constraint only allows draft/locked/completed
+    if (row.status === "ended" || row.status === "published") {
+      row.status = "locked";
+    }
     // Keep legacy column in sync during transition
     row.payslipIds = payslipIds;
     const baseOk = await upsertRow("payroll_runs", row);
