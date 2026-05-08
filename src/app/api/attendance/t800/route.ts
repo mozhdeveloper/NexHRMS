@@ -27,18 +27,27 @@ const AES_KEY = Buffer.from([
 
 type T800Payload = {
   request_code?: unknown;
+  biometricId?: unknown;
   user_id?: unknown;
   userId?: unknown;
   enroll_id?: unknown;
   enrollId?: unknown;
   pin?: unknown;
+  uid?: unknown;
+  id?: unknown;
   card_no?: unknown;
   cardNo?: unknown;
   employeeId?: unknown;
+  dev_id?: unknown;
+  device_id?: unknown;
+  deviceId?: unknown;
+  dev?: unknown;
   io_mode?: unknown;
   io_time?: unknown;
   timestamp?: unknown;
   timestampUTC?: unknown;
+  scanTime?: unknown;
+  time?: unknown;
   block?: unknown;
 };
 
@@ -297,17 +306,13 @@ export async function POST(request: NextRequest) {
 
   const contentType = request.headers.get("content-type") || "";
   const encryptHeader = request.headers.get("encrypt");
-  const devId = request.headers.get("dev_id");
+  const headerDevId = request.headers.get("dev_id");
   const headerRequestCode = request.headers.get("request_code");
   const transId = request.headers.get("trans_id");
   const blkNo = Number(request.headers.get("blk_no") || "0");
 
-  if (!isAllowedDevice(devId)) {
-    return buildResponse("ERROR_DEVICE_NOT_ALLOWED");
-  }
-
   try {
-    let buffer = Buffer.alloc(0);
+    let buffer: Buffer = Buffer.alloc(0);
     let jsonBody: Record<string, unknown> | null = null;
 
     if (contentType.includes("application/json")) {
@@ -327,14 +332,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (blkNo > 0) {
-      if (devId) {
-        saveBlockChunk(devId, blkNo, buffer);
+      if (headerDevId) {
+        saveBlockChunk(headerDevId, blkNo, buffer);
       }
       return buildResponse("OK", transId);
     }
 
-    if (devId) {
-      buffer = getCombinedBlocks(devId, buffer);
+    if (headerDevId) {
+      buffer = getCombinedBlocks(headerDevId, buffer);
     }
 
     let payload: Record<string, unknown> | null = null;
@@ -353,22 +358,31 @@ export async function POST(request: NextRequest) {
       return buildResponse("ERROR_NO_PAYLOAD");
     }
 
+    const payloadDevId = firstScalar(payload, ["dev_id", "device_id", "deviceId", "dev"]);
+    const devId = headerDevId || payloadDevId;
+    if (!isAllowedDevice(devId)) {
+      return buildResponse("ERROR_DEVICE_NOT_ALLOWED");
+    }
+
     const requestCode = String(headerRequestCode || payload.request_code || "").trim().toLowerCase();
     if (requestCode !== getT800RequestCode()) {
       return buildResponse("OK");
     }
 
     const biometricId = firstScalar(payload, [
+      "biometricId",
       "user_id",
       "userId",
       "enroll_id",
       "enrollId",
       "pin",
+      "uid",
+      "id",
       "card_no",
       "cardNo",
       "employeeId",
     ]);
-    const ioTime = firstScalar(payload, ["io_time", "timestampUTC", "timestamp"]);
+    const ioTime = firstScalar(payload, ["io_time", "timestampUTC", "timestamp", "scanTime", "time"]);
 
     if (!biometricId || !ioTime) {
       return buildResponse("ERROR_INVALID_LOG");
@@ -440,7 +454,6 @@ export async function POST(request: NextRequest) {
           date: scanDay,
           check_in: timeStr,
           status: "present",
-          source: "biometric",
           updated_at: nowISO,
         },
         { onConflict: "employee_id,date" }
@@ -458,7 +471,7 @@ export async function POST(request: NextRequest) {
         .update({
           check_out: timeStr,
           hours: calculateHours(existingLog.check_in, timeStr),
-          source: "biometric",
+          status: "present",
           updated_at: nowISO,
         })
         .eq("employee_id", employee.id)
