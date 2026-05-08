@@ -1004,7 +1004,11 @@ export const messagingDb = {
 export const tasksDb = {
   fetchGroups: () => fetchAll<TaskGroup>("task_groups"),
   fetchTasks: () => fetchAll<Task>("tasks"),
-  fetchCompletionReports: () => fetchAll<TaskCompletionReport>("task_completion_reports"),
+  // Limit to 500 most-recent reports to avoid Supabase statement_timeout on large tables.
+  fetchCompletionReports: () => fetchAll<TaskCompletionReport>("task_completion_reports", {
+    order: { column: "submitted_at", ascending: false },
+    limit: 500,
+  }),
   fetchComments: () => fetchAll<TaskComment>("task_comments", { order: { column: "created_at", ascending: true } }),
 
   async upsertGroup(g: TaskGroup): Promise<boolean> {

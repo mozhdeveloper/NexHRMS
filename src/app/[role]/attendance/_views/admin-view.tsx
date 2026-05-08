@@ -40,7 +40,7 @@ import {
     Clock, LogIn, LogOut, Download, MapPin, CheckCircle, XCircle, Navigation,
     BellRing, UserX, ShieldCheck, Timer, ThumbsUp, ThumbsDown, RotateCcw,
     AlertTriangle, Zap, CalendarDays, Plus, Pencil, Trash2, UploadCloud,
-    ShieldAlert, Gauge, Camera, ListChecks, MoreHorizontal, Undo2,
+    ShieldAlert, Gauge, Camera, ListChecks, MoreHorizontal, Undo2, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { isWithinGeofence } from "@/lib/geofence";
@@ -56,7 +56,7 @@ import { SiteSurveyGallery } from "@/components/attendance/site-survey-gallery";
 import { LocationTrail } from "@/components/attendance/location-trail";
 import { AttendanceHeatmap } from "@/components/attendance/attendance-heatmap";
 import type { Holiday, AttendanceFlag } from "@/types";
-import { forceRehydrate } from "@/services/sync.service";
+import { forceRehydrate, stopWriteThrough, startWriteThrough } from "@/services/sync.service";
 
 type CheckInStep = "idle" | "locating" | "location_result" | "done" | "error" | "selfie";
 
@@ -91,7 +91,7 @@ interface AdminViewProps {
 }
 
 export default function AdminView({ mode = "admin" }: AdminViewProps) {
-    const { logs, checkIn, checkOut, getTodayLog, markAbsent, updateLog, bulkUpsertLogs, appendEvent, overtimeRequests, submitOvertimeRequest, approveOvertime, rejectOvertime, events, exceptions, autoGenerateExceptions, autoMarkAbsentAfterShift, resolveException, updateException, deleteException, reopenException, resetToSeed, holidays, addHoliday, updateHoliday, deleteHoliday, resetHolidaysToDefault, applyPenalty, getActivePenalty, cleanExpiredPenalties, shiftTemplates, employeeShifts } = useAttendanceStore();
+    const { logs, checkIn, checkOut, getTodayLog, markAbsent, updateLog, bulkUpsertLogs, appendEvent, overtimeRequests, submitOvertimeRequest, approveOvertime, rejectOvertime, events, exceptions, autoGenerateExceptions, autoMarkAbsentAfterShift, resolveException, updateException, deleteException, reopenException, resetToSeed, resetTodayLog, clearPenalty, holidays, addHoliday, updateHoliday, deleteHoliday, resetHolidaysToDefault, applyPenalty, getActivePenalty, cleanExpiredPenalties, shiftTemplates, employeeShifts } = useAttendanceStore();
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
     const getProjectForEmployee = useProjectsStore((s) => s.getProjectForEmployee);
@@ -220,6 +220,7 @@ export default function AdminView({ mode = "admin" }: AdminViewProps) {
     const [spoofReason, setSpoofReason] = useState<string | null>(null);
     const [selfieDataUrl, setSelfieDataUrl] = useState<string | null>(null);
     const [notifyingId, setNotifyingId] = useState<string | null>(null);
+    const [resetingId, setResetingId] = useState<string | null>(null);
 
     // OT state
     const [otOpen, setOtOpen] = useState(false);
@@ -438,6 +439,34 @@ export default function AdminView({ mode = "admin" }: AdminViewProps) {
         const emp = employees.find((e) => e.id === employeeId);
         await sendNotification({ type: "absence", employeeId, subject: `Absence Alert: ${emp?.name || employeeId} was absent on ${date}`, body: `${emp?.name || employeeId} did not check in on ${date}.` });
         setNotifyingId(null);
+    };
+
+    const handleAdminResetEmployee = async (employeeId: string) => {
+        setResetingId(employeeId);
+        stopWriteThrough();
+        await new Promise((r) => setTimeout(r, 600));
+        try {
+            const res = await fetch("/api/attendance/reset-today", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ employeeId }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                toast.error((data as { message?: string }).message || "Failed to reset attendance");
+                return;
+            }
+            const empName = employees.find((e) => e.id === employeeId)?.name ?? employeeId;
+            resetTodayLog(employeeId);
+            clearPenalty(employeeId);
+            await forceRehydrate();
+            toast.success(`${empName}'s attendance reset.`);
+        } catch {
+            toast.error("Network error — couldn't reset attendance");
+        } finally {
+            startWriteThrough();
+            setResetingId(null);
+        }
     };
 
     // ─── Check-in flow ────────────────────────────────────────────
@@ -779,6 +808,9 @@ export default function AdminView({ mode = "admin" }: AdminViewProps) {
                                                             )}
                                                             {log.status === "absent" && (
                                                                 <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-amber-600" disabled={notifyingId === log.employeeId} onClick={() => handleAbsenceNotify(log.employeeId, log.date)}><BellRing className="h-3.5 w-3.5" /></Button></TooltipTrigger><TooltipContent side="left"><p className="text-xs">Notify</p></TooltipContent></Tooltip>
+                                                            )}
+                                                            {log.date === now.toISOString().split("T")[0] && (
+                                                                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-orange-500 hover:text-orange-700 hover:bg-orange-500/10" disabled={resetingId === log.employeeId} onClick={() => handleAdminResetEmployee(log.employeeId)}>{resetingId === log.employeeId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}</Button></TooltipTrigger><TooltipContent side="left"><p className="text-xs">Reset today</p></TooltipContent></Tooltip>
                                                             )}
                                                         </div>
                                                     </TableCell>
