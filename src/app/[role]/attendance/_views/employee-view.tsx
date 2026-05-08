@@ -36,6 +36,7 @@ import { SelfieCapture } from "@/components/attendance/selfie-capture";
 import { LocationTracker } from "@/components/attendance/location-tracker";
 import { BreakTimer } from "@/components/attendance/break-timer";
 import { EmployeeQRDisplay } from "@/components/attendance/employee-qr-display";
+import { ProjectQrScanner } from "@/components/attendance/project-qr-scanner";
 import { EnrollmentReminder } from "@/components/attendance/enrollment-reminder";
 import { stopWriteThrough, startWriteThrough, forceRehydrate } from "@/services/sync.service";
 import { findCurrentEmployee, getAttendanceEmployeeIds } from "@/lib/current-employee";
@@ -505,29 +506,60 @@ export default function EmployeeView() {
         })();
     }, [myEmployeeId, myProject, userLocation, selfieDataUrl, geoResult, checkIn, addPhoto]);
 
-    // QR scan completion — kiosk already wrote to DB via /api/attendance/validate-qr
-    // We just refresh data from DB to sync the UI
-    const handleQrCheckedIn = useCallback(async () => {
-        if (!myEmployeeId) return;
+    // Project QR scan check-in — phone scans printed QR sticker
+    const handleProjectQrCheckin = useCallback(async (payload: string) => {
+        if (!userLocation) { toast.error("Location required — please retry"); return; }
         try {
-            const res = await fetch("/api/attendance/self-checkin", {
+            const res = await fetch("/api/attendance/project-qr-checkin", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ deviceId: "WEB-QR", timestampUTC: new Date().toISOString() }),
+                body: JSON.stringify({ payload, location: userLocation }),
                 credentials: "same-origin",
             });
             const data = await res.json();
             if (res.ok && data.ok) {
                 setStep("done");
-                toast.success("QR check-in confirmed!");
+                toast.success("Checked in successfully!");
                 try { await forceRehydrate(); } catch { /* ignore */ }
             } else {
                 toast.error(data?.error || "QR check-in failed");
             }
         } catch (err) {
-            console.error("qr self-checkin error", err);
+            console.error("project-qr-checkin error", err);
             toast.error("Network error during QR check-in");
         }
+    }, [myEmployeeId, userLocation]);
+
+    // Project QR scan check-out — phone scans printed QR sticker
+    const handleProjectQrCheckout = useCallback(async (payload: string) => {
+        if (!userLocation) { toast.error("Location required — please retry"); return; }
+        try {
+            const res = await fetch("/api/attendance/project-qr-checkin", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ payload, location: userLocation }),
+                credentials: "same-origin",
+            });
+            const data = await res.json();
+            if (res.ok && data.ok) {
+                setCheckOutStep("done");
+                toast.success("Checked out successfully!");
+                try { await forceRehydrate(); } catch { /* ignore */ }
+            } else {
+                toast.error(data?.error || "QR check-out failed");
+            }
+        } catch (err) {
+            console.error("project-qr-checkout error", err);
+            toast.error("Network error during QR check-out");
+        }
+    }, [myEmployeeId, userLocation]);
+
+    // Legacy: kiosk already wrote to DB — just refresh
+    const handleQrCheckedIn = useCallback(async () => {
+        if (!myEmployeeId) return;
+        setStep("done");
+        toast.success("QR check-in confirmed!");
+        try { await forceRehydrate(); } catch { /* ignore */ }
     }, [myEmployeeId]);
 
     // ─── Computed ─────────────────────────────────────────────────
@@ -908,11 +940,10 @@ export default function EmployeeView() {
                         {checkOutStep === "idle" && (<>
                             {myProject?.verificationMethod === "qr_only" ? (
                                 <div className="pt-1">
-                                    <p className="text-xs text-muted-foreground text-center mb-3">Scan your QR at the kiosk to check out</p>
-                                    <EmployeeQRDisplay
-                                        employeeId={myEmployeeId}
-                                        employeeName={currentUser.name}
-                                        onCheckedIn={handleCheckOutQr}
+                                    <p className="text-xs text-muted-foreground text-center mb-3">Scan the project QR code to check out</p>
+                                    <ProjectQrScanner
+                                        onScanned={handleProjectQrCheckout}
+                                        onCancel={() => setCheckOutOpen(false)}
                                     />
                                 </div>
                             ) : (
@@ -1002,11 +1033,10 @@ export default function EmployeeView() {
                             )}
                             {(!locationConfig.requireSelfie || selfieDataUrl) && myProject?.verificationMethod === "qr_only" && (
                                 <div className="pt-1">
-                                    <p className="text-xs text-muted-foreground text-center mb-3">{locationConfig.requireSelfie ? "Step 3" : "Step 2"}: Scan QR at Kiosk</p>
-                                    <EmployeeQRDisplay
-                                        employeeId={myEmployeeId}
-                                        employeeName={currentUser.name}
-                                        onCheckedIn={handleQrCheckedIn}
+                                    <p className="text-xs text-muted-foreground text-center mb-3">{locationConfig.requireSelfie ? "Step 3" : "Step 2"}: Scan the project QR code</p>
+                                    <ProjectQrScanner
+                                        onScanned={handleProjectQrCheckin}
+                                        onCancel={() => setStep("idle")}
                                     />
                                 </div>
                             )}
@@ -1033,10 +1063,9 @@ export default function EmployeeView() {
                             )}
                         </>)}
                         {step === "qr_scan" && myEmployeeId && (
-                            <EmployeeQRDisplay
-                                employeeId={myEmployeeId}
-                                employeeName={currentUser.name}
-                                onCheckedIn={handleQrCheckedIn}
+                            <ProjectQrScanner
+                                onScanned={handleProjectQrCheckin}
+                                onCancel={() => setStep("idle")}
                             />
                         )}
                         {step === "error" && spoofReason && (
