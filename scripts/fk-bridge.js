@@ -4,8 +4,10 @@
 // Listens on port 5006 and forwards scanner JSON payloads to local Next.js API
 
 const http = require('http');
+const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
+const os = require('os');
 
 try {
   require('dotenv').config({ path: path.resolve(process.cwd(), '.env') });
@@ -14,9 +16,26 @@ try {
   // dotenv is optional for packaged/runtime deployments where env vars are injected.
 }
 
-const LISTEN_PORT = process.env.FK_BRIDGE_PORT ? Number(process.env.FK_BRIDGE_PORT) : 5006;
+const LISTEN_PORT = process.env.PORT
+  ? Number(process.env.PORT)
+  : process.env.FK_BRIDGE_PORT
+  ? Number(process.env.FK_BRIDGE_PORT)
+  : 5006;
 const TARGET = process.env.T800_BRIDGE_TARGET_URL || process.env.HRMS_URL || 'http://localhost:3000/api/attendance/t800';
 const KIOSK_API_KEY = process.env.KIOSK_API_KEY || '';
+const LOG_FILE = process.env.FK_BRIDGE_LOG_FILE || path.resolve(process.cwd(), 'scripts', 'fk-bridge.log');
+
+function log(level, message, data) {
+  const line = `[${new Date().toISOString()}] [${level}] ${message}${data === undefined ? '' : ` ${JSON.stringify(data)}`}`;
+  if (level === 'error') console.error(line);
+  else if (level === 'warn') console.warn(line);
+  else console.log(line);
+  try {
+    fs.appendFileSync(LOG_FILE, `${line}\n`);
+  } catch {
+    // Diagnostic logging only.
+  }
+}
 
 function extractJsonFromBuffer(buf) {
   try {
@@ -77,6 +96,7 @@ function normalizeRequestCode(value) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+  const remote = `${req.socket.remoteAddress || 'unknown'}:${req.socket.remotePort || ''}`;
 
   if (req.method === 'GET' && url.pathname === '/health') {
     res.setHeader('Content-Type', 'application/json');
@@ -86,11 +106,20 @@ const server = http.createServer(async (req, res) => {
       bridge: 'fk-bridge',
       listeningPort: LISTEN_PORT,
       target: TARGET,
+      logFile: LOG_FILE,
     }));
     return;
   }
 
   if (req.method !== 'POST') {
+    log('info', 'non-post request received', {
+      method: req.method,
+      path: url.pathname,
+      remote,
+      requestCode: req.headers['request_code'],
+      devId: req.headers['dev_id'],
+      blkNo: req.headers['blk_no'],
+    });
     res.statusCode = 200;
     res.end('OK');
     return;
@@ -101,10 +130,19 @@ const server = http.createServer(async (req, res) => {
   req.on('end', async () => {
     const buf = Buffer.concat(chunks);
     const ctype = String(req.headers['content-type'] || '').toLowerCase();
+    log('info', 'post request received', {
+      path: url.pathname,
+      remote,
+      requestCode: req.headers['request_code'],
+      devId: req.headers['dev_id'],
+      blkNo: req.headers['blk_no'],
+      contentType: ctype,
+      bytes: buf.length,
+    });
     let parsed = parseBody(buf, ctype);
 
     if (!parsed) {
-      console.log('[fk-bridge] accepted non-log/partial request', {
+      log('info', 'accepted non-log/partial request', {
         requestCode: req.headers['request_code'],
         devId: req.headers['dev_id'],
         blkNo: req.headers['blk_no'],
@@ -136,7 +174,7 @@ const server = http.createServer(async (req, res) => {
     const isRealtimeLog = requestCode === 'realtime_glog' || Boolean(biometricId);
 
     if (!isRealtimeLog) {
-      console.log('[fk-bridge] accepted non-attendance request', { requestCode });
+      log('info', 'accepted non-attendance request', { requestCode, keys: Object.keys(parsed) });
       res.setHeader('response_code', 'OK');
       res.statusCode = 200;
       res.end('OK');
@@ -161,7 +199,7 @@ const server = http.createServer(async (req, res) => {
     };
 
     if (!payload.biometricId) {
-      console.warn('[fk-bridge] realtime log missing biometric ID', {
+      log('warn', 'realtime log missing biometric ID', {
         requestCode,
         devId: payload.deviceId,
         keys: Object.keys(parsed),
@@ -179,12 +217,12 @@ const server = http.createServer(async (req, res) => {
       const text = await fetchRes.text();
       const responseCode = fetchRes.headers.get('response_code') || '';
       if (!fetchRes.ok || responseCode.startsWith('ERROR') || text.includes('ERROR')) {
-        console.warn('[fk-bridge] forward rejected', payload, '->', fetchRes.status, responseCode || text);
+        log('warn', 'forward rejected', { payload, status: fetchRes.status, responseCode, text });
       } else {
-        console.log('[fk-bridge] forwarded', payload, '->', fetchRes.status, responseCode || text);
+        log('info', 'forwarded', { payload, status: fetchRes.status, responseCode, text });
       }
     } catch (err) {
-      console.error('[fk-bridge] forward error', err);
+      log('error', 'forward error', { message: err?.message, stack: err?.stack });
     }
 
     // Respond in a simple text OK so device thinks server accepted
@@ -196,8 +234,31 @@ const server = http.createServer(async (req, res) => {
   });
 });
 
-server.listen(LISTEN_PORT, () => {
-  console.log(`[fk-bridge] listening on port ${LISTEN_PORT} -> forwarding to ${TARGET}`);
+server.on('error', (err) => {
+  if (err && err.code === 'EADDRINUSE') {
+    log('error', `port ${LISTEN_PORT} is already in use`);
+    log('error', 'Another bridge is already running. Close the old terminal/process, or use a different FK_BRIDGE_PORT and update the T800 ServerPort to match.');
+    process.exit(1);
+  }
+  log('error', 'server error', { message: err?.message, stack: err?.stack });
+  process.exit(1);
+});
+
+function listLocalAddresses() {
+  const nets = os.networkInterfaces();
+  const results = [];
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && !net.internal) results.push(net.address);
+    }
+  }
+  return results;
+}
+
+server.listen(LISTEN_PORT, '0.0.0.0', () => {
+  const addrs = listLocalAddresses();
+  log('info', 'bridge listening', { port: LISTEN_PORT, target: TARGET, logFile: LOG_FILE });
+  if (addrs.length) log('info', 'local addresses', { addresses: addrs });
 });
 
 // allow running with node scripts/fk-bridge.js
