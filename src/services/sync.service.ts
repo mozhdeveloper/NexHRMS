@@ -194,6 +194,13 @@ async function hydrateAllStoresInternal(opts?: { skipSessionCheck?: boolean }): 
     // clear local state instead of leaving stale rows around.
     const deletedEmployeeIds = useEmployeesStore.getState().deletedEmployeeIds ?? [];
     const deletedEmployeeIdSet = new Set(deletedEmployeeIds);
+    for (const employee of employees) {
+      if (deletedEmployeeIdSet.has(employee.id)) {
+        employeesDb.remove(employee.id).catch((error) => {
+          console.warn("[sync] Failed to purge tombstoned employee:", employee.id, error);
+        });
+      }
+    }
     useEmployeesStore.setState({
       employees: employees.filter((employee) => !deletedEmployeeIdSet.has(employee.id)),
       salaryRequests,
@@ -357,7 +364,9 @@ export function startWriteThrough(): void {
       (state, prevState) => {
         // Detect changed employees — only admin/hr can write employee records
         if (isAdminOrHr) {
+          const deletedIds = new Set(state.deletedEmployeeIds ?? []);
           for (const emp of state.employees) {
+            if (deletedIds.has(emp.id)) continue;
             const prev = prevState.employees.find((e) => e.id === emp.id);
             if (!prev || JSON.stringify(prev) !== JSON.stringify(emp)) {
               employeesDb.upsert(emp);
@@ -1041,6 +1050,7 @@ export function startRealtime(): void {
       safe(({ new: row }: { new: Record<string, unknown> }) => {
         const emp = employeeFromDb(row);
         useEmployeesStore.setState((s) => {
+          if (s.deletedEmployeeIds?.includes(emp.id)) return s;
           if (s.employees.find((e) => e.id === emp.id)) return s;
           return { employees: [...s.employees, emp] };
         });
@@ -1052,11 +1062,24 @@ export function startRealtime(): void {
       safe(({ new: row }: { new: Record<string, unknown> }) => {
         const emp = employeeFromDb(row);
         useEmployeesStore.setState((s) => ({
-          employees: s.employees.map((e) =>
-            e.id === emp.id
-              ? (JSON.stringify(e) !== JSON.stringify(emp) ? { ...e, ...emp } : e)
-              : e
-          ),
+          employees: s.deletedEmployeeIds?.includes(emp.id)
+            ? s.employees.filter((e) => e.id !== emp.id)
+            : s.employees.map((e) =>
+              e.id === emp.id
+                ? (JSON.stringify(e) !== JSON.stringify(emp) ? { ...e, ...emp } : e)
+                : e
+            ),
+        }));
+      })
+    )
+    .on(
+      "postgres_changes",
+      { event: "DELETE", schema: "public", table: "employees" },
+      safe(({ old: row }: { old: Record<string, unknown> }) => {
+        const id = row?.id as string;
+        if (!id) return;
+        useEmployeesStore.setState((s) => ({
+          employees: s.employees.filter((e) => e.id !== id),
         }));
       })
     )
