@@ -132,6 +132,10 @@ const detectLocationSpoofing = (coords: GeolocationCoordinates): string | null =
     return null;
 };
 
+const isLegacyIosAltitudeFalsePositive = (reason: string): boolean => {
+    return /ios altitude.*missing/i.test(reason) || /mock location suspected.*ios.*altitude/i.test(reason);
+};
+
 /**
  * Velocity check: detect teleportation between consecutive location readings.
  * If position changed >300 km/h since last known position, it's spoofed.
@@ -286,6 +290,10 @@ export default function EmployeeView() {
 
     // ─── Cheat detection handler (event + penalty + audit + notify) ──
     const handleCheatDetected = useCallback((employeeId: string, reason: string, cheatType: "devtools" | "spoofing") => {
+        // Permanent safeguard: iOS often omits altitude metadata in legitimate GPS reads.
+        // Never penalize or notify for this legacy false-positive signature.
+        if (isLegacyIosAltitudeFalsePositive(reason)) return;
+
         const now = new Date();
         const until = new Date(now.getTime() + penaltySettings.devOptionsPenaltyMinutes * 60000).toISOString();
 
@@ -396,22 +404,16 @@ export default function EmployeeView() {
         if (!navigator.geolocation) { toast.error("Geolocation is not supported"); setStep("error"); return; }
         navigator.geolocation.getCurrentPosition(
             (pos) => {
-                const spoof = detectLocationSpoofing(pos.coords);
+                const spoofRaw = detectLocationSpoofing(pos.coords);
+                const spoof = spoofRaw && isLegacyIosAltitudeFalsePositive(spoofRaw) ? null : spoofRaw;
                 if (spoof) {
-                    if (penaltySettings.devOptionsPenaltyEnabled && myEmployeeId &&
-                        (penaltySettings.devOptionsPenaltyApplyTo === "spoofing" || penaltySettings.devOptionsPenaltyApplyTo === "both")) {
-                        handleCheatDetected(myEmployeeId, spoof, "spoofing");
-                        toast.error(`Location spoofing detected. Locked out for ${penaltySettings.devOptionsPenaltyMinutes} minutes.`, { duration: 6000 });
-                    }
+                    // Warn only — no penalty, no lockout. User must disable mock location then refresh.
                     setSpoofReason(spoof); setStep("error"); return;
                 }
                 // Velocity check — detect teleportation between consecutive readings
                 const velocitySpoof = checkLocationVelocity(pos.coords.latitude, pos.coords.longitude);
                 if (velocitySpoof) {
-                    if (penaltySettings.devOptionsPenaltyEnabled && myEmployeeId &&
-                        (penaltySettings.devOptionsPenaltyApplyTo === "spoofing" || penaltySettings.devOptionsPenaltyApplyTo === "both")) {
-                        handleCheatDetected(myEmployeeId, velocitySpoof, "spoofing");
-                    }
+                    // Warn only — no penalty, no lockout. User must disable mock location then refresh.
                     setSpoofReason(velocitySpoof); setStep("error"); return;
                 }
                 saveLocationForVelocity(pos.coords.latitude, pos.coords.longitude);
@@ -1074,8 +1076,8 @@ export default function EmployeeView() {
                                     <div className="h-16 w-16 rounded-full bg-orange-500/15 flex items-center justify-center"><ShieldAlert className="h-8 w-8 text-orange-500" /></div>
                                     <p className="text-sm font-medium text-orange-700 dark:text-orange-400">Check-In Blocked</p>
                                     <p className="text-xs text-muted-foreground text-center">{spoofReason}</p>
-                                    <p className="text-[10px] text-muted-foreground text-center">Disable mock location apps and developer options, then try again.</p>
-                                    <Button variant="outline" size="sm" onClick={() => { setSpoofReason(null); setStep("idle"); }} className="mt-1">Try Again</Button>
+                                    <p className="text-[10px] text-muted-foreground text-center">Turn off any mock location or GPS spoofing app, then tap Refresh to try again.</p>
+                                    <Button variant="outline" size="sm" onClick={requestLocation} className="mt-1">Refresh Location</Button>
                                 </CardContent>
                             </Card>
                         )}

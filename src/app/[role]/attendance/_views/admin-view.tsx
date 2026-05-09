@@ -77,6 +77,10 @@ const detectLocationSpoofing = (coords: GeolocationCoordinates): string | null =
     if (isAndroid && coords.altitude !== null && coords.altitudeAccuracy === null) return "Mock location suspected — Android altitude accuracy missing.";
     return null;
 };
+
+const isLegacyIosAltitudeFalsePositive = (reason: string): boolean => {
+    return /ios altitude.*missing/i.test(reason) || /mock location suspected.*ios.*altitude/i.test(reason);
+};
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const statusColors: Record<string, string> = { present: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400", absent: "bg-red-500/15 text-red-700 dark:text-red-400", on_leave: "bg-amber-500/15 text-amber-700 dark:text-amber-400" };
 const otStatusColor: Record<string, string> = { pending: "bg-amber-500/15 text-amber-700 dark:text-amber-400", approved: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400", rejected: "bg-red-500/15 text-red-700 dark:text-red-400" };
@@ -494,12 +498,10 @@ export default function AdminView({ mode = "admin" }: AdminViewProps) {
         if (!navigator.geolocation) { toast.error("Geolocation not supported"); setStep("error"); return; }
         navigator.geolocation.getCurrentPosition(
             (pos) => {
-                const spoof = detectLocationSpoofing(pos.coords);
+                const spoofRaw = detectLocationSpoofing(pos.coords);
+                const spoof = spoofRaw && isLegacyIosAltitudeFalsePositive(spoofRaw) ? null : spoofRaw;
                 if (spoof) {
-                    if (penaltySettings.devOptionsPenaltyEnabled && myEmployeeId && (penaltySettings.devOptionsPenaltyApplyTo === "spoofing" || penaltySettings.devOptionsPenaltyApplyTo === "both")) {
-                        applyPenalty({ employeeId: myEmployeeId, reason: spoof, triggeredAt: new Date().toISOString(), penaltyUntil: new Date(Date.now() + penaltySettings.devOptionsPenaltyMinutes * 60000).toISOString() });
-                        toast.error(`Location spoofing detected. Locked out for ${penaltySettings.devOptionsPenaltyMinutes} minutes.`, { duration: 6000 });
-                    }
+                    // Warn only — no penalty, no lockout. User must disable mock location then refresh.
                     setSpoofReason(spoof); setStep("error"); return;
                 }
                 const gpsAccuracy = Math.round(pos.coords.accuracy);
@@ -535,14 +537,14 @@ export default function AdminView({ mode = "admin" }: AdminViewProps) {
     return (
         <div className="space-y-4">
             {/* ─── Header ─────────────────────────────────────────── */}
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="min-w-0">
-                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">{viewTitle}</h1>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex flex-col min-w-[200px]">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{viewTitle}</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
                         {mode === "supervisor" ? "Team check-in/out logs" : "Daily check-in/out logs"}
                     </p>
                 </div>
-                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap justify-start md:justify-end">
                     {/* Live clock pill */}
                     <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-border/40 bg-muted/30 px-3 py-1.5 text-xs font-medium tabular-nums">
                         <CalendarDays className="h-3 w-3 text-muted-foreground" />
@@ -1461,7 +1463,8 @@ export default function AdminView({ mode = "admin" }: AdminViewProps) {
                                     <div className="h-16 w-16 rounded-full bg-orange-500/15 flex items-center justify-center"><ShieldAlert className="h-8 w-8 text-orange-500" /></div>
                                     <p className="text-sm font-medium text-orange-700 dark:text-orange-400">Check-In Blocked</p>
                                     <p className="text-xs text-muted-foreground text-center">{spoofReason}</p>
-                                    <Button variant="outline" size="sm" onClick={() => { setSpoofReason(null); setStep("idle"); }} className="mt-1">Try Again</Button>
+                                    <p className="text-[10px] text-muted-foreground text-center">Turn off any mock location or GPS spoofing app, then tap Refresh to try again.</p>
+                                    <Button variant="outline" size="sm" onClick={requestLocation} className="mt-1">Refresh Location</Button>
                                 </CardContent>
                             </Card>
                         )}
