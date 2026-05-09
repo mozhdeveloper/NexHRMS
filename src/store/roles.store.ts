@@ -17,7 +17,7 @@ export const ALL_PERMISSIONS: Permission[] = [
     "payroll:view_all", "payroll:generate", "payroll:lock", "payroll:issue", "payroll:view_own",
     "loans:view_all", "loans:approve", "loans:view_own",
     "audit:view",
-    "settings:roles", "settings:organization", "settings:shifts", "settings:page_builder",
+    "settings:roles", "settings:organization", "settings:shifts",
     "projects:manage",
     "reports:view", "reports:government",
     "notifications:manage",
@@ -152,7 +152,7 @@ export const PERMISSION_GROUPS: { label: string; permissions: { key: Permission;
             { key: "settings:roles", label: "Manage roles" },
             { key: "settings:organization", label: "Organization settings" },
             { key: "settings:shifts", label: "Shift management" },
-            { key: "settings:page_builder", label: "Page / dashboard builder" },
+
         ],
     },
 ];

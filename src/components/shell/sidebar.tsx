@@ -10,7 +10,6 @@ import { signOut } from "@/services/auth.service";
 import { stopWriteThrough } from "@/services/sync.service";
 import { useUIStore } from "@/store/ui.store";
 import { useRolesStore } from "@/store/roles.store";
-import { usePageBuilderStore } from "@/store/page-builder.store";
 import { useAppearanceStore } from "@/store/appearance.store";
 import { useMessagingStore } from "@/store/messaging.store";
 import { useNotificationsStore } from "@/store/notifications.store";
@@ -39,7 +38,6 @@ import {
     AlarmClock,
     X,
     FileText,
-    Puzzle,
     ListTodo,
     MessageSquare,
     QrCode,
@@ -70,7 +68,6 @@ const iconMap: Record<string, React.ElementType> = {
     FileSearch,
     AlarmClock,
     FileText,
-    Puzzle,
     ListTodo,
     MessageSquare,
     QrCode,
@@ -102,8 +99,6 @@ function SidebarComponent() {
     );
     
     const hasPermission = useRolesStore((s) => s.hasPermission);
-    const getVisiblePages = usePageBuilderStore((s) => s.getVisiblePages);
-    const customPages = useMemo(() => getVisiblePages(role), [getVisiblePages, role]);
 
     // Consolidated appearance store selector
     const { modules, navOverrides, sidebarVariant, logoUrl, companyName, logoTextVisible } = useAppearanceStore(
@@ -179,15 +174,8 @@ function SidebarComponent() {
             })
             .sort((a, b) => a.order - b.order);
 
-        // Inject custom pages into the nav
-        const customNavItems = customPages.map((page) => ({
-            label: page.title,
-            href: `/custom/${page.slug}`,
-            icon: page.icon || "FileText",
-        }));
-
-        return { systemItems, customNavItems };
-    }, [role, hasPermission, customPages, modules, navOverrides, hasFaceProject]);
+        return { systemItems };
+    }, [role, hasPermission, modules, navOverrides, hasFaceProject]);
 
     // Build role-prefixed paths
     const rolePrefix = `/${role}`;
@@ -312,46 +300,6 @@ function SidebarComponent() {
                     );
                 })}
 
-                {/* Custom pages */}
-                {filtered.customNavItems.length > 0 && (
-                    <>
-                        {showLabel && (
-                            <div className="pt-3 pb-1 px-3">
-                                <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">Custom Pages</span>
-                            </div>
-                        )}
-                        {filtered.customNavItems.map((item) => {
-                            const Icon = iconMap[item.icon] || Puzzle;
-                            const fullCustomHref = `${rolePrefix}${item.href}`;
-                            const isActive = pathname === fullCustomHref;
-                            const collapsed = !showLabel && !isMobile;
-                            return (
-                                <Tooltip key={item.href}>
-                                    <TooltipTrigger asChild>
-                                        <Link
-                                            href={fullCustomHref}
-                                            className={cn(
-                                                "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
-                                                collapsed
-                                                    ? "h-10 w-10 mx-auto justify-center"
-                                                    : "gap-3 px-3 py-2.5",
-                                                isActive
-                                                    ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
-                                                    : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                                            )}
-                                        >
-                                            <Icon className="h-5 w-5 shrink-0" />
-                                            {!collapsed && <span className="truncate">{item.label}</span>}
-                                        </Link>
-                                    </TooltipTrigger>
-                                    {collapsed && (
-                                        <TooltipContent side="right" sideOffset={8}>{item.label}</TooltipContent>
-                                    )}
-                                </Tooltip>
-                            );
-                        })}
-                    </>
-                )}
             </nav>
             </TooltipProvider>
 

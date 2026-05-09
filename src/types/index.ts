@@ -810,7 +810,6 @@ export type Permission =
   | "audit:view"
   // Settings
   | "settings:roles" | "settings:organization" | "settings:shifts"
-  | "settings:page_builder"
   // Projects
   | "projects:manage"
   // Reports
@@ -873,19 +872,6 @@ export type WidgetType =
   | "events_widget" | "events_widget_readonly" | "birthdays_widget"
   // Attendance
   | "attendance_live_stats" | "enrollment_reminder";
-
-export interface CustomPage {
-  id: string;
-  title: string;
-  slug: string;
-  icon: string;
-  description?: string;
-  allowedRoles: string[];
-  widgets: WidgetConfig[];
-  showInSidebar: boolean;
-  order: number;
-  createdAt: string;
-}
 
 // ─── Site Survey Photo ───────────────────────────────────────
 
