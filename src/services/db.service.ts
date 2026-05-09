@@ -845,6 +845,11 @@ function projectToDb(p: Partial<Project>): Record<string, unknown> {
   if (p.requireGeofence !== undefined) row.require_geofence = p.requireGeofence;
   if (p.geofenceRadiusMeters !== undefined) row.geofence_radius_meters = p.geofenceRadiusMeters;
 
+  // QR columns (migration 055) — only include when defined to avoid clobbering
+  // an existing qr_secret with null on update.
+  if (p.qrSecret !== undefined && p.qrSecret !== null) row.qr_secret = p.qrSecret;
+  if (p.qrEnabled !== undefined) row.qr_enabled = p.qrEnabled;
+
   return row;
 }
 
@@ -882,6 +887,16 @@ export const projectsDb = {
     const row = projectToDb(project);
     // Keep legacy column in sync during transition
     row.assigned_employee_ids = employeeIds;
+
+    // Guard: qr_secret is NOT NULL in DB. Always include a value so INSERT succeeds.
+    // On UPDATE the existing DB value is preserved because we include it when defined
+    // (projectFromDb hydrates qrSecret via keysToCamel). For new projects created
+    // before this fix, generate a fresh secret here as a safety net.
+    if (row.qr_secret === undefined || row.qr_secret === null) {
+      // Import nanoid lazily to keep this file server/client compatible.
+      const { nanoid: _nanoid } = await import("nanoid");
+      row.qr_secret = _nanoid(32);
+    }
 
     const { error } = await supabase().from("projects").upsert(row, { onConflict: "id" });
     if (error) {
