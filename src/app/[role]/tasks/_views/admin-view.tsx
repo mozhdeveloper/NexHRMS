@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useTasksStore } from "@/store/tasks.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
@@ -36,8 +36,8 @@ import Link from "next/link";
 import { toast } from "sonner";
 import {
     ListTodo, CheckCircle2, Clock, Eye, AlertTriangle, Plus, Search, MoreHorizontal,
-    Pencil, Trash2, Users, FolderOpen, ArrowUpDown, XCircle, ChevronRight, ChevronDown,
-    Layers, LayoutGrid, Table2, FolderPlus, Send, Tag, Briefcase,
+    Pencil, Trash2, Users, FolderOpen, ArrowUpDown, XCircle, ChevronRight, ChevronLeft, ChevronDown,
+    Layers, LayoutGrid, Table2, FolderPlus, Send, Tag, Briefcase, RefreshCw,
     ClipboardCheck, Filter, CalendarDays,
 } from "lucide-react";
 import { FullScreenCalendar, type CalendarItem, type CalendarItemColor } from "@/components/ui/fullscreen-calendar";
@@ -61,7 +61,7 @@ const PRIORITY_CONFIG: Record<TaskPriority, { label: string; color: string; dot:
     urgent: { label: "Urgent", color: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400", dot: "bg-red-500" },
 };
 
-const ACTIVE_BOARD_COLUMNS: TaskStatus[] = ["open", "in_progress", "submitted", "rejected"];
+
 
 // ── Default form state ────────────────────────────────────────
 
@@ -71,10 +71,11 @@ const defaultTaskForm = {
     priority: "medium" as TaskPriority,
     groupId: "",
     projectId: "",
+    startDate: "",
     dueDate: "",
     assignedTo: [] as string[],
     completionRequired: false,
-    tags: "",
+    tags: [] as string[],
 };
 
 const generateTaskCode = () =>
@@ -128,19 +129,37 @@ export default function AdminTasksView() {
     const [deleteTagId, setDeleteTagId] = useState<string | null>(null);
     const [tagForm, setTagForm] = useState({ name: "", color: "#6366f1" });
 
-    // ── Tag suggestions ───────────────────────────────────────
+    // ── Tag input ──────────────────────────────────────────────
+    const [tagInput, setTagInput] = useState("");
     const [showTagSugs, setShowTagSugs] = useState(false);
+    const tagSugRef = useRef<HTMLDivElement>(null);
+
+    // ── Employee search/filter (inside assign panel) ────────────────────
+    const [empSearch, setEmpSearch] = useState("");
+    const [empDeptFilter, setEmpDeptFilter] = useState("all");
+
+    // ── Member search/filter (inside group form) ──────────────────────
+    const [grpSearch, setGrpSearch] = useState("");
+    const [grpDeptFilter, setGrpDeptFilter] = useState("all");
 
     // ── Verification dialog ───────────────────────────────────
     const [rejectOpen, setRejectOpen] = useState<string | null>(null);
     const [rejectReason, setRejectReason] = useState("");
 
-    // ── Board collapsed sections ──────────────────────────────
-    const [showCompleted, setShowCompleted] = useState(false);
+    // ── Group search ──────────────────────────────────────────
+    const [groupSearch, setGroupSearch] = useState("");
+
+    // ── Task view mode (table / board) ───────────────────────
+    const [taskViewMode, setTaskViewMode] = useState<"table" | "board">("table");
+    const [activeTab, setActiveTab] = useState("tasks");
 
     // ── Sorting ───────────────────────────────────────────────
     const [sortField, setSortField] = useState<"title" | "priority" | "dueDate" | "status" | "createdAt">("createdAt");
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+    // ── Pagination ────────────────────────────────────────────
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [currentPage, setCurrentPage] = useState(1);
 
     // ── Helpers ───────────────────────────────────────────────
     const getEmpName = useCallback(
@@ -148,7 +167,7 @@ export default function AdminTasksView() {
         [employees],
     );
     const getGroupName = useCallback(
-        (id: string) => groups.find((g) => g.id === id)?.name ?? "Ungrouped",
+        (id?: string) => id ? (groups.find((g) => g.id === id)?.name ?? "Ungrouped") : "—",
         [groups],
     );
     const myEmployeeId = useMemo(
@@ -165,44 +184,44 @@ export default function AdminTasksView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const stats = useMemo(() => getStats(), [getStats, tasks.length]);
 
-    // ── Existing tags for auto-suggest ────────────────────────
+    // ── Tag helpers (array-based) ──────────────────────────────
     const allTags = useMemo(() => {
         const tagSet = new Set<string>(taskTags.map((t) => t.name));
         tasks.forEach((t) => t.tags?.forEach((tag) => tagSet.add(tag)));
         return Array.from(tagSet).sort();
     }, [tasks, taskTags]);
 
-    const currentTagSegment = useMemo(() => {
-        const parts = taskForm.tags.split(",");
-        return parts[parts.length - 1].trim();
-    }, [taskForm.tags]);
-
-    const currentTagList = useMemo(
-        () => taskForm.tags.split(",").map((t) => t.trim()).filter(Boolean),
-        [taskForm.tags],
-    );
-
     const tagSuggestions = useMemo(() => {
-        if (!currentTagSegment) return allTags.filter((t) => !currentTagList.includes(t)).slice(0, 8);
+        const q = tagInput.trim().toLowerCase();
         return allTags
-            .filter(
-                (t) =>
-                    t.toLowerCase().includes(currentTagSegment.toLowerCase()) &&
-                    !currentTagList.includes(t),
-            )
-            .slice(0, 6);
-    }, [allTags, currentTagSegment, currentTagList]);
+            .filter((t) => !taskForm.tags.includes(t) && (!q || t.toLowerCase().includes(q)))
+            .slice(0, 8);
+    }, [allTags, tagInput, taskForm.tags]);
 
-    const applyTagSuggestion = useCallback(
+    const addTagToForm = useCallback(
         (tag: string) => {
-            const parts = taskForm.tags.split(",");
-            parts[parts.length - 1] = tag;
-            const newTags = parts.map((t) => t.trim()).filter(Boolean).join(", ");
-            setTaskForm((p) => ({ ...p, tags: newTags + ", " }));
-            setShowTagSugs(false);
+            const trimmed = tag.trim();
+            if (trimmed && !taskForm.tags.includes(trimmed)) {
+                setTaskForm((p) => ({ ...p, tags: [...p.tags, trimmed] }));
+            }
+            setTagInput("");
         },
         [taskForm.tags],
     );
+
+    const removeTagFromForm = useCallback(
+        (tag: string) => {
+            setTaskForm((p) => ({ ...p, tags: p.tags.filter((t) => t !== tag) }));
+        },
+        [],
+    );
+
+    // Scroll tag suggestion dropdown into view when it appears
+    useEffect(() => {
+        if (showTagSugs && tagSugRef.current) {
+            tagSugRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+    }, [showTagSugs]);
 
     // ── Needs Review tasks (submitted, awaiting verification) ─
     const needsReviewTasks = useMemo(() => {
@@ -212,6 +231,9 @@ export default function AdminTasksView() {
             return report && !report.verifiedBy && !report.rejectionReason;
         });
     }, [tasks, completionReports]);
+
+    const isOverdue = (t: Task) =>
+        t.dueDate && new Date(t.dueDate) < new Date() && !["verified", "cancelled"].includes(t.status);
 
     // ── Filtered tasks (for table/board) ──────────────────────
     const filteredTasks = useMemo(() => {
@@ -225,7 +247,8 @@ export default function AdminTasksView() {
                     t.id.toLowerCase().includes(q),
             );
         }
-        if (statusFilter !== "all") list = list.filter((t) => t.status === statusFilter);
+        if (statusFilter === "overdue") list = list.filter((t) => isOverdue(t));
+        else if (statusFilter !== "all") list = list.filter((t) => t.status === statusFilter);
         if (priorityFilter !== "all") list = list.filter((t) => t.priority === priorityFilter);
         if (groupFilter !== "all") list = list.filter((t) => t.groupId === groupFilter);
         if (assigneeFilter !== "all") list = list.filter((t) => t.assignedTo.includes(assigneeFilter));
@@ -266,21 +289,24 @@ export default function AdminTasksView() {
             priority: task.priority ?? "medium",
             groupId: task.groupId ?? "",
             projectId: task.projectId ?? "",
+            startDate: task.startDate ?? "",
             dueDate: task.dueDate ?? "",
             assignedTo: task.assignedTo ? [...task.assignedTo] : [],
             completionRequired: task.completionRequired ?? false,
-            tags: task.tags?.join(", ") ?? "",
+            tags: task.tags ? [...task.tags] : [],
         });
+        setTagInput("");
         setEditTask(task);
     };
 
     const handleSaveTask = () => {
         if (!taskForm.title.trim()) { toast.error("Title is required"); return; }
-
-        const tags = taskForm.tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean);
+        if (!taskForm.startDate) { toast.error("Start date is required"); return; }
+        if (!taskForm.dueDate) { toast.error("Due date is required"); return; }
+        const today = new Date().toISOString().split("T")[0];
+        if (taskForm.startDate < today) { toast.error("Start date cannot be in the past"); return; }
+        if (taskForm.dueDate < taskForm.startDate) { toast.error("Due date cannot be before start date"); return; }
+        if (!taskForm.groupId && taskForm.assignedTo.length === 0) { toast.error("At least one employee must be assigned"); return; }
 
         try {
             if (editTask) {
@@ -290,10 +316,11 @@ export default function AdminTasksView() {
                     priority: taskForm.priority,
                     groupId: taskForm.groupId || undefined,
                     projectId: taskForm.projectId || undefined,
+                    startDate: taskForm.startDate || undefined,
                     dueDate: taskForm.dueDate || undefined,
                     assignedTo: taskForm.assignedTo,
                     completionRequired: taskForm.completionRequired,
-                    tags: tags.length > 0 ? tags : undefined,
+                    tags: taskForm.tags.length > 0 ? taskForm.tags : undefined,
                 });
                 toast.success("Task updated");
                 setEditTask(null);
@@ -304,19 +331,21 @@ export default function AdminTasksView() {
                     title: taskForm.title.trim(),
                     description: taskForm.description.trim(),
                     priority: taskForm.priority,
-                    groupId: taskForm.groupId || groups[0]?.id || "",
+                    groupId: taskForm.groupId || undefined,
                     projectId: taskForm.projectId || undefined,
                     status: "open",
+                    startDate: taskForm.startDate || undefined,
                     dueDate: taskForm.dueDate || undefined,
                     assignedTo: taskForm.assignedTo,
                     createdBy: myEmployeeId,
                     completionRequired: taskForm.completionRequired,
-                    tags: tags.length > 0 ? tags : undefined,
+                    tags: taskForm.tags.length > 0 ? taskForm.tags : undefined,
                 });
                 toast.success("Task created");
                 setCreateOpen(false);
             }
             resetTaskForm();
+            setTagInput("");
         } catch (err) {
             toast.error(`Failed to save task: ${err instanceof Error ? err.message : "Unknown error"}`);
         }
@@ -489,27 +518,53 @@ export default function AdminTasksView() {
         }));
     };
 
-    // ── Sort toggle ───────────────────────────────────────────
     const toggleSort = (field: typeof sortField) => {
         if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
         else { setSortField(field); setSortDir("asc"); }
     };
 
-    const isOverdue = (t: Task) =>
-        t.dueDate && new Date(t.dueDate) < new Date() && !["verified", "cancelled"].includes(t.status);
-
+    const EXCLUDED_ROLES = ["admin", "hr", "finance", "auditor", "payroll_admin", "supervisor"];
     const activeEmployees = useMemo(
-        () => employees.filter((e) => e.status === "active"),
+        () => employees.filter((e) => e.status === "active" && !EXCLUDED_ROLES.includes(e.role?.toLowerCase() ?? "")),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         [employees],
     );
 
-    // Filter employees by selected project's assignedEmployeeIds
+    // Filter employees by selected group (takes priority) or project
     const assignableEmployees = useMemo(() => {
+        if (taskForm.groupId) {
+            const grp = groups.find((g) => g.id === taskForm.groupId);
+            // Use ALL employees (not just active) so every group member appears checked
+            if (grp) return employees.filter((e) => grp.memberEmployeeIds.includes(e.id));
+        }
         if (!taskForm.projectId) return activeEmployees;
         const project = projects.find((p) => p.id === taskForm.projectId);
         if (!project || !project.assignedEmployeeIds?.length) return activeEmployees;
         return activeEmployees.filter((e) => project.assignedEmployeeIds.includes(e.id));
-    }, [activeEmployees, projects, taskForm.projectId]);
+    }, [employees, activeEmployees, groups, projects, taskForm.groupId, taskForm.projectId]);
+
+    // Unique departments from the current assignable list (for filter dropdown)
+    const assignableDepts = useMemo(() =>
+        [...new Set(assignableEmployees.map((e) => e.department).filter(Boolean))].sort() as string[],
+        [assignableEmployees],
+    );
+
+    // Employee list filtered by search + department, checked-first ordering
+    const visibleEmployees = useMemo(() => {
+        let list = assignableEmployees;
+        if (empSearch.trim()) {
+            const q = empSearch.toLowerCase();
+            list = list.filter((e) => e.name.toLowerCase().includes(q));
+        }
+        if (empDeptFilter !== "all") {
+            list = list.filter((e) => e.department === empDeptFilter);
+        }
+        return [...list].sort((a, b) => {
+            const aChecked = taskForm.assignedTo.includes(a.id) ? 0 : 1;
+            const bChecked = taskForm.assignedTo.includes(b.id) ? 0 : 1;
+            return aChecked - bChecked || a.name.localeCompare(b.name);
+        });
+    }, [assignableEmployees, empSearch, empDeptFilter, taskForm.assignedTo]);
 
     // Unique assigned employees for the assignee filter dropdown
     const assignedEmployeeIds = useMemo(() => {
@@ -526,18 +581,13 @@ export default function AdminTasksView() {
         setPriorityFilter("all");
         setGroupFilter("all");
         setAssigneeFilter("all");
+        setCurrentPage(1);
     };
-
-    // Completed count for board collapsed section
-    const completedBoardTasks = useMemo(
-        () => filteredTasks.filter((t) => t.status === "verified" || t.status === "cancelled"),
-        [filteredTasks],
-    );
 
     // This week verified count
     const thisWeekVerified = useMemo(() => {
         const now = new Date();
-        const startOfWeek = new Date(now); 
+        const startOfWeek = new Date(now);
         startOfWeek.setDate(now.getDate() - now.getDay());
         startOfWeek.setHours(0, 0, 0, 0);
         return tasks.filter((t) => t.status === "verified" && t.updatedAt && new Date(t.updatedAt) >= startOfWeek).length;
@@ -547,11 +597,36 @@ export default function AdminTasksView() {
     // RENDER
     // ────────────────────────────────────────────────────────────
     const taskFormDialogOpen = createOpen || !!editTask;
-    const taskFormOnClose = () => { setCreateOpen(false); setEditTask(null); resetTaskForm(); };
+    const taskFormOnClose = () => {
+        setCreateOpen(false);
+        setEditTask(null);
+        resetTaskForm();
+        setEmpSearch("");
+        setEmpDeptFilter("all");
+        setShowTagSugs(false);
+        setTagInput("");
+    };
     const groupFormDialogOpen = groupCreateOpen || !!editGroup;
-    const groupFormOnClose = () => { setGroupCreateOpen(false); setEditGroup(null); resetGroupForm(); };
+    const groupFormOnClose = () => {
+        setGroupCreateOpen(false);
+        setEditGroup(null);
+        resetGroupForm();
+        setGrpSearch("");
+        setGrpDeptFilter("all");
+    };
     const tagFormDialogOpen = tagCreateOpen || !!editTag;
     const tagFormOnClose = () => { setTagCreateOpen(false); setEditTag(null); setTagForm({ name: "", color: "#6366f1" }); };
+
+    // ── Pagination computed ────────────────────────────────────
+    const totalPages = Math.max(1, Math.ceil(filteredTasks.length / rowsPerPage));
+    const paginatedTasks = filteredTasks.length > 10
+        ? filteredTasks.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
+        : filteredTasks;
+
+    // Reset to page 1 when filtered list shrinks below current page
+    useEffect(() => {
+        if (currentPage > totalPages) setCurrentPage(1);
+    }, [currentPage, totalPages]);
 
     return (
         <div className="space-y-6 pb-8">
@@ -568,13 +643,13 @@ export default function AdminTasksView() {
                 </Button>
             </div>
 
-            {/* ── Simplified Stats (4 KPIs) ────────────────── */}
+            {/* ── Stats (4 KPIs) ──────────────────────────── */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                 {([
-                    { label: "Needs Review", value: needsReviewTasks.length, icon: ClipboardCheck, color: needsReviewTasks.length > 0 ? "text-purple-600" : "text-muted-foreground" },
+                    { label: "Total Open", value: tasks.filter((t) => t.status === "open" || t.status === "in_progress" || isOverdue(t)).length, icon: ListTodo, color: "text-blue-600" },
+                    { label: "Pending Review", value: tasks.filter((t) => t.status === "submitted").length, icon: ClipboardCheck, color: tasks.some((t) => t.status === "submitted") ? "text-purple-600" : "text-muted-foreground" },
                     { label: "Overdue", value: stats.overdue, icon: AlertTriangle, color: stats.overdue > 0 ? "text-red-600" : "text-muted-foreground" },
-                    { label: "In Progress", value: stats.inProgress, icon: Clock, color: "text-yellow-600" },
-                    { label: "Done This Week", value: thisWeekVerified, icon: CheckCircle2, color: "text-green-600" },
+                    { label: "Completed this Week", value: thisWeekVerified, icon: CheckCircle2, color: "text-green-600" },
                 ] as const).map((kpi) => (
                     <Card key={kpi.label} className="border border-border/50">
                         <CardContent className="p-3 sm:p-4 flex items-center gap-2.5">
@@ -589,9 +664,54 @@ export default function AdminTasksView() {
             </div>
 
             {/* ── Main Tabs ────────────────────────────────── */}
-            <Tabs defaultValue={needsReviewTasks.length > 0 ? "review" : "table"}>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+                {/* Mobile: scrollable row with toggle inline */}
+                <div className="overflow-x-auto pb-0.5 sm:hidden">
+                    <div className="flex items-center gap-2 w-full">
+                        <TabsList className="flex-1">
+                            <TabsTrigger value="tasks" className="gap-1.5 text-xs">
+                                <Table2 className="h-3.5 w-3.5" /> All Tasks
+                                <Badge variant="secondary" className="text-[10px] h-4 min-w-4 px-1">{tasks.length}</Badge>
+                            </TabsTrigger>
+                            <TabsTrigger value="review" className="gap-1.5 text-xs">
+                                <ClipboardCheck className="h-3.5 w-3.5" /> Needs Review
+                                {needsReviewTasks.length > 0 && (
+                                    <Badge variant="secondary" className="text-[10px] h-4 min-w-4 px-1 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                                        {needsReviewTasks.length}
+                                    </Badge>
+                                )}
+                            </TabsTrigger>
+                            <TabsTrigger value="groups" className="gap-1.5 text-xs">
+                                <Layers className="h-3.5 w-3.5" /> Groups
+                                <Badge variant="secondary" className="text-[10px] h-4 min-w-4 px-1">{groups.length}</Badge>
+                            </TabsTrigger>
+                            <TabsTrigger value="calendar" className="gap-1.5 text-xs">
+                                <CalendarDays className="h-3.5 w-3.5" /> Calendar
+                            </TabsTrigger>
+                            <TabsTrigger value="settings" className="gap-1.5 text-xs">
+                                <Tag className="h-3.5 w-3.5" /> Settings
+                            </TabsTrigger>
+                        </TabsList>
+                        {activeTab === "tasks" && (
+                            <div className="flex items-center gap-1 border rounded-md p-0.5 shrink-0">
+                                <Button variant={taskViewMode === "table" ? "secondary" : "ghost"} size="sm" className="h-7 w-7 p-0" title="Table view" onClick={() => setTaskViewMode("table")}>
+                                    <Table2 className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button variant={taskViewMode === "board" ? "secondary" : "ghost"} size="sm" className="h-7 w-7 p-0" title="Board view" onClick={() => setTaskViewMode("board")}>
+                                    <LayoutGrid className="h-3.5 w-3.5" />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Desktop: tabs left, toggle right */}
+                <div className="hidden sm:flex sm:items-center justify-between gap-3">
                     <TabsList>
+                        <TabsTrigger value="tasks" className="gap-1.5 text-xs sm:text-sm">
+                            <Table2 className="h-3.5 w-3.5" /> All Tasks
+                            <Badge variant="secondary" className="text-[10px] h-4 min-w-4 px-1">{tasks.length}</Badge>
+                        </TabsTrigger>
                         <TabsTrigger value="review" className="gap-1.5 text-xs sm:text-sm">
                             <ClipboardCheck className="h-3.5 w-3.5" /> Needs Review
                             {needsReviewTasks.length > 0 && (
@@ -600,26 +720,29 @@ export default function AdminTasksView() {
                                 </Badge>
                             )}
                         </TabsTrigger>
-                        <TabsTrigger value="table" className="gap-1.5 text-xs sm:text-sm">
-                            <Table2 className="h-3.5 w-3.5" /> All Tasks
-                            <Badge variant="secondary" className="text-[10px] h-4 min-w-4 px-1">
-                                {tasks.length}
-                            </Badge>
-                        </TabsTrigger>
-                        <TabsTrigger value="board" className="gap-1.5 text-xs sm:text-sm">
-                            <LayoutGrid className="h-3.5 w-3.5" /> Board
-                        </TabsTrigger>
                         <TabsTrigger value="groups" className="gap-1.5 text-xs sm:text-sm">
                             <Layers className="h-3.5 w-3.5" /> Groups
-                            <Badge variant="secondary" className="text-[10px] h-4 min-w-4 px-1">
-                                {groups.length}
-                            </Badge>
+                            <Badge variant="secondary" className="text-[10px] h-4 min-w-4 px-1">{groups.length}</Badge>
                         </TabsTrigger>
                         <TabsTrigger value="calendar" className="gap-1.5 text-xs sm:text-sm">
                             <CalendarDays className="h-3.5 w-3.5" /> Calendar
                         </TabsTrigger>
+                        <TabsTrigger value="settings" className="gap-1.5 text-xs sm:text-sm">
+                            <Tag className="h-3.5 w-3.5" /> Settings
+                        </TabsTrigger>
                     </TabsList>
+                    {activeTab === "tasks" && (
+                        <div className="flex items-center gap-1 border rounded-md p-0.5">
+                            <Button variant={taskViewMode === "table" ? "secondary" : "ghost"} size="sm" className="h-7 w-7 p-0" title="Table view" onClick={() => setTaskViewMode("table")}>
+                                <Table2 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant={taskViewMode === "board" ? "secondary" : "ghost"} size="sm" className="h-7 w-7 p-0" title="Board view" onClick={() => setTaskViewMode("board")}>
+                                <LayoutGrid className="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
+                    )}
                 </div>
+
 
                 {/* ═══════════════════════════════════════════════
                     NEEDS REVIEW TAB — HR's most important view
@@ -717,8 +840,8 @@ export default function AdminTasksView() {
                     )}
                 </TabsContent>
 
-                {/* ── Filter Bar (for Table & Board) ───────── */}
-                <TabsContent value="table" className="mt-0 space-y-4">
+                {/* ── Filter Bar (for All Tasks) ──────────── */}
+                <TabsContent value="tasks" className="mt-0 space-y-4">
                     <div className="flex flex-col sm:flex-row gap-2 mt-4">
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -729,23 +852,26 @@ export default function AdminTasksView() {
                                 className="pl-9"
                             />
                         </div>
-                        <div className="flex gap-2 flex-wrap">
-                            <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="w-[130px] h-9 text-xs">
-                                    <Filter className="h-3 w-3 mr-1" />
-                                    <SelectValue placeholder="Status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Status</SelectItem>
-                                    {(Object.entries(STATUS_CONFIG) as [TaskStatus, typeof STATUS_CONFIG["open"]][]).map(
-                                        ([key, cfg]) => (
-                                            <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
-                                        ),
-                                    )}
-                                </SelectContent>
-                            </Select>
+                        <div className={`grid gap-2 sm:flex sm:flex-wrap ${taskViewMode === "board" ? "grid-cols-3" : "grid-cols-2"}`}>
+                            {taskViewMode !== "board" && (
+                                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                    <SelectTrigger className="w-full sm:w-[160px] h-9 text-xs">
+                                        <Filter className="h-3 w-3 mr-1" />
+                                        <SelectValue placeholder="Status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Status</SelectItem>
+                                        <SelectItem value="overdue">Overdue</SelectItem>
+                                        {(Object.entries(STATUS_CONFIG) as [TaskStatus, typeof STATUS_CONFIG["open"]][]).map(
+                                            ([key, cfg]) => (
+                                                <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
+                                            ),
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            )}
                             <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                                <SelectTrigger className="w-[130px] h-9 text-xs">
+                                <SelectTrigger className="w-full sm:w-[130px] h-9 text-xs">
                                     <SelectValue placeholder="Priority" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -758,7 +884,7 @@ export default function AdminTasksView() {
                                 </SelectContent>
                             </Select>
                             <Select value={groupFilter} onValueChange={setGroupFilter}>
-                                <SelectTrigger className="w-[150px] h-9 text-xs">
+                                <SelectTrigger className="w-full sm:w-[150px] h-9 text-xs">
                                     <SelectValue placeholder="Group" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -769,7 +895,7 @@ export default function AdminTasksView() {
                                 </SelectContent>
                             </Select>
                             <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                                <SelectTrigger className="w-[150px] h-9 text-xs">
+                                <SelectTrigger className="w-full sm:w-[150px] h-9 text-xs">
                                     <Users className="h-3 w-3 mr-1" />
                                     <SelectValue placeholder="Assignee" />
                                 </SelectTrigger>
@@ -781,7 +907,7 @@ export default function AdminTasksView() {
                                 </SelectContent>
                             </Select>
                             {hasActiveFilters && (
-                                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 text-xs gap-1">
+                                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 text-xs gap-1 col-span-full sm:col-auto">
                                     <XCircle className="h-3 w-3" /> Clear
                                 </Button>
                             )}
@@ -791,7 +917,7 @@ export default function AdminTasksView() {
                     {/* ═══════════════════════════════════════════════
                         TABLE VIEW
                     ═══════════════════════════════════════════════ */}
-                    {filteredTasks.length === 0 ? (
+                    {taskViewMode === "table" && filteredTasks.length === 0 && (
                         <Card className="border border-border/50">
                             <CardContent className="p-10 text-center text-muted-foreground">
                                 <ListTodo className="h-8 w-8 mx-auto mb-2 opacity-40" />
@@ -800,20 +926,14 @@ export default function AdminTasksView() {
                                 </p>
                             </CardContent>
                         </Card>
-                    ) : (
+                    )}
+                    {taskViewMode === "table" && filteredTasks.length > 0 && (
                         <Card className="border border-border/50 overflow-hidden">
                             <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
-                                        <TableRow>
-                                            <TableHead
-                                                className="cursor-pointer select-none"
-                                                onClick={() => toggleSort("title")}
-                                            >
-                                                <span className="flex items-center gap-1">
-                                                    Task <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
-                                                </span>
-                                            </TableHead>
+                                        <TableRow className="[&>th]:py-2">
+                                            <TableHead>Task</TableHead>
                                             <TableHead className="hidden sm:table-cell">Group</TableHead>
                                             <TableHead
                                                 className="cursor-pointer select-none"
@@ -832,6 +952,7 @@ export default function AdminTasksView() {
                                                 </span>
                                             </TableHead>
                                             <TableHead className="hidden lg:table-cell">Assignees</TableHead>
+                                            <TableHead className="hidden md:table-cell">Start Date</TableHead>
                                             <TableHead
                                                 className="cursor-pointer select-none hidden md:table-cell"
                                                 onClick={() => toggleSort("dueDate")}
@@ -840,26 +961,22 @@ export default function AdminTasksView() {
                                                     Due <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
                                                 </span>
                                             </TableHead>
-                                            <TableHead className="w-24 text-right">Actions</TableHead>
+                                            <TableHead className="w-28 text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
-                                    <TableBody>
-                                        {filteredTasks.map((task) => {
+                                    <TableBody className="[&_tr:last-child_td]:pb-2">
+                                        {paginatedTasks.map((task) => {
                                             const sc = STATUS_CONFIG[task.status];
                                             const pc = PRIORITY_CONFIG[task.priority];
                                             const overdue = isOverdue(task);
-                                            const report = completionReports.find((r) => r.taskId === task.id);
-                                            const canReview = task.status === "submitted" && report && !report.verifiedBy && !report.rejectionReason;
+                                            const isLocked = ["submitted", "verified", "cancelled", "rejected"].includes(task.status);
 
                                             return (
                                                 <TableRow key={task.id} className="group">
                                                     <TableCell className="max-w-[180px] sm:max-w-[240px] xl:max-w-xs">
-                                                        <Link
-                                                            href={roleHref(`/tasks/${task.id}`)}
-                                                            className="font-medium text-sm hover:underline line-clamp-2 break-words block"
-                                                        >
+                                                        <span className="font-medium text-sm line-clamp-2 break-words block">
                                                             {task.title}
-                                                        </Link>
+                                                        </span>
                                                         <p className="text-xs text-muted-foreground font-mono truncate">{task.id}</p>
                                                     </TableCell>
                                                     <TableCell className="hidden sm:table-cell max-w-[120px]">
@@ -878,19 +995,37 @@ export default function AdminTasksView() {
                                                     </TableCell>
                                                     <TableCell className="hidden lg:table-cell">
                                                         <div className="flex -space-x-1.5">
-                                                            {task.assignedTo.slice(0, 4).map((empId) => (
-                                                                <Avatar key={empId} className="h-6 w-6 border-2 border-card">
-                                                                    <AvatarFallback className="text-[8px] bg-muted">
-                                                                        {getInitials(getEmpName(empId))}
-                                                                    </AvatarFallback>
-                                                                </Avatar>
-                                                            ))}
+                                                            {task.assignedTo.slice(0, 4).map((empId) => {
+                                                                const emp = employees.find((e) => e.id === empId);
+                                                                return (
+                                                                    <div key={empId} className="relative group/avatar">
+                                                                        <Avatar className="h-6 w-6 border-2 border-card">
+                                                                            <AvatarFallback className="text-[8px] bg-muted">
+                                                                                {getInitials(getEmpName(empId))}
+                                                                            </AvatarFallback>
+                                                                        </Avatar>
+                                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/avatar:block z-50">
+                                                                            <div className="bg-popover border border-border rounded-md shadow-lg px-2.5 py-1.5 whitespace-nowrap text-[11px]">
+                                                                                <p className="font-medium">{emp?.name ?? empId}</p>
+                                                                                <p className="text-muted-foreground">{emp?.role ?? ""} · {emp?.department ?? ""}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
                                                             {task.assignedTo.length > 4 && (
                                                                 <span className="flex items-center justify-center h-6 w-6 rounded-full bg-muted text-[8px] font-medium border-2 border-card">
                                                                     +{task.assignedTo.length - 4}
                                                                 </span>
                                                             )}
                                                         </div>
+                                                    </TableCell>
+                                                    <TableCell className="hidden md:table-cell">
+                                                        {task.startDate ? (
+                                                            <span className="text-xs text-muted-foreground">{formatDate(task.startDate)}</span>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground">—</span>
+                                                        )}
                                                     </TableCell>
                                                     <TableCell className="hidden md:table-cell">
                                                         {task.dueDate ? (
@@ -904,57 +1039,37 @@ export default function AdminTasksView() {
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex items-center gap-1 justify-end">
-                                                            {/* Inline Verify/Reject for submitted tasks */}
-                                                            {canReview && (
-                                                                <>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                                        title="Verify"
-                                                                        onClick={() => handleVerify(task.id)}
-                                                                    >
-                                                                        <CheckCircle2 className="h-4 w-4" />
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                                        title="Reject"
-                                                                        onClick={() => setRejectOpen(task.id)}
-                                                                    >
-                                                                        <XCircle className="h-4 w-4" />
-                                                                    </Button>
-                                                                </>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-7 w-7 p-0"
+                                                                title="View"
+                                                                asChild
+                                                            >
+                                                                <Link href={roleHref(`/tasks/${task.id}`)}>
+                                                                    <Eye className="h-4 w-4" />
+                                                                </Link>
+                                                            </Button>
+                                                            {!isLocked && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-7 w-7 p-0"
+                                                                    title="Edit"
+                                                                    onClick={() => openEditDialog(task)}
+                                                                >
+                                                                    <Pencil className="h-4 w-4" />
+                                                                </Button>
                                                             )}
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                                                                        <MoreHorizontal className="h-4 w-4" />
-                                                                    </Button>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="end">
-                                                                    <DropdownMenuItem asChild>
-                                                                        <Link href={roleHref(`/tasks/${task.id}`)}>
-                                                                            <Eye className="h-4 w-4 mr-2" /> View Details
-                                                                        </Link>
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem onClick={() => openEditDialog(task)}>
-                                                                        <Pencil className="h-4 w-4 mr-2" /> Edit
-                                                                    </DropdownMenuItem>
-                                                                    {task.status !== "in_progress" && task.status !== "submitted" && task.status !== "verified" && (
-                                                                        <>
-                                                                            <DropdownMenuSeparator />
-                                                                            <DropdownMenuItem
-                                                                                className="text-destructive focus:text-destructive"
-                                                                                onClick={() => setDeleteTaskId(task.id)}
-                                                                            >
-                                                                                <Trash2 className="h-4 w-4 mr-2" /> Delete
-                                                                            </DropdownMenuItem>
-                                                                        </>
-                                                                    )}
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                title="Delete"
+                                                                onClick={() => setDeleteTaskId(task.id)}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
                                                         </div>
                                                     </TableCell>
                                                 </TableRow>
@@ -963,158 +1078,68 @@ export default function AdminTasksView() {
                                     </TableBody>
                                 </Table>
                             </div>
-                            <div className="px-4 py-2 border-t text-xs text-muted-foreground">
-                                Showing {filteredTasks.length} of {tasks.length} tasks
+                            <div className="px-4 py-1.5 border-t flex items-center justify-between text-xs text-muted-foreground">
+                                <span>Showing {paginatedTasks.length} of {filteredTasks.length} tasks</span>
+                                {filteredTasks.length > 10 && (
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-1.5">
+                                            <span>Rows per page</span>
+                                            <Select value={String(rowsPerPage)} onValueChange={(v) => { setRowsPerPage(Number(v)); setCurrentPage(1); }}>
+                                                <SelectTrigger className="h-7 w-[65px] text-xs"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="10">10</SelectItem>
+                                                    <SelectItem value="20">20</SelectItem>
+                                                    <SelectItem value="50">50</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <span>Page {currentPage} of {Math.ceil(filteredTasks.length / rowsPerPage)}</span>
+                                        <div className="flex items-center gap-1">
+                                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => p - 1)}>
+                                                <ChevronLeft className="h-4 w-4" />
+                                            </Button>
+                                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={currentPage >= Math.ceil(filteredTasks.length / rowsPerPage)} onClick={() => setCurrentPage((p) => p + 1)}>
+                                                <ChevronRight className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </Card>
                     )}
-                </TabsContent>
 
-                {/* ═══════════════════════════════════════════════
-                    BOARD VIEW (Kanban — collapsed completed)
-                ═══════════════════════════════════════════════ */}
-                <TabsContent value="board" className="mt-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                        {ACTIVE_BOARD_COLUMNS.map((status) => {
-                            const cfg = STATUS_CONFIG[status];
-                            const columnTasks = filteredTasks.filter((t) => t.status === status);
-                            return (
-                                <div key={status} className="space-y-2 min-w-0 overflow-hidden">
-                                    <div className="flex items-center gap-2 px-1">
-                                        <cfg.icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate">
-                                            {cfg.label}
-                                        </span>
-                                        <Badge variant="secondary" className="text-[10px] h-4 min-w-4 px-1 ml-auto">
-                                            {columnTasks.length}
-                                        </Badge>
-                                    </div>
-                                    <div className="space-y-3 min-h-[100px]">
-                                        {columnTasks.map((task) => {
-                                            const pc = PRIORITY_CONFIG[task.priority];
-                                            const overdue = isOverdue(task);
-                                            return (
-                                                <Link key={task.id} href={roleHref(`/tasks/${task.id}`)}>
-                                                    <Card className="border border-border/50 hover:border-border transition-colors cursor-pointer">
-                                                        <CardContent className="p-3.5 space-y-2.5">
-                                                            <div className="flex items-start justify-between gap-1 min-w-0">
-                                                                <p className="text-sm font-medium leading-snug line-clamp-2 break-words min-w-0 flex-1">
-                                                                    {task.title}
-                                                                </p>
-                                                                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground mt-0.5" />
-                                                            </div>
-                                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                                                <Badge variant="secondary" className={`text-[10px] ${pc.color}`}>
-                                                                    {pc.label}
-                                                                </Badge>
-                                                                {overdue && (
-                                                                    <Badge variant="secondary" className="text-[10px] bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
-                                                                        Overdue
-                                                                    </Badge>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex items-center justify-between">
-                                                                <div className="flex -space-x-1">
-                                                                    {task.assignedTo.slice(0, 3).map((empId) => (
-                                                                        <Avatar key={empId} className="h-5 w-5 border border-card">
-                                                                            <AvatarFallback className="text-[7px] bg-muted">
-                                                                                {getInitials(getEmpName(empId))}
-                                                                            </AvatarFallback>
-                                                                        </Avatar>
-                                                                    ))}
-                                                                </div>
-                                                                {task.dueDate && (
-                                                                    <span className={`text-[10px] ${overdue ? "text-red-600" : "text-muted-foreground"}`}>
-                                                                        {formatDate(task.dueDate)}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </CardContent>
-                                                    </Card>
-                                                </Link>
-                                            );
-                                        })}
-                                        {columnTasks.length === 0 && (
-                                            <div className="border border-dashed border-border/50 rounded-lg p-4 text-center">
-                                                <p className="text-[10px] text-muted-foreground">No tasks</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* Collapsed Completed / Cancelled section */}
-                    {completedBoardTasks.length > 0 && (
-                        <div className="mt-4">
-                            <button
-                                type="button"
-                                className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors w-full py-2 border-t"
-                                onClick={() => setShowCompleted(!showCompleted)}
-                            >
-                                <ChevronDown className={`h-4 w-4 transition-transform ${showCompleted ? "rotate-0" : "-rotate-90"}`} />
-                                Completed & Cancelled ({completedBoardTasks.length})
-                            </button>
-                            {showCompleted && (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-                                    {(["verified", "cancelled"] as TaskStatus[]).map((status) => {
-                                        const cfg = STATUS_CONFIG[status];
-                                        const columnTasks = filteredTasks.filter((t) => t.status === status);
-                                        if (columnTasks.length === 0) return null;
-                                        return (
-                                            <div key={status} className="space-y-2 min-w-0 overflow-hidden">
-                                                <div className="flex items-center gap-2 px-1">
-                                                    <cfg.icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate">
-                                                        {cfg.label}
-                                                    </span>
-                                                    <Badge variant="secondary" className="text-[10px] h-4 min-w-4 px-1 ml-auto">{columnTasks.length}</Badge>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    {columnTasks.slice(0, 6).map((task) => (
-                                                        <Link key={task.id} href={roleHref(`/tasks/${task.id}`)}>
-                                                            <Card className="border border-border/50 hover:border-border transition-colors cursor-pointer opacity-70 hover:opacity-100">
-                                                                <CardContent className="p-3 flex items-center gap-3">
-                                                                    <cfg.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                                                    <div className="min-w-0 flex-1">
-                                                                        <p className="text-sm font-medium truncate">{task.title}</p>
-                                                                        <p className="text-[10px] text-muted-foreground">{formatDate(task.updatedAt || task.createdAt)}</p>
-                                                                    </div>
-                                                                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                                                </CardContent>
-                                                            </Card>
-                                                        </Link>
-                                                    ))}
-                                                    {columnTasks.length > 6 && (
-                                                        <p className="text-[10px] text-muted-foreground text-center py-1">
-                                                            +{columnTasks.length - 6} more
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
+                    {/* ═══════════════════════════════════════════════
+                        BOARD VIEW (Kanban)
+                    ═══════════════════════════════════════════════ */}
+                    {taskViewMode === "board" && (
+                        <AdminBoardView tasks={filteredTasks} roleHref={roleHref} getEmpName={getEmpName} isOverdue={isOverdue} />
                     )}
                 </TabsContent>
 
+
+
                 {/* ═══════════════════════════════════════════════
-                    GROUPS & TAGS VIEW (combined)
+                    GROUPS VIEW
                 ═══════════════════════════════════════════════ */}
-                <TabsContent value="groups" className="mt-4 space-y-6">
-                    {/* Groups section */}
+                <TabsContent value="groups" className="mt-4 space-y-4">
                     <div>
-                        <div className="flex items-center justify-between mb-4">
-                            <p className="text-sm text-muted-foreground">
-                                {groups.length} group{groups.length !== 1 ? "s" : ""} configured
-                            </p>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                            <div className="relative flex-1 max-w-sm">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    value={groupSearch}
+                                    onChange={(e) => setGroupSearch(e.target.value)}
+                                    placeholder="Search groups..."
+                                    className="pl-9"
+                                />
+                            </div>
                             <Button variant="outline" size="sm" onClick={openGroupCreate} className="gap-1.5">
                                 <FolderPlus className="h-4 w-4" /> New Group
                             </Button>
                         </div>
+                        <p className="text-sm text-muted-foreground mb-4">
+                            {groups.length} group{groups.length !== 1 ? "s" : ""} configured
+                        </p>
 
                         {groups.length === 0 ? (
                             <Card className="border border-border/50">
@@ -1125,108 +1150,129 @@ export default function AdminTasksView() {
                             </Card>
                         ) : (
                             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                                {groups.map((group) => {
-                                    const groupTasks = tasks.filter((t) => t.groupId === group.id);
-                                    const openCount = groupTasks.filter((t) => t.status === "open").length;
-                                    const inProgressCount = groupTasks.filter((t) => t.status === "in_progress").length;
-                                    const doneCount = groupTasks.filter((t) => t.status === "verified").length;
-                                    const linkedProject = projects.find((p) => p.id === group.projectId);
+                                {groups
+                                    .filter((g) => !groupSearch || g.name.toLowerCase().includes(groupSearch.toLowerCase()) || g.description?.toLowerCase().includes(groupSearch.toLowerCase()))
+                                    .map((group) => {
+                                        const groupTasks = tasks.filter((t) => t.groupId === group.id);
+                                        const openCount = groupTasks.filter((t) => t.status === "open").length;
+                                        const inProgressCount = groupTasks.filter((t) => t.status === "in_progress").length;
+                                        const doneCount = groupTasks.filter((t) => t.status === "verified").length;
+                                        const linkedProject = projects.find((p) => p.id === group.projectId);
 
-                                    return (
-                                        <Card key={group.id} className="border border-border/50">
-                                            <CardHeader className="pb-2">
-                                                <div className="flex items-start justify-between">
-                                                    <div className="min-w-0 flex-1">
-                                                        <CardTitle className="text-sm font-semibold truncate">
-                                                            {group.name}
-                                                        </CardTitle>
-                                                        {group.description && (
-                                                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                                                                {group.description}
-                                                            </p>
+                                        return (
+                                            <Card key={group.id} className="border border-border/50">
+                                                <CardHeader className="pb-2">
+                                                    <div className="flex items-start justify-between">
+                                                        <div className="min-w-0 flex-1">
+                                                            <CardTitle className="text-sm font-semibold truncate">
+                                                                {group.name}
+                                                            </CardTitle>
+                                                            {group.description && (
+                                                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                                                                    {group.description}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0">
+                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuItem onClick={() => openGroupEdit(group)}>
+                                                                    <Pencil className="h-4 w-4 mr-2" /> Edit
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    className="text-destructive focus:text-destructive"
+                                                                    onClick={() => setDeleteGroupId(group.id)}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </div>
+                                                </CardHeader>
+                                                <CardContent className="space-y-3">
+                                                    {linkedProject && (
+                                                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                                            <FolderOpen className="h-3 w-3" /> {linkedProject.name}
+                                                        </div>
+                                                    )}
+                                                    <div className="flex gap-2 flex-wrap">
+                                                        <Badge variant="secondary" className="text-[10px]">
+                                                            {groupTasks.length} tasks
+                                                        </Badge>
+                                                        {openCount > 0 && (
+                                                            <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                                                                {openCount} open
+                                                            </Badge>
+                                                        )}
+                                                        {inProgressCount > 0 && (
+                                                            <Badge variant="secondary" className="text-[10px] bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+                                                                {inProgressCount} active
+                                                            </Badge>
+                                                        )}
+                                                        {doneCount > 0 && (
+                                                            <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                                                {doneCount} done
+                                                            </Badge>
                                                         )}
                                                     </div>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0">
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => openGroupEdit(group)}>
-                                                                <Pencil className="h-4 w-4 mr-2" /> Edit
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem
-                                                                className="text-destructive focus:text-destructive"
-                                                                onClick={() => setDeleteGroupId(group.id)}
-                                                            >
-                                                                <Trash2 className="h-4 w-4 mr-2" /> Delete
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </div>
-                                            </CardHeader>
-                                            <CardContent className="space-y-3">
-                                                {linkedProject && (
-                                                    <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                                        <FolderOpen className="h-3 w-3" /> {linkedProject.name}
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Users className="h-3 w-3 text-muted-foreground" />
+                                                        <div className="flex -space-x-1">
+                                                            {group.memberEmployeeIds.slice(0, 5).map((empId) => (
+                                                                <Avatar key={empId} className="h-5 w-5 border border-card">
+                                                                    <AvatarFallback className="text-[7px] bg-muted">
+                                                                        {getInitials(getEmpName(empId))}
+                                                                    </AvatarFallback>
+                                                                </Avatar>
+                                                            ))}
+                                                        </div>
+                                                        {group.memberEmployeeIds.length > 5 && (
+                                                            <span className="text-[10px] text-muted-foreground ml-1">
+                                                                +{group.memberEmployeeIds.length - 5}
+                                                            </span>
+                                                        )}
+                                                        {group.memberEmployeeIds.length === 0 && (
+                                                            <span className="text-[10px] text-muted-foreground">No members</span>
+                                                        )}
                                                     </div>
-                                                )}
-                                                <div className="flex gap-2 flex-wrap">
-                                                    <Badge variant="secondary" className="text-[10px]">
-                                                        {groupTasks.length} tasks
-                                                    </Badge>
-                                                    {openCount > 0 && (
-                                                        <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                                                            {openCount} open
-                                                        </Badge>
-                                                    )}
-                                                    {inProgressCount > 0 && (
-                                                        <Badge variant="secondary" className="text-[10px] bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
-                                                            {inProgressCount} active
-                                                        </Badge>
-                                                    )}
-                                                    {doneCount > 0 && (
-                                                        <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                                                            {doneCount} done
-                                                        </Badge>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <Users className="h-3 w-3 text-muted-foreground" />
-                                                    <div className="flex -space-x-1">
-                                                        {group.memberEmployeeIds.slice(0, 5).map((empId) => (
-                                                            <Avatar key={empId} className="h-5 w-5 border border-card">
-                                                                <AvatarFallback className="text-[7px] bg-muted">
-                                                                    {getInitials(getEmpName(empId))}
-                                                                </AvatarFallback>
-                                                            </Avatar>
-                                                        ))}
-                                                    </div>
-                                                    {group.memberEmployeeIds.length > 5 && (
-                                                        <span className="text-[10px] text-muted-foreground ml-1">
-                                                            +{group.memberEmployeeIds.length - 5}
-                                                        </span>
-                                                    )}
-                                                    {group.memberEmployeeIds.length === 0 && (
-                                                        <span className="text-[10px] text-muted-foreground">No members</span>
-                                                    )}
-                                                </div>
-                                                <p className="text-[10px] text-muted-foreground">
-                                                    Created {formatDate(group.createdAt)}
-                                                </p>
-                                            </CardContent>
-                                        </Card>
-                                    );
-                                })}
+                                                    <p className="text-[10px] text-muted-foreground">
+                                                        Created {formatDate(group.createdAt)}
+                                                    </p>
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                    })}
                             </div>
                         )}
                     </div>
+                </TabsContent>
 
-                    {/* Tags section (collapsed under Groups) */}
+                {/* ═══════════════════════════════════════════════
+                    CALENDAR TAB
+                ═══════════════════════════════════════════════ */}
+                <TabsContent value="calendar" className="mt-4">
+                    <TaskCalendarView
+                        tasks={filteredTasks}
+                        getEmpName={getEmpName}
+                        onStatusChange={(taskId, status) => {
+                            updateTask(taskId, { status });
+                            toast.success(`Task status changed to ${STATUS_CONFIG[status].label}`);
+                        }}
+                        roleHref={roleHref}
+                    />
+                </TabsContent>
+
+                {/* ═══════════════════════════════════════════════
+                    SETTINGS TAB — Tags management
+                ═══════════════════════════════════════════════ */}
+                <TabsContent value="settings" className="mt-4 space-y-6">
                     <div>
-                        <div className="flex items-center justify-between mb-4 border-t pt-4">
+                        <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
                                 <Tag className="h-4 w-4 text-muted-foreground" />
                                 <p className="text-sm font-medium">
@@ -1281,66 +1327,86 @@ export default function AdminTasksView() {
                         )}
                     </div>
                 </TabsContent>
-
-                {/* ═══════════════════════════════════════════════
-                    CALENDAR TAB
-                ═══════════════════════════════════════════════ */}
-                <TabsContent value="calendar" className="mt-4">
-                    <TaskCalendarView
-                        tasks={filteredTasks}
-                        getEmpName={getEmpName}
-                        onStatusChange={(taskId, status) => {
-                            updateTask(taskId, { status });
-                            toast.success(`Task status changed to ${STATUS_CONFIG[status].label}`);
-                        }}
-                        onCreateClick={() => setCreateOpen(true)}
-                        roleHref={roleHref}
-                    />
-                </TabsContent>
             </Tabs>
 
             {/* ═══════════════════════════════════════════════════════
                 DIALOGS
             ═══════════════════════════════════════════════════════ */}
 
-            {/* Task Form Dialog (Create / Edit) — Simplified */}
+            {/* Task Form Dialog (Create / Edit) */}
             <Dialog open={taskFormDialogOpen} onOpenChange={(v) => { if (!v) taskFormOnClose(); }}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
+                <DialogContent className="max-w-2xl flex flex-col max-h-[90vh]">
+                    <DialogHeader className="shrink-0">
                         <DialogTitle>{editTask ? "Edit Task" : "Create New Task"}</DialogTitle>
                     </DialogHeader>
-                    <div className="grid gap-4 py-2">
+                    <div className="flex-1 overflow-y-auto space-y-4 py-2 px-1">
                         {editTask && (
                             <div className="text-xs text-muted-foreground font-mono bg-muted/50 rounded px-3 py-1.5">
                                 {editTask.id}
                             </div>
                         )}
-                        <div className="grid gap-2">
-                            <label className="text-sm font-medium">Title *</label>
+                        <div className="grid gap-1.5">
+                            <label className="text-sm font-medium">Title</label>
                             <Input
                                 value={taskForm.title ?? ""}
-                                onChange={(e) => setTaskForm((p) => ({ ...p, title: e.target.value }))}
+                                onChange={(e) => {
+                                    if (e.target.value.length <= 50) {
+                                        setTaskForm((p) => ({ ...p, title: e.target.value }));
+                                    }
+                                }}
                                 placeholder="What needs to be done?"
+                                maxLength={50}
                                 autoFocus
                             />
+                            <p className={`text-xs ${(50 - (taskForm.title?.length ?? 0)) <= 0 ? "text-red-500 font-medium" : "text-muted-foreground"}`}>
+                                {50 - (taskForm.title?.length ?? 0)} characters remaining
+                            </p>
                         </div>
                         <div className="grid gap-2">
                             <label className="text-sm font-medium">Description</label>
                             <Textarea
                                 value={taskForm.description ?? ""}
                                 onChange={(e) => setTaskForm((p) => ({ ...p, description: e.target.value }))}
-                                placeholder="Add more details..."
-                                rows={3}
+                                placeholder="Add a detailed description of the task"
+                                rows={6}
+                                className="resize-none max-h-[9rem] overflow-y-auto"
                             />
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+                        {/* Row 1: Group + Priority */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <label className="text-sm font-medium">Group</label>
+                                <Select
+                                    value={taskForm.groupId || "none"}
+                                    onValueChange={(v) => {
+                                        const grp = groups.find((g) => g.id === v);
+                                        setTaskForm((p) => ({
+                                            ...p,
+                                            groupId: v === "none" ? "" : v,
+                                            assignedTo: v !== "none" && grp ? [...grp.memberEmployeeIds] : [],
+                                            ...(grp?.projectId && !p.projectId
+                                                ? { projectId: grp.projectId }
+                                                : {}),
+                                        }));
+                                    }}
+                                >
+                                    <SelectTrigger className="w-full"><SelectValue placeholder="No group" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">No Group</SelectItem>
+                                        {groups.map((g) => (
+                                            <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <div className="grid gap-2">
                                 <label className="text-sm font-medium">Priority</label>
                                 <Select
                                     value={taskForm.priority}
                                     onValueChange={(v) => setTaskForm((p) => ({ ...p, priority: v as TaskPriority }))}
                                 >
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         {(["low", "medium", "high", "urgent"] as TaskPriority[]).map((p) => (
                                             <SelectItem key={p} value={p}>
@@ -1353,66 +1419,82 @@ export default function AdminTasksView() {
                                     </SelectContent>
                                 </Select>
                             </div>
+                        </div>
+
+                        {/* Row 2: Start Date + Due Date */}
+                        <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <label className="text-sm font-medium">Due Date</label>
+                                <label className="text-sm font-medium">Start Date</label>
                                 <Input
                                     type="date"
-                                    value={taskForm.dueDate ?? ""}
-                                    onChange={(e) => setTaskForm((p) => ({ ...p, dueDate: e.target.value }))}
+                                    value={taskForm.startDate ?? ""}
+                                    min={new Date().toISOString().split("T")[0]}
+                                    onChange={(e) => setTaskForm((p) => ({ ...p, startDate: e.target.value }))}
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <label className="text-sm font-medium">Group</label>
-                                <Select
-                                    value={taskForm.groupId || "none"}
-                                    onValueChange={(v) => {
-                                        const grp = groups.find((g) => g.id === v);
-                                        setTaskForm((p) => ({
-                                            ...p,
-                                            groupId: v === "none" ? "" : v,
-                                            ...(grp?.projectId && !p.projectId
-                                                ? { projectId: grp.projectId }
-                                                : {}),
-                                        }));
-                                    }}
-                                >
-                                    <SelectTrigger><SelectValue placeholder="Select group" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="none">No Group</SelectItem>
-                                        {groups.map((g) => (
-                                            <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <label className={`text-sm font-medium ${!taskForm.startDate ? "text-muted-foreground" : ""}`}>Due Date</label>
+                                <Input
+                                    type="date"
+                                    value={taskForm.dueDate ?? ""}
+                                    min={taskForm.startDate || new Date().toISOString().split("T")[0]}
+                                    onChange={(e) => setTaskForm((p) => ({ ...p, dueDate: e.target.value }))}
+                                    disabled={!taskForm.startDate}
+                                    className={!taskForm.startDate ? "opacity-50 cursor-not-allowed" : ""}
+                                />
                             </div>
                         </div>
+
+                        {/* Assign Employees */}
+
                         <div className="grid gap-2">
                             <div className="flex items-center justify-between">
                                 <label className="text-sm font-medium">
                                     Assign Employees ({taskForm.assignedTo.length} selected)
                                 </label>
-                                {taskForm.projectId && (() => {
-                                    const proj = projects.find((p) => p.id === taskForm.projectId);
-                                    return proj ? (
-                                        <span className="text-xs text-muted-foreground">
-                                            {assignableEmployees.length} in project
-                                        </span>
-                                    ) : null;
-                                })()}
+                                {taskForm.groupId && (
+                                    <span className="text-xs text-muted-foreground">
+                                        Auto-assigned from group
+                                    </span>
+                                )}
+                            </div>
+                            {/* Search + dept filter */}
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                    <Input
+                                        value={empSearch}
+                                        onChange={(e) => setEmpSearch(e.target.value)}
+                                        placeholder="Search employees..."
+                                        className="pl-8 h-8 text-xs"
+                                    />
+                                </div>
+                                <Select value={empDeptFilter} onValueChange={setEmpDeptFilter}>
+                                    <SelectTrigger className="w-[130px] h-8 text-xs">
+                                        <SelectValue placeholder="Department" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Depts</SelectItem>
+                                        {assignableDepts.map((d) => (
+                                            <SelectItem key={d} value={d}>{d}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="border rounded-md max-h-48 overflow-y-auto p-2 space-y-1">
-                                {assignableEmployees.length === 0 ? (
+                                {visibleEmployees.length === 0 ? (
                                     <p className="text-xs text-muted-foreground text-center py-4">
-                                        No employees available.
+                                        No employees match.
                                     </p>
-                                ) : assignableEmployees.map((emp) => (
+                                ) : visibleEmployees.map((emp) => (
                                     <label
                                         key={emp.id}
-                                        className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer"
+                                        className={`flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 ${taskForm.groupId ? "opacity-60 cursor-default" : "cursor-pointer"}`}
                                     >
                                         <Checkbox
                                             checked={taskForm.assignedTo.includes(emp.id)}
                                             onCheckedChange={() => toggleAssignee(emp.id)}
+                                            disabled={!!taskForm.groupId}
                                         />
                                         <Avatar className="h-6 w-6">
                                             <AvatarFallback className="text-[9px] bg-muted">
@@ -1459,18 +1541,45 @@ export default function AdminTasksView() {
                                     <label className="text-sm font-medium flex items-center gap-1.5">
                                         <Tag className="h-3.5 w-3.5" /> Tags
                                     </label>
-                                    <Input
-                                        value={taskForm.tags ?? ""}
-                                        onChange={(e) => {
-                                            setTaskForm((p) => ({ ...p, tags: e.target.value }));
-                                            setShowTagSugs(true);
-                                        }}
-                                        onFocus={() => setShowTagSugs(true)}
-                                        onBlur={() => setTimeout(() => setShowTagSugs(false), 150)}
-                                        placeholder="Type to search or add tags, separate with commas…"
-                                    />
+                                    {/* Tag pills */}
+                                    <div className="flex flex-wrap gap-1.5 min-h-[2rem] border rounded-md p-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1">
+                                        {taskForm.tags.map((tag) => {
+                                            const registryTag = taskTags.find((t) => t.name === tag);
+                                            const color = registryTag?.color ?? "#6366f1";
+                                            return (
+                                                <span
+                                                    key={tag}
+                                                    className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium"
+                                                    style={{ backgroundColor: color + "22", color, border: `1px solid ${color}55` }}
+                                                >
+                                                    {tag}
+                                                    <button
+                                                        type="button"
+                                                        className="hover:opacity-70"
+                                                        onClick={() => removeTagFromForm(tag)}
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </span>
+                                            );
+                                        })}
+                                        <input
+                                            value={tagInput}
+                                            onChange={(e) => setTagInput(e.target.value)}
+                                            onFocus={() => setShowTagSugs(true)}
+                                            onBlur={() => setTimeout(() => setShowTagSugs(false), 150)}
+                                            onKeyDown={(e) => {
+                                                if ((e.key === "Enter" || e.key === ",") && tagInput.trim()) {
+                                                    e.preventDefault();
+                                                    addTagToForm(tagInput);
+                                                }
+                                            }}
+                                            placeholder={taskForm.tags.length === 0 ? "Type and press Enter to add tags…" : ""}
+                                            className="flex-1 min-w-[120px] bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                                        />
+                                    </div>
                                     {showTagSugs && tagSuggestions.length > 0 && (
-                                        <div className="absolute top-full left-0 right-0 z-50 bg-popover border border-border rounded-md shadow-lg overflow-hidden mt-1">
+                                        <div ref={tagSugRef} className="absolute top-full left-0 right-0 z-50 bg-popover border border-border rounded-md shadow-lg overflow-hidden mt-1">
                                             <p className="px-3 py-1.5 text-[10px] text-muted-foreground border-b font-medium uppercase tracking-wide">
                                                 Suggestions
                                             </p>
@@ -1482,7 +1591,7 @@ export default function AdminTasksView() {
                                                         type="button"
                                                         className="w-full px-3 py-1.5 text-sm text-left hover:bg-muted/80 flex items-center gap-2"
                                                         onMouseDown={(e) => e.preventDefault()}
-                                                        onClick={() => applyTagSuggestion(tag)}
+                                                        onClick={() => addTagToForm(tag)}
                                                     >
                                                         <span
                                                             className="h-3 w-3 rounded-full shrink-0"
@@ -1490,34 +1599,6 @@ export default function AdminTasksView() {
                                                         />
                                                         {tag}
                                                     </button>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                    {currentTagList.length > 0 && (
-                                        <div className="flex flex-wrap gap-1 mt-1">
-                                            {currentTagList.map((tag) => {
-                                                const registryTag = taskTags.find((t) => t.name === tag);
-                                                const color = registryTag?.color ?? "#6366f1";
-                                                return (
-                                                    <span
-                                                        key={tag}
-                                                        className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium"
-                                                        style={{ backgroundColor: color + "22", color, border: `1px solid ${color}55` }}
-                                                    >
-                                                        <Tag className="h-2.5 w-2.5" />
-                                                        {tag}
-                                                        <button
-                                                            type="button"
-                                                            className="hover:opacity-70"
-                                                            onClick={() => {
-                                                                const remaining = currentTagList.filter((t) => t !== tag).join(", ");
-                                                                setTaskForm((p) => ({ ...p, tags: remaining ? remaining + ", " : "" }));
-                                                            }}
-                                                        >
-                                                            ×
-                                                        </button>
-                                                    </span>
                                                 );
                                             })}
                                         </div>
@@ -1530,13 +1611,13 @@ export default function AdminTasksView() {
                                         onCheckedChange={(v) => setTaskForm((p) => ({ ...p, completionRequired: !!v }))}
                                     />
                                     <label htmlFor="completion-required" className="text-sm">
-                                        Require photo proof for completion
+                                        Require evidence for Task Completion
                                     </label>
                                 </div>
                             </div>
                         </details>
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="shrink-0">
                         <Button variant="outline" onClick={taskFormOnClose}>Cancel</Button>
                         <Button onClick={handleSaveTask}>
                             {editTask ? "Save Changes" : "Create Task"}
@@ -1565,13 +1646,18 @@ export default function AdminTasksView() {
 
             {/* Group Form Dialog (Create / Edit) */}
             <Dialog open={groupFormDialogOpen} onOpenChange={(v) => { if (!v) groupFormOnClose(); }}>
-                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
+                <DialogContent className="max-w-lg flex flex-col max-h-[90vh] p-0 gap-0">
+                    {/* Accessible title required by Radix — hidden visually, shown to screen readers */}
+                    <DialogHeader className="sr-only">
                         <DialogTitle>{editGroup ? "Edit Group" : "Create New Group"}</DialogTitle>
                     </DialogHeader>
-                    <div className="grid gap-4 py-2">
+                    {/* Sticky visual header */}
+                    <div className="shrink-0 px-6 py-4 border-b">
+                        <h2 className="text-lg font-semibold">{editGroup ? "Edit Group" : "Create New Group"}</h2>
+                    </div>
+                    <div className="flex-1 overflow-y-auto px-6 py-4 grid gap-4">
                         <div className="grid gap-2">
-                            <label className="text-sm font-medium">Group Name *</label>
+                            <label className="text-sm font-medium">Group Name</label>
                             <Input
                                 value={groupForm.name}
                                 onChange={(e) => setGroupForm((p) => ({ ...p, name: e.target.value }))}
@@ -1588,7 +1674,10 @@ export default function AdminTasksView() {
                             />
                         </div>
                         <div className="grid gap-2">
-                            <label className="text-sm font-medium">Linked Project</label>
+                            <label className="text-sm font-medium">
+                                Linked Project{" "}
+                                <span className="text-muted-foreground font-normal">(optional)</span>
+                            </label>
                             <Select
                                 value={groupForm.projectId || "none"}
                                 onValueChange={(v) => setGroupForm((p) => ({ ...p, projectId: v === "none" ? "" : v }))}
@@ -1606,33 +1695,75 @@ export default function AdminTasksView() {
                             <label className="text-sm font-medium">
                                 Members ({groupForm.memberEmployeeIds.length} selected)
                             </label>
+                            {/* Search + dept filter */}
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                    <Input
+                                        value={grpSearch}
+                                        onChange={(e) => setGrpSearch(e.target.value)}
+                                        placeholder="Search members..."
+                                        className="pl-8 h-8 text-xs"
+                                    />
+                                </div>
+                                <Select value={grpDeptFilter} onValueChange={setGrpDeptFilter}>
+                                    <SelectTrigger className="w-[130px] h-8 text-xs">
+                                        <SelectValue placeholder="Department" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Depts</SelectItem>
+                                        {[...new Set(activeEmployees.map((e) => e.department).filter(Boolean))].sort().map((d) => (
+                                            <SelectItem key={d as string} value={d as string}>{d}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <div className="border rounded-md max-h-48 overflow-y-auto p-2 space-y-1">
-                                {activeEmployees.map((emp) => (
-                                    <label
-                                        key={emp.id}
-                                        className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer"
-                                    >
-                                        <Checkbox
-                                            checked={groupForm.memberEmployeeIds.includes(emp.id)}
-                                            onCheckedChange={() => toggleGroupMember(emp.id)}
-                                        />
-                                        <Avatar className="h-6 w-6">
-                                            <AvatarFallback className="text-[9px] bg-muted">
-                                                {getInitials(emp.name)}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <span className="text-sm">{emp.name}</span>
-                                    </label>
-                                ))}
+                                {activeEmployees
+                                    .filter((e) => {
+                                        if (grpSearch.trim() && !e.name.toLowerCase().includes(grpSearch.toLowerCase())) return false;
+                                        if (grpDeptFilter !== "all" && e.department !== grpDeptFilter) return false;
+                                        return true;
+                                    })
+                                    .sort((a, b) => {
+                                        const aChecked = groupForm.memberEmployeeIds.includes(a.id) ? 0 : 1;
+                                        const bChecked = groupForm.memberEmployeeIds.includes(b.id) ? 0 : 1;
+                                        return aChecked - bChecked || a.name.localeCompare(b.name);
+                                    })
+                                    .map((emp) => (
+                                        <label
+                                            key={emp.id}
+                                            className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer"
+                                        >
+                                            <Checkbox
+                                                checked={groupForm.memberEmployeeIds.includes(emp.id)}
+                                                onCheckedChange={() => toggleGroupMember(emp.id)}
+                                            />
+                                            <Avatar className="h-6 w-6">
+                                                <AvatarFallback className="text-[9px] bg-muted">
+                                                    {getInitials(emp.name)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <span className="text-sm">{emp.name}</span>
+                                            <span className="text-xs text-muted-foreground ml-auto">{emp.department}</span>
+                                        </label>
+                                    ))}
+                                {activeEmployees.filter((e) => {
+                                    if (grpSearch.trim() && !e.name.toLowerCase().includes(grpSearch.toLowerCase())) return false;
+                                    if (grpDeptFilter !== "all" && e.department !== grpDeptFilter) return false;
+                                    return true;
+                                }).length === 0 && (
+                                        <p className="text-xs text-muted-foreground text-center py-4">No employees match.</p>
+                                    )}
                             </div>
                         </div>
                     </div>
-                    <DialogFooter>
+                    <div className="shrink-0 px-6 py-4 border-t flex justify-end gap-2">
                         <Button variant="outline" onClick={groupFormOnClose}>Cancel</Button>
                         <Button onClick={handleSaveGroup}>
                             {editGroup ? "Save Changes" : "Create Group"}
                         </Button>
-                    </DialogFooter>
+                    </div>
                 </DialogContent>
             </Dialog>
 
@@ -1714,7 +1845,7 @@ export default function AdminTasksView() {
                                 <span className="text-xs text-muted-foreground font-mono">{tagForm.color}</span>
                             </div>
                             <div className="flex gap-2 flex-wrap mt-1">
-                                {["#6366f1","#ec4899","#f59e0b","#10b981","#3b82f6","#ef4444","#8b5cf6","#06b6d4","#84cc16","#f97316"].map((c) => (
+                                {["#6366f1", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#ef4444", "#8b5cf6", "#06b6d4", "#84cc16", "#f97316"].map((c) => (
                                     <button
                                         key={c}
                                         type="button"
@@ -1777,6 +1908,155 @@ export default function AdminTasksView() {
     );
 }
 
+// ── Admin Board View Sub-Component ──────────────────────────────────
+
+const ADMIN_BOARD_STATUSES: TaskStatus[] = ["open", "in_progress", "submitted", "rejected", "verified", "cancelled"];
+
+function AdminBoardView({
+    tasks, roleHref, getEmpName, isOverdue,
+}: {
+    tasks: Task[];
+    roleHref: (path: string) => string;
+    getEmpName: (id: string) => string;
+    isOverdue: (t: Task) => boolean | "" | undefined;
+}) {
+    const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+    const toggle = (status: string) => setCollapsed((prev) => ({ ...prev, [status]: !prev[status] }));
+
+    const renderTaskCard = (task: Task) => {
+        const pc = PRIORITY_CONFIG[task.priority];
+        const overdue = isOverdue(task);
+        return (
+            <Link key={task.id} href={roleHref(`/tasks/${task.id}`)}>
+                <Card className="border border-border/50 hover:border-border active:scale-[0.99] transition-all cursor-pointer">
+                    <CardContent className="p-3 space-y-1.5">
+                        <p className="text-sm font-medium leading-snug line-clamp-2">{task.title}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge variant="secondary" className={`text-[10px] ${pc.color}`}>
+                                {pc.label}
+                            </Badge>
+                            {overdue && (
+                                <Badge variant="secondary" className="text-[10px] bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                                    Overdue
+                                </Badge>
+                            )}
+                            {task.dueDate && (
+                                <span className="text-[10px] text-muted-foreground ml-auto">
+                                    Due {formatDate(task.dueDate)}
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex -space-x-1.5">
+                            {task.assignedTo.slice(0, 3).map((empId) => (
+                                <Avatar key={empId} className="h-5 w-5 border-2 border-card">
+                                    <AvatarFallback className="text-[7px] bg-muted">{getInitials(getEmpName(empId))}</AvatarFallback>
+                                </Avatar>
+                            ))}
+                            {task.assignedTo.length > 3 && (
+                                <Avatar className="h-5 w-5 border-2 border-card">
+                                    <AvatarFallback className="text-[7px] bg-muted">+{task.assignedTo.length - 3}</AvatarFallback>
+                                </Avatar>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+            </Link>
+        );
+    };
+
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {ADMIN_BOARD_STATUSES.map((status) => {
+                const cfg = STATUS_CONFIG[status];
+                const Icon = cfg.icon;
+                const columnTasks = tasks
+                    .filter((t) => t.status === status)
+                    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+                const isCol = collapsed[status];
+                const behindCount = Math.min(columnTasks.length - 1, 2);
+                return (
+                    <div key={status} className="min-w-0">
+                        {/* Folder header */}
+                        <button
+                            onClick={() => toggle(status)}
+                            className="flex items-center gap-2 px-2 py-1.5 w-full text-left rounded-t-lg border border-border/50 bg-muted/40 hover:bg-muted/60 transition-colors"
+                        >
+                            <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200 ${isCol ? "-rotate-90" : ""}`} />
+                            <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate">
+                                {cfg.label}
+                            </span>
+                            <Badge variant="secondary" className="text-[10px] h-4 min-w-4 px-1 ml-auto shrink-0">
+                                {columnTasks.length}
+                            </Badge>
+                        </button>
+
+                        {/* Collapsed: stacked cards showing depth */}
+                        {isCol && (
+                            <div className="border-x border-b border-border/30 rounded-b-lg p-2 pr-4 bg-muted/10">
+                                {columnTasks.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed border-border/50 p-4 text-center">
+                                        <p className="text-xs text-muted-foreground">No tasks</p>
+                                    </div>
+                                ) : (
+                                    <div
+                                        className="relative cursor-pointer"
+                                        onClick={() => toggle(status)}
+                                        style={{ marginBottom: `${behindCount * 8}px` }}
+                                    >
+                                        {/* Stacked cards behind — offset down-right for depth */}
+                                        {behindCount >= 2 && (
+                                            <div
+                                                className="absolute rounded-lg border border-border/30 bg-card shadow-sm dark:border-border/20 dark:bg-card/80"
+                                                style={{
+                                                    top: "16px",
+                                                    left: "8px",
+                                                    right: "-8px",
+                                                    bottom: "-16px",
+                                                    zIndex: 1,
+                                                }}
+                                            />
+                                        )}
+                                        {behindCount >= 1 && (
+                                            <div
+                                                className="absolute rounded-lg border border-border/40 bg-card shadow-sm dark:border-border/30 dark:bg-card/90"
+                                                style={{
+                                                    top: "8px",
+                                                    left: "4px",
+                                                    right: "-4px",
+                                                    bottom: "-8px",
+                                                    zIndex: 2,
+                                                }}
+                                            />
+                                        )}
+                                        {/* Top card */}
+                                        <div className="relative" style={{ zIndex: 3 }}>
+                                            {renderTaskCard(columnTasks[0])}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Expanded: full card list with spacing */}
+                        {!isCol && (
+                            <div className="flex flex-col gap-2 border-x border-b border-border/30 rounded-b-lg p-2 bg-muted/10 max-h-[calc(3*7rem+2*0.75rem+1rem)] overflow-y-auto">
+                                {columnTasks.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed border-border/50 p-4 text-center">
+                                        <p className="text-xs text-muted-foreground">No tasks</p>
+                                    </div>
+                                ) : (
+                                    columnTasks.map((task) => renderTaskCard(task))
+                                )}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 // ── Task Calendar Sub-Component ──────────────────────────────────
 
 const TASK_STATUS_COLORS: Record<TaskStatus, CalendarItemColor> = {
@@ -1794,11 +2074,10 @@ interface TaskCalendarViewProps {
     tasks: Task[];
     getEmpName: (id: string) => string;
     onStatusChange: (taskId: string, status: TaskStatus) => void;
-    onCreateClick: () => void;
     roleHref: (path: string) => string;
 }
 
-function TaskCalendarView({ tasks, getEmpName, onStatusChange, onCreateClick, roleHref }: TaskCalendarViewProps) {
+function TaskCalendarView({ tasks, getEmpName, onStatusChange, roleHref }: TaskCalendarViewProps) {
     const [statusDialogTask, setStatusDialogTask] = useState<Task | null>(null);
 
     const calendarItems: CalendarItem[] = useMemo(() =>
@@ -1827,12 +2106,6 @@ function TaskCalendarView({ tasks, getEmpName, onStatusChange, onCreateClick, ro
                     colorMap={TASK_STATUS_COLORS}
                     onItemClick={handleItemClick}
                     itemLabel="Tasks"
-                    headerActions={
-                        <Button className="w-full gap-2 md:w-auto" size="sm" onClick={onCreateClick}>
-                            <Plus className="h-4 w-4" />
-                            <span>New Task</span>
-                        </Button>
-                    }
                 />
             </Card>
 
