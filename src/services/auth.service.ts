@@ -133,20 +133,24 @@ export async function createUserAccount(input: {
 
   if (error) return { ok: false as const, error: error.message };
 
-  // Run profile update and employee lookup in parallel
+  const desiredRole = input.role;
+
+  // Run profile upsert and employee lookup in parallel
   if (data.user) {
-    const [, employeeResult] = await Promise.all([
-      // Update profile with additional fields
-      supabase.from("profiles").update({
+    const [profileUpsertResult, employeeResult] = await Promise.all([
+      // Upsert profile fields to guarantee role persistence even if trigger metadata is missing.
+      supabase.from("profiles").upsert({
+        id: data.user.id,
         name: input.name,
-        role: input.role,
+        email: input.email,
+        role: desiredRole,
         department: input.department ?? "",
         must_change_password: input.mustChangePassword ?? true,
         phone: input.phone ?? null,
         birthday: input.birthday ?? null,
         address: input.address ?? null,
         emergency_contact: input.emergencyContact ?? null,
-      }).eq("id", data.user.id),
+      }, { onConflict: "id" }),
       
       // Check if employee with this email already exists (created via addEmployee first)
       supabase.from("employees")
@@ -155,26 +159,52 @@ export async function createUserAccount(input: {
         .maybeSingle(),
     ]);
 
+    if (profileUpsertResult.error) {
+      return { ok: false as const, error: `Failed to persist profile role: ${profileUpsertResult.error.message}` };
+    }
+
+    // Verify final profile role so access permissions are always correct on first login.
+    const { data: persistedProfile, error: persistedProfileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", data.user.id)
+      .single();
+
+    if (persistedProfileError) {
+      return { ok: false as const, error: `Failed to verify profile role: ${persistedProfileError.message}` };
+    }
+    if (persistedProfile?.role !== desiredRole) {
+      return {
+        ok: false as const,
+        error: `Profile role mismatch after create (expected ${desiredRole}, got ${persistedProfile?.role ?? "unknown"})`,
+      };
+    }
+
     if (employeeResult.data?.id) {
       // Link existing employee to profile
-      await supabase.from("employees").update({
+      const { error: employeeUpdateError } = await supabase.from("employees").update({
         profile_id: data.user.id,
+        role: desiredRole,
         phone: input.phone ?? null,
         biometric_id: input.biometricId?.trim() || null,
         birthday: input.birthday ?? null,
         address: input.address ?? null,
         emergency_contact: input.emergencyContact ?? null,
       }).eq("id", employeeResult.data.id);
+
+      if (employeeUpdateError) {
+        return { ok: false as const, error: `Failed to sync employee role: ${employeeUpdateError.message}` };
+      }
     } else {
       // No employee record exists - create one linked to this profile
       // This ensures every account has a corresponding employee record
       const employeeId = `EMP-${Date.now().toString(36).toUpperCase()}`;
-      await supabase.from("employees").insert({
+      const { error: employeeInsertError } = await supabase.from("employees").insert({
         id: employeeId,
         profile_id: data.user.id,
         name: input.name,
         email: input.email,
-        role: input.role,
+        role: desiredRole,
         department: input.department ?? "",
         status: "active",
         work_type: "WFO",
@@ -188,6 +218,10 @@ export async function createUserAccount(input: {
         address: input.address ?? null,
         emergency_contact: input.emergencyContact ?? null,
       });
+
+      if (employeeInsertError) {
+        return { ok: false as const, error: `Failed to create employee record: ${employeeInsertError.message}` };
+      }
     }
   }
 
