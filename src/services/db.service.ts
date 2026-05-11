@@ -428,8 +428,9 @@ export const payrollDb = {
         byRun.set(r.run_id, arr);
       }
       for (const run of runs) {
-        const ids = byRun.get(run.id);
-        if (ids) run.payslipIds = ids;
+        const junctionIds = byRun.get(run.id) ?? [];
+        const legacyIds = run.payslipIds ?? [];
+        run.payslipIds = Array.from(new Set([...legacyIds, ...junctionIds]));
       }
     }
     // If junction table is empty/missing, runs keep their legacy payslipIds from the column
@@ -441,6 +442,11 @@ export const payrollDb = {
     const row: Record<string, unknown> = { ...(ps as unknown as Record<string, unknown>) };
     delete row.holdNote;
     delete row.heldAt;
+    delete row.grossOverrideApplied;
+    delete row.attendanceDaysPresent;
+    delete row.attendanceDaysAbsent;
+    delete row.attendanceLateMinutes;
+    delete row.attendanceUndertimeHours;
     return upsertRow("payslips", row);
   },
 
@@ -488,9 +494,26 @@ export const payrollDb = {
     const toAdd = [...targetIds].filter((id) => !existingIds.has(id));
     if (toAdd.length > 0) {
       try {
+        const resolvedIds = new Set<string>();
+        for (let attempt = 0; attempt < 4 && resolvedIds.size < toAdd.length; attempt++) {
+          const missingIds = toAdd.filter((id) => !resolvedIds.has(id));
+          const { data: presentRows, error: lookupErr } = await supabase()
+            .from("payslips")
+            .select("id")
+            .in("id", missingIds);
+          if (lookupErr) throw lookupErr;
+          for (const row of presentRows ?? []) resolvedIds.add((row as { id: string }).id);
+          if (resolvedIds.size < toAdd.length) {
+            await new Promise<void>((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
+          }
+        }
+
+        const readyIds = toAdd.filter((id) => resolvedIds.has(id));
+        if (readyIds.length === 0) return true;
+
         const { error: insErr } = await supabase()
           .from("payroll_run_payslips")
-          .upsert(toAdd.map((pid) => ({ run_id: run.id, payslip_id: pid })), { onConflict: "run_id,payslip_id", ignoreDuplicates: true });
+          .upsert(readyIds.map((pid) => ({ run_id: run.id, payslip_id: pid })), { onConflict: "run_id,payslip_id", ignoreDuplicates: true });
         if (insErr) console.error("[db] payroll_run_payslips.upsert:", insErr.message);
       } catch (e) {
         // Suppress foreign key errors for payslips not yet synced to DB
@@ -1192,7 +1215,7 @@ export async function hasValidSession(): Promise<boolean> {
     }
     
     return !!data.session?.access_token;
-  } catch (_err) {
+  } catch {
     // Network or other error - assume no valid session
     return false;
   }
