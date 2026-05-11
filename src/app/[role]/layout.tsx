@@ -26,6 +26,7 @@ export default function RoleLayout({ children }: { children: React.ReactNode }) 
     const mountedRef = useRef(false);
 
     const isValidRole = VALID_ROLES.includes(urlRole as Role);
+    const isUserRoleReady = !!userRole && VALID_ROLES.includes(userRole as Role);
 
     useEffect(() => {
         mountedRef.current = true;
@@ -33,6 +34,8 @@ export default function RoleLayout({ children }: { children: React.ReactNode }) 
 
     useEffect(() => {
         if (!mountedRef.current) return;
+        // Don't redirect until the auth store has hydrated with a valid role
+        if (!isUserRoleReady) return;
         if (!isValidRole) {
             router.replace(`/${userRole}/dashboard`);
             return;
@@ -42,10 +45,10 @@ export default function RoleLayout({ children }: { children: React.ReactNode }) 
             const subPath = pathname.replace(`/${urlRole}`, "");
             router.replace(`/${userRole}${subPath}`);
         }
-    }, [urlRole, userRole, isValidRole, router, pathname]);
+    }, [urlRole, userRole, isValidRole, isUserRoleReady, router, pathname]);
 
-    // Show loading state when role mismatch is being resolved
-    if (!isValidRole || urlRole !== userRole) {
+    // Show loading state while auth store hydrates or role mismatch is being resolved
+    if (!isUserRoleReady || !isValidRole || urlRole !== userRole) {
         return <RoleLoadingState />;
     }
 

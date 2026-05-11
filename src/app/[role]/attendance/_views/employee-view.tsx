@@ -61,6 +61,11 @@ function ElapsedTimeDisplay({ checkInTime }: { checkInTime: string }) {
         const tick = () => {
             const [h, m, s = 0] = checkInTime.split(":").map(Number);
             const start = new Date(); start.setHours(h, m, s, 0);
+            // Handle overnight shifts: if start is in the future, it means
+            // the check-in was yesterday (e.g., 22:00 night shift, now 02:00)
+            if (start.getTime() > Date.now()) {
+                start.setDate(start.getDate() - 1);
+            }
             const diff = Math.max(0, Date.now() - start.getTime());
             const hrs = Math.floor(diff / 3600000);
             const mins = Math.floor((diff % 3600000) / 60000);
