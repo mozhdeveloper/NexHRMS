@@ -234,17 +234,24 @@ if (rawLate < -720) rawLate += 1440; // crossed midnight
 
 ---
 
-### BUG-017: Pag-IBIG Computation Returns Flat ₱100 for Salaries ₱1,501–₱5,000
+### BUG-017: Pag-IBIG Computation Uses Outdated ₱100 Cap Instead of 2026 ₱200 Cap ✅ FIXED
 
 **File:** `src/lib/ph-deductions.ts` (function `computePagIBIG`)  
 **Severity:** 🟡 MEDIUM  
-**Impact:** For salaries between ₱1,501 and ₱5,000, the employee share should be `salary × 2%` (not a flat ₱100). The ₱100 cap only applies when `salary × 2% > ₱100` (i.e., salary > ₱5,000). An employee earning ₱3,000 should pay ₱60, not ₱100.
+**Impact:** The code returned a flat ₱100 for all salaries above ₱1,500. Per the 2026 Pag-IBIG table, the employee share is 2% of salary with a ₱10,000 compensation ceiling (max EE = ₱200). An employee earning ₱3,000 should pay ₱60, one earning ₱10,000+ should pay ₱200 — not ₱100.
 
-**Fix:**
+**2026 Rules Applied:**
+| Monthly Compensation | Employee Share (EE) | Cap |
+|---------------------|--------------------|----|
+| ≤ ₱1,500 | 1% | — |
+| > ₱1,500 | 2% | ₱200 (₱10,000 ceiling × 2%) |
+
+**Fix Applied:**
 ```typescript
 export function computePagIBIG(monthlyGross: number): number {
     if (monthlyGross <= 1500) return Math.round(monthlyGross * 0.01);
-    return Math.min(100, Math.round(monthlyGross * 0.02));
+    const base = Math.min(monthlyGross, 10000);
+    return Math.round(base * 0.02);
 }
 ```
 
@@ -506,7 +513,7 @@ views={{ admin: AdminAttendanceView, hr: HRAttendanceView, ... }}
 6. **BUG-006** — Auto-initialize leave balances before first request
 7. **BUG-007** — Fix final pay government deduction base
 8. **BUG-010** — Implement aggregate loan deduction cap
-9. **BUG-017** — Fix Pag-IBIG computation for ₱1,501–₱5,000 range
+9. **BUG-017** — Fix Pag-IBIG computation for ₱1,501–₱5,000 range ✅ Already Fixed
 
 ### ✅ Already Fixed (This Session)
 10. **BUG-025** — Fix render-phase `router.replace()` in payroll page

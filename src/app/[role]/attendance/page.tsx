@@ -7,19 +7,14 @@ import { RoleViewDispatcher } from "@/components/ui/role-dispatcher";
 const AdminView = lazy(() => import("./_views/admin-view"));
 const EmployeeView = lazy(() => import("./_views/employee-view"));
 
-/* Stable wrapper components to pass props without creating new identity on each render */
-const AdminAttendanceView = () => <AdminView mode="admin" />;
-const HRAttendanceView = () => <AdminView mode="hr" />;
-const SupervisorAttendanceView = () => <AdminView mode="supervisor" />;
-
 export default function AttendancePage() {
     return (
         <RoleViewDispatcher
             views={{
-                admin: AdminAttendanceView,
-                hr: HRAttendanceView,
-                supervisor: SupervisorAttendanceView,
-                employee: EmployeeView,
+                admin: () => <AdminView mode="admin" />,
+                hr: () => <AdminView mode="hr" />,
+                supervisor: () => <AdminView mode="supervisor" />,
+                employee: () => <EmployeeView />,
             }}
         />
     );
