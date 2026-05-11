@@ -171,6 +171,86 @@ const server = http.createServer(async (req, res) => {
       parsed.uid,
       parsed.id
     );
+
+    // Supabase config (for storing/fetching templates)
+    const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+    // Handle enrollment sync / user list fetch from devices
+    if (requestCode === 'set_userinfo') {
+      if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+        log('warn', 'set_userinfo rejected (no supabase config)');
+        res.setHeader('response_code', 'ERROR_NO_SUPABASE');
+        res.statusCode = 500;
+        res.end('ERROR');
+        return;
+      }
+
+      try {
+        const body = {
+          biometric_id: biometricId,
+          name: firstValue(parsed.name, parsed.user, parsed.fullname) || null,
+          finger_template: parsed.finger_template || parsed.fingerprint || parsed.fingerTemplate || null,
+          face_template: parsed.face_template || parsed.face || parsed.faceTemplate || null,
+          privilege: parsed.privilege ?? parsed.privilege_level ?? 0,
+          employee_id: parsed.employee_id || null,
+        };
+
+        await fetch(`${SUPABASE_URL}/rest/v1/biometric_templates`, {
+          method: 'POST',
+          headers: {
+            apikey: SUPABASE_SERVICE_KEY,
+            Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+            'Content-Type': 'application/json',
+            Prefer: 'resolution=merge-duplicates',
+          },
+          body: JSON.stringify(body),
+        });
+
+        res.setHeader('response_code', 'OK');
+        res.statusCode = 200;
+        res.end('OK');
+        return;
+      } catch (err) {
+        log('error', 'set_userinfo failed', { message: err?.message });
+        res.setHeader('response_code', 'ERROR');
+        res.statusCode = 500;
+        res.end('ERROR');
+        return;
+      }
+    }
+
+    if (requestCode === 'get_all_userinfo') {
+      if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+        log('warn', 'get_all_userinfo rejected (no supabase config)');
+        res.setHeader('response_code', 'ERROR_NO_SUPABASE');
+        res.statusCode = 500;
+        res.end('ERROR');
+        return;
+      }
+
+      try {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/biometric_templates?select=id,biometric_id,name,privilege,face_template,finger_template,employee_id`, {
+          headers: {
+            apikey: SUPABASE_SERVICE_KEY,
+            Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+          },
+        });
+        const users = await r.json();
+        res.setHeader('response_code', 'OK');
+        res.setHeader('Content-Type', 'application/json');
+        res.statusCode = 200;
+        res.end(JSON.stringify(users));
+        return;
+      } catch (err) {
+        log('error', 'get_all_userinfo failed', { message: err?.message });
+        res.setHeader('response_code', 'ERROR');
+        res.statusCode = 500;
+        res.end('ERROR');
+        return;
+      }
+    }
+
     const isRealtimeLog = requestCode === 'realtime_glog' || Boolean(biometricId);
 
     if (!isRealtimeLog) {
