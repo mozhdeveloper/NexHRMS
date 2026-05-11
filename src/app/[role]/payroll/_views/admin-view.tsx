@@ -57,6 +57,7 @@ import { ImportDataDialog } from "@/components/import-data-dialog";
 import PayrollPaymentWizard, { type WizardStep, usePayrollProgress } from "@/features/payroll-payment/payroll-payment-wizard";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useAppearanceStore } from "@/store/appearance.store";
 
 /* ═══════════════════════════════════════════════════════════════
    ADMIN / FINANCE / PAYROLL_ADMIN VIEW — Full Payroll Management
@@ -235,6 +236,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
     };
 
     const getEmpName = (id: string) => employees.find((e) => e.id === id)?.name || id;
+    const logoUrl = useAppearanceStore((s) => s.logoUrl);
 
     // ─── Cutoff date range (end is user-overridable via formPeriodEnd) ──────
     const cutoffDates = useMemo(() => {
@@ -1558,6 +1560,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                         payslips={activeRunPayslips}
                                         runs={runs}
                                         getEmpName={getEmpName}
+                                        getEmpDetails={(id) => { const e = employees.find((emp) => emp.id === id); return { department: e?.department, jobTitle: e?.jobTitle }; }}
                                         isAdmin={canIssue}
                                         onMarkPaid={(id, method, reference, cashAmount, paymentProofUrl) => {
                                             confirmPaidByFinance(id, currentUser.name, method, reference, cashAmount, paymentProofUrl);
@@ -2753,6 +2756,9 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                         payslip={printPS}
                         employeeName={printEmp?.name || printPS.employeeId}
                         department={printEmp?.department || ""}
+                        jobTitle={printEmp?.jobTitle}
+                        employeeId={printEmp?.id}
+                        logoUrl={logoUrl}
                         authorizedSignature={signatureConfig}
                         open={!!printPayslipId}
                         onClose={() => setPrintPayslipId(null)}
