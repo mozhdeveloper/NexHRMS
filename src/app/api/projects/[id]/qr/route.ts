@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/services/supabase-server";
+import { createAdminSupabaseClient, createServerSupabaseClient } from "@/services/supabase-server";
 import { signProjectQr } from "@/lib/project-qr";
 
 /**
@@ -34,7 +34,8 @@ export async function GET(
   }
 
   // Fetch the project's qrSecret + enabled flag
-  const { data: project, error } = await supabase
+  const admin = await createAdminSupabaseClient();
+  const { data: project, error } = await admin
     .from("projects")
     .select("id, name, qr_secret, qr_enabled")
     .eq("id", projectId)
