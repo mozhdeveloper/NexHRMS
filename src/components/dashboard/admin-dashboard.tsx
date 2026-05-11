@@ -216,9 +216,9 @@ function KpiStatsRow() {
                                             {stat.changeType === "warning" && <AlertCircle className="h-3 w-3 text-amber-500" />}
                                             <span className={
                                                 stat.changeType === "positive" ? "text-emerald-600 dark:text-emerald-400" :
-                                                stat.changeType === "negative" ? "text-red-600 dark:text-red-400" :
-                                                stat.changeType === "warning" ? "text-amber-600 dark:text-amber-400" :
-                                                "text-muted-foreground"
+                                                    stat.changeType === "negative" ? "text-red-600 dark:text-red-400" :
+                                                        stat.changeType === "warning" ? "text-amber-600 dark:text-amber-400" :
+                                                            "text-muted-foreground"
                                             }>
                                                 {stat.change}
                                             </span>
@@ -743,9 +743,8 @@ function BirthdaysCard() {
                             return (
                                 <div
                                     key={emp.id}
-                                    className={`flex items-center gap-3 p-2.5 rounded-lg transition-colors ${
-                                        isToday_ ? "bg-pink-500/5 ring-1 ring-pink-500/20" : "hover:bg-muted/50"
-                                    }`}
+                                    className={`flex items-center gap-3 p-2.5 rounded-lg transition-colors ${isToday_ ? "bg-pink-500/5 ring-1 ring-pink-500/20" : "hover:bg-muted/50"
+                                        }`}
                                 >
                                     <Avatar className="h-8 w-8">
                                         {emp.avatarUrl && <AvatarImage src={emp.avatarUrl} alt={emp.name} />}
@@ -881,7 +880,7 @@ function RecentActivityCard() {
                         <p className="text-xs text-muted-foreground mt-0.5">Latest system actions across all modules</p>
                     </div>
                     <Button variant="ghost" size="sm" className="text-xs gap-1" asChild>
-                        <Link href={rh("/audit-log")}>
+                        <Link href={rh("/audit")}>
                             View All <ChevronRight className="h-3 w-3" />
                         </Link>
                     </Button>

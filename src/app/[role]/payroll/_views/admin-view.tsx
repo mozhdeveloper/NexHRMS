@@ -393,6 +393,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
             let successCount = 0;
             let totalLoanDeductions = 0;
             let skippedDuplicates = 0;
+            let zeroNetPayCount = 0;
 
             selectedEmployeeIds.forEach((empId) => {
                 const emp = employees.find((e) => e.id === empId);
@@ -576,8 +577,9 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                 });
                 const autoDedTotal = autoBreakdown.totalDeductions;
 
-                const netPay = effectiveGrossPay + allowances + holidayPaySupp + otPay + nightDiffPay + customAllowanceTotal - totalGovDed - otherDed - empLoanDeduction - customDedTotal - autoDedTotal;
-                if (netPay <= 0) { toast.error(`Skipped ${emp.name}: Net pay would be ≤ 0`); return; }
+                const rawNetPay = effectiveGrossPay + allowances + holidayPaySupp + otPay + nightDiffPay + customAllowanceTotal - totalGovDed - otherDed - empLoanDeduction - customDedTotal - autoDedTotal;
+                const netPay = Math.max(0, rawNetPay);
+                if (rawNetPay <= 0) zeroNetPayCount++;
 
                 // BIR — categorize earnings into taxable / non-taxable buckets for Alphalist + Form 2316
                 const taxCategories = categorizePay({
@@ -633,6 +635,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
 
             const loanMsg = totalLoanDeductions > 0 ? ` (incl. ${formatCurrency(totalLoanDeductions)} total loan deductions)` : "";
             if (skippedDuplicates > 0) toast.warning(`${skippedDuplicates} employee${skippedDuplicates > 1 ? "s" : ""} already had payslips for this period — skipped.`);
+            if (zeroNetPayCount > 0) toast.warning(`${zeroNetPayCount} employee${zeroNetPayCount > 1 ? "s" : ""} issued with ₱0 net pay — review deductions before locking.`);
             if (successCount > 0) toast.success(`Issued ${successCount} payslip${successCount > 1 ? "s" : ""}${loanMsg}`);
             else if (skippedDuplicates > 0) toast.info("No new payslips issued — all selected employees already have payslips for this period.");
             setOpen(false); setSelectedEmployeeIds([]); setFormAllowances("0"); setFormOtherDeductions("0"); setFormOTHours("0"); setFormNightDiffHours("0"); setFormNotes(""); setFormIssuedAt(format(new Date(), "yyyy-MM-dd")); setFormPeriodEnd(computeSmartPeriodEnd(naturalBounds)); setEmpSearchTerm(""); setGrossOverrides({}); setExpandedOverrideEmpId(null);
