@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Gavel, Plus, Search, AlertTriangle, FileText, ShieldAlert, Clock, CheckCircle2, Hourglass } from "lucide-react";
+import { Gavel, Plus, Search, AlertTriangle, FileText, ShieldAlert, Clock, CheckCircle2, Hourglass, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import type { DisciplinaryCaseStatus } from "@/types";
 
@@ -54,7 +54,8 @@ const STATUS_TONE: Record<DisciplinaryCaseStatus, string> = {
 export default function DisciplinaryAdminView() {
     const cases = useDisciplinaryStore((s) => s.cases);
     const createCase = useDisciplinaryStore((s) => s.createCase);
-    const stats = useDisciplinaryStore((s) => s.getDashboardStats());
+    const getDashboardStats = useDisciplinaryStore((s) => s.getDashboardStats);
+    const stats = useMemo(() => getDashboardStats(), [cases, getDashboardStats]);
     const { employees } = useEmployeesStore();
     const currentUser = useAuthStore((s) => s.currentUser);
     const rh = useRoleHref();
@@ -130,15 +131,55 @@ export default function DisciplinaryAdminView() {
                 </Button>
             </div>
 
-            {/* KPI strip */}
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-                <KPI icon={FileText} label="Total" value={stats.total} tone="default" />
-                <KPI icon={AlertTriangle} label="Open" value={stats.open} tone="amber" />
-                <KPI icon={Hourglass} label="Awaiting Explanation" value={stats.awaitingExplanation} tone="orange" />
-                <KPI icon={Clock} label="For Review" value={stats.forReview} tone="amber" />
-                <KPI icon={ShieldAlert} label="Sanctions Active" value={stats.suspensionsActive} tone="red" />
-                <KPI icon={CheckCircle2} label="Closed" value={stats.closed} tone="emerald" />
-            </div>
+            {/* Summary card */}
+            <Card className="border">
+                <CardContent className="p-0">
+                    <div className="flex items-center gap-3 border-b px-5 py-3.5">
+                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-semibold text-foreground">Case Overview</span>
+                        <span className="ml-auto text-xs text-muted-foreground">{stats.total} case{stats.total !== 1 ? "s" : ""} total</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-y sm:divide-y-0 divide-x-0 sm:divide-x">
+                        <SummaryTile
+                            label="Open"
+                            value={stats.open}
+                            icon={AlertTriangle}
+                            accent={stats.open > 0 ? "amber" : "muted"}
+                        />
+                        <SummaryTile
+                            label="Awaiting NTE Response"
+                            value={stats.awaitingExplanation}
+                            icon={Hourglass}
+                            accent={stats.awaitingExplanation > 0 ? "orange" : "muted"}
+                        />
+                        <SummaryTile
+                            label="Under Review"
+                            value={stats.forReview}
+                            icon={Clock}
+                            accent={stats.forReview > 0 ? "blue" : "muted"}
+                        />
+                        <SummaryTile
+                            label="NOD Pending"
+                            value={stats.nodPending}
+                            icon={FileText}
+                            accent={stats.nodPending > 0 ? "orange" : "muted"}
+                        />
+                        <SummaryTile
+                            label="Sanction Active"
+                            value={stats.suspensionsActive}
+                            icon={ShieldAlert}
+                            accent={stats.suspensionsActive > 0 ? "red" : "muted"}
+                        />
+                        <SummaryTile
+                            label="Closed"
+                            value={stats.closed}
+                            icon={CheckCircle2}
+                            accent="emerald"
+                            isLast
+                        />
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Filters */}
             <div className="flex flex-col md:flex-row gap-3">
@@ -268,25 +309,33 @@ export default function DisciplinaryAdminView() {
     );
 }
 
-function KPI({ icon: Icon, label, value, tone }: { icon: typeof FileText; label: string; value: number; tone: "default" | "amber" | "emerald" | "red" | "orange" }) {
-    const toneMap: Record<string, string> = {
-        default: "text-foreground",
-        amber: "text-amber-600",
-        emerald: "text-emerald-600",
-        red: "text-red-600",
-        orange: "text-orange-600",
-    };
+type SummaryAccent = "amber" | "orange" | "red" | "blue" | "emerald" | "muted";
+const ACCENT_STYLES: Record<SummaryAccent, { value: string; icon: string; dot: string }> = {
+    amber:   { value: "text-amber-600",   icon: "text-amber-500",   dot: "bg-amber-500" },
+    orange:  { value: "text-orange-600",  icon: "text-orange-500",  dot: "bg-orange-500" },
+    red:     { value: "text-red-600",     icon: "text-red-500",     dot: "bg-red-500" },
+    blue:    { value: "text-blue-600",    icon: "text-blue-500",    dot: "bg-blue-500" },
+    emerald: { value: "text-emerald-600", icon: "text-emerald-500", dot: "bg-emerald-500" },
+    muted:   { value: "text-muted-foreground", icon: "text-muted-foreground/60", dot: "bg-muted-foreground/40" },
+};
+
+function SummaryTile({
+    label, value, icon: Icon, accent, isLast = false,
+}: {
+    label: string; value: number; icon: typeof FileText;
+    accent: SummaryAccent; isLast?: boolean;
+}) {
+    const s = ACCENT_STYLES[accent];
     return (
-        <Card>
-            <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-xs text-muted-foreground">{label}</p>
-                        <p className={`text-2xl font-bold ${toneMap[tone]}`}>{value}</p>
-                    </div>
-                    <Icon className={`h-5 w-5 ${toneMap[tone]}`} />
-                </div>
-            </CardContent>
-        </Card>
+        <div className={`flex flex-col gap-3 px-5 py-4 ${isLast ? "" : "border-b sm:border-b-0 sm:border-r last:border-0"}`.trim()}>
+            <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground leading-tight">{label}</p>
+                <Icon className={`h-4 w-4 shrink-0 ${s.icon}`} />
+            </div>
+            <div className="flex items-end gap-2">
+                <span className={`text-3xl font-bold tabular-nums leading-none ${s.value}`}>{value}</span>
+                {value > 0 && <span className={`mb-0.5 h-1.5 w-1.5 rounded-full ${s.dot}`} />}
+            </div>
+        </div>
     );
 }

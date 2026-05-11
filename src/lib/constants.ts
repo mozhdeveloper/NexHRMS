@@ -168,6 +168,14 @@ export const NAV_ITEMS: {
             group: "hr",
         },
         {
+            label: "Jobs",
+            href: "/jobs",
+            icon: "Briefcase",
+            roles: ["admin", "hr"],
+            permission: "page:jobs",
+            group: "hr",
+        },
+        {
             label: "Projects",
             href: "/projects",
             icon: "FolderKanban",

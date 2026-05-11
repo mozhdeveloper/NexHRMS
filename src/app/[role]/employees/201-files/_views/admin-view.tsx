@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
     FolderArchive, Search, Upload, CheckCircle2, XCircle,
-    FileText, Clock, AlertTriangle, ShieldCheck,
+    FileText, Clock, AlertTriangle, ShieldCheck, TrendingUp,
 } from "lucide-react";
 import { getInitials } from "@/lib/format";
 import { toast } from "sonner";
@@ -78,10 +78,14 @@ export default function Documents201AdminView() {
     const reject = useDocumentsStore((s) => s.reject);
     const archive = useDocumentsStore((s) => s.archive);
     const setVisibility = useDocumentsStore((s) => s.setVisibility);
-    const stats = useDocumentsStore((s) => s.getStats());
+    const getStats = useDocumentsStore((s) => s.getStats);
     const getMissing = useDocumentsStore((s) => s.getMissingForEmployee);
     const getCompleteness = useDocumentsStore((s) => s.getCompletenessForEmployee);
     const getByEmployee = useDocumentsStore((s) => s.getByEmployee);
+
+    // Compute stats in a memo so the selector never returns a new object reference
+    // on every render (which would cause an infinite re-render loop).
+    const stats = useMemo(() => getStats(), [docs, getStats]);
 
     const [search, setSearch] = useState("");
     const [selectedEmpId, setSelectedEmpId] = useState<string | null>(null);
@@ -156,14 +160,23 @@ export default function Documents201AdminView() {
                 </div>
             </div>
 
-            {/* KPI strip */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <KPI icon={FileText} label="Total Documents" value={stats.total} tone="default" />
-                <KPI icon={Clock} label="For Review" value={stats.forReview} tone="amber" />
-                <KPI icon={CheckCircle2} label="Approved" value={stats.approved} tone="emerald" />
-                <KPI icon={XCircle} label="Rejected" value={stats.rejected} tone="red" />
-                <KPI icon={AlertTriangle} label="Expiring 30d" value={stats.expiring30} tone="orange" />
-            </div>
+            {/* Summary card */}
+            <Card className="border">
+                <CardContent className="p-0">
+                    <div className="flex items-center gap-3 border-b px-5 py-3.5">
+                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-semibold text-foreground">Document Overview</span>
+                        <span className="ml-auto text-xs text-muted-foreground">{stats.total} document{stats.total !== 1 ? "s" : ""} on file</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 divide-y sm:divide-y-0 divide-x-0 sm:divide-x">
+                        <DocTile label="For Review" value={stats.forReview} icon={Clock} accent={stats.forReview > 0 ? "amber" : "muted"} />
+                        <DocTile label="Approved" value={stats.approved} icon={CheckCircle2} accent="emerald" />
+                        <DocTile label="Rejected" value={stats.rejected} icon={XCircle} accent={stats.rejected > 0 ? "red" : "muted"} />
+                        <DocTile label="Expiring in 30d" value={stats.expiring30} icon={AlertTriangle} accent={stats.expiring30 > 0 ? "orange" : "muted"} />
+                        <DocTile label="Total on File" value={stats.total} icon={FileText} accent="muted" isLast />
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Search */}
             <div className="relative max-w-sm">
@@ -451,25 +464,33 @@ export default function Documents201AdminView() {
     );
 }
 
-function KPI({ icon: Icon, label, value, tone }: { icon: typeof FileText; label: string; value: number; tone: "default" | "amber" | "emerald" | "red" | "orange" }) {
-    const toneMap: Record<string, string> = {
-        default: "text-foreground",
-        amber: "text-amber-600",
-        emerald: "text-emerald-600",
-        red: "text-red-600",
-        orange: "text-orange-600",
-    };
+type DocAccent = "amber" | "orange" | "red" | "emerald" | "muted";
+const DOC_ACCENT_STYLES: Record<DocAccent, { value: string; icon: string; dot: string }> = {
+    amber:   { value: "text-amber-600",   icon: "text-amber-500",   dot: "bg-amber-500" },
+    orange:  { value: "text-orange-600",  icon: "text-orange-500",  dot: "bg-orange-500" },
+    red:     { value: "text-red-600",     icon: "text-red-500",     dot: "bg-red-500" },
+    emerald: { value: "text-emerald-600", icon: "text-emerald-500", dot: "bg-emerald-500" },
+    muted:   { value: "text-muted-foreground", icon: "text-muted-foreground/60", dot: "bg-muted-foreground/40" },
+};
+
+function DocTile({
+    label, value, icon: Icon, accent, isLast = false,
+}: {
+    label: string; value: number; icon: typeof FileText;
+    accent: DocAccent; isLast?: boolean;
+}) {
+    const s = DOC_ACCENT_STYLES[accent];
     return (
-        <Card>
-            <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-xs text-muted-foreground">{label}</p>
-                        <p className={`text-2xl font-bold ${toneMap[tone]}`}>{value}</p>
-                    </div>
-                    <Icon className={`h-5 w-5 ${toneMap[tone]}`} />
-                </div>
-            </CardContent>
-        </Card>
+        <div className={`flex flex-col gap-3 px-5 py-4 ${isLast ? "" : "border-b sm:border-b-0 sm:border-r last:border-0"}`.trim()}>
+            <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground leading-tight">{label}</p>
+                <Icon className={`h-4 w-4 shrink-0 ${s.icon}`} />
+            </div>
+            <div className="flex items-end gap-2">
+                <span className={`text-3xl font-bold tabular-nums leading-none ${s.value}`}>{value}</span>
+                {value > 0 && <span className={`mb-0.5 h-1.5 w-1.5 rounded-full ${s.dot}`} />}
+            </div>
+        </div>
     );
 }
+

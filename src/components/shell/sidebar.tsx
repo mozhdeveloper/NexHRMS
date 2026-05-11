@@ -50,6 +50,7 @@ import {
     Calculator,
     FolderArchive,
     Gavel,
+    Briefcase,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEffect, useMemo, useCallback, memo } from "react";
@@ -72,6 +73,7 @@ const iconMap: Record<string, React.ElementType> = {
     Calculator,
     FolderArchive,
     Gavel,
+    Briefcase,
     BarChart3,
     Settings,
     Bell,

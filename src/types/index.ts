@@ -954,7 +954,10 @@ export type Permission =
   | "tasks:delete" | "tasks:manage_groups"
   // Messaging
   | "page:messages" | "messages:send_announcement" | "messages:manage_channels"
-  | "messages:send_whatsapp" | "messages:send_email";
+  | "messages:send_whatsapp" | "messages:send_email"
+  // Jobs / Talent Acquisition
+  | "page:jobs" | "jobs:create" | "jobs:edit" | "jobs:close"
+  | "jobs:view_applications" | "jobs:manage_applications";
 
 // System role slug union (never changes — always recognized)
 export type SystemRoleSlug = "admin" | "hr" | "finance" | "employee" | "supervisor" | "payroll_admin" | "auditor";
@@ -1145,6 +1148,54 @@ export interface TaskTag {
   color: string;
   createdBy: string;
   createdAt: string;
+}
+
+// ─── Jobs / Talent Acquisition ──────────────────────────────
+
+export type JobStatus = "draft" | "open" | "on_hold" | "closed";
+export type JobType = "full_time" | "part_time" | "contract" | "internship" | "freelance";
+export type JobPriority = "low" | "medium" | "high" | "urgent";
+export type ApplicationStatus =
+  | "applied" | "screening" | "interview" | "offer" | "hired" | "rejected" | "withdrawn";
+
+export interface JobPosting {
+  id: string;
+  title: string;
+  department: string;
+  location: string;
+  type: JobType;
+  status: JobStatus;
+  priority: JobPriority;
+  headcount: number;            // number of open slots
+  salaryMin?: number;
+  salaryMax?: number;
+  description: string;
+  requirements: string;         // freeform text
+  responsibilities: string;     // freeform text
+  deadline?: string;            // ISO date string
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface JobApplication {
+  id: string;
+  jobId: string;
+  applicantName: string;
+  applicantEmail: string;
+  applicantPhone?: string;
+  resumeUrl?: string;
+  resumeStoragePath?: string;   // private bucket path in "job-resumes"
+  coverLetter?: string;
+  source: string;               // e.g. "LinkedIn", "Referral", "Walk-in"
+  status: ApplicationStatus;
+  interviewDate?: string;       // ISO datetime
+  offerSalary?: number;
+  notes?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── Multi-Channel Messaging ─────────────────────────────────
