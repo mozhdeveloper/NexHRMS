@@ -869,11 +869,13 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                 <Settings className="h-4 w-4" /> <span className="hidden sm:inline">Payroll Settings</span>
                             </Button>
                         </Link>
+                        {/* DEMO: hidden — uncomment to re-enable
                         <Link href={`/${role}/payroll/bir-compliance`}>
                             <Button variant="outline" size="sm" className="gap-1.5">
                                 <Shield className="h-4 w-4" /> <span className="hidden sm:inline">BIR Compliance</span>
                             </Button>
                         </Link>
+                        */}
                         <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setThirteenthMonthOpen(true)}>
                             <Gift className="h-4 w-4" /> <span className="hidden sm:inline">13th Month</span>
                         </Button>
