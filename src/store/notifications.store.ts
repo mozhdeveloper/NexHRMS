@@ -144,6 +144,10 @@ function renderTemplate(template: string, vars: Record<string, string>): string 
     return template.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? `{${key}}`);
 }
 
+function isLegacyIosAltitudeFalsePositiveNotification(log: { type: string; body?: string }): boolean {
+    return log.type === "cheat_detected" && /ios altitude.*missing/i.test(log.body ?? "");
+}
+
 /** Get default navigation link based on notification type (without role prefix) */
 function getDefaultLinkForTrigger(trigger: NotificationTrigger): string {
     const linkMap: Record<NotificationTrigger, string> = {
@@ -213,6 +217,8 @@ export const useNotificationsStore = create<NotificationsState>()(
             },
 
             addLog: (data) => {
+                if (isLegacyIosAltitudeFalsePositiveNotification(data)) return;
+
                 // Check per-employee category opt-out
                 const empPrefs = { ...DEFAULT_EMPLOYEE_PREFS, ...get().employeePrefs[data.employeeId] };
                 const prefKey = prefKeyForTrigger(data.type);
@@ -394,6 +400,8 @@ export const useNotificationsStore = create<NotificationsState>()(
                         ? renderTemplate(rule.smsTemplate, vars)
                         : body;
 
+                if (isLegacyIosAltitudeFalsePositiveNotification({ type: trigger, body: logBody })) return;
+
                 set((s) => ({
                     logs: [
                         {
@@ -458,13 +466,13 @@ export const useNotificationsStore = create<NotificationsState>()(
         }),
         {
             name: "soren-notifications",
-            version: 5,
+            version: 6,
             storage: safePersistStorage,
             migrate: (persisted: unknown) => {
                 // Carry over rules and logs from previous versions; reset everything else.
                 const p = persisted as Partial<NotificationsState> | null;
                 return {
-                    logs: p?.logs ?? [],
+                    logs: (p?.logs ?? []).filter((l) => !isLegacyIosAltitudeFalsePositiveNotification({ type: l.type, body: l.body })),
                     rules: p?.rules ?? [...DEFAULT_RULES],
                     providerConfig: p?.providerConfig ?? { ...DEFAULT_PROVIDER },
                     employeePrefs: (p as Record<string, unknown>)?.employeePrefs as Record<string, EmployeeNotifPrefs> ?? {},

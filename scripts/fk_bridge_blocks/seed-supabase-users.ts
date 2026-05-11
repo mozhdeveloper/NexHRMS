@@ -14,6 +14,7 @@
 import { createClient } from "@supabase/supabase-js";
 import * as dotenv from "dotenv";
 import * as path from "path";
+import { DEMO_USERS, SEED_EMPLOYEES } from "../src/data/seed";
 
 dotenv.config({ path: path.resolve(__dirname, "../.env.local") });
 
@@ -36,258 +37,94 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 
 const DEMO_PASSWORD = "demo1234";
 
+const ROLE_DEFAULT_DEPARTMENT: Record<string, string> = {
+  admin: "Management",
+  hr: "Human Resources",
+  finance: "Finance",
+  employee: "Operations",
+  supervisor: "Operations",
+  payroll_admin: "Finance",
+  auditor: "Compliance",
+};
+
+type DemoEmployeeRecord = {
+  id: string;
+  name: string;
+  email: string;
+  department: string;
+  job_title: string;
+  work_type: string;
+  salary: number;
+  join_date: string;
+  productivity: number;
+  location: string;
+  phone: string;
+  birthday: string;
+  pin: string;
+  status: string;
+  team_leader?: string;
+  nfc_id?: string;
+  biometric_id?: string;
+  address?: string;
+  emergency_contact?: string;
+  work_days?: string[];
+  pay_frequency?: string;
+  whatsapp_number?: string;
+  preferred_channel?: string;
+};
+
+const employeeByEmail = new Map(
+  SEED_EMPLOYEES.map((emp) => [emp.email.toLowerCase(), emp])
+);
+
 // ─── Auth + Profile accounts ─────────────────────────────────────────────────
-const DEMO_ACCOUNTS = [
-  { name: "Alex Rivera",  email: "admin@sdsi.com",      role: "admin",         department: "Management" },
-  { name: "Jordan Lee",   email: "hr@sdsi.com",         role: "hr",            department: "Human Resources" },
-  { name: "Morgan Chen",  email: "finance@sdsi.com",    role: "finance",       department: "Finance" },
-  { name: "Sam Torres",   email: "employee@sdsi.com",   role: "employee",      department: "Engineering" },
-  { name: "Pat Reyes",    email: "supervisor@sdsi.com", role: "supervisor",    department: "Engineering" },
-  { name: "Dana Cruz",    email: "payroll@sdsi.com",    role: "payroll_admin", department: "Finance" },
-  { name: "Rene Santos",  email: "auditor@sdsi.com",    role: "auditor",       department: "Compliance" },
-  { name: "Jamie Reyes",  email: "qr@sdsi.com",         role: "employee",      department: "Operations" },
-  { name: "Riley Santos", email: "qr2@sdsi.com",        role: "employee",      department: "Operations" },
-  // ─── Payroll Test Accounts ─────────────────────────────────────────────────
-  { name: "Maria Santos Cruz",       email: "maria.cruz@nexhrms.test",       role: "employee",   department: "Engineering" },
-  { name: "Juan Miguel Reyes",       email: "juan.reyes@nexhrms.test",       role: "employee",   department: "Engineering" },
-  { name: "Ana Patricia Villanueva", email: "ana.villanueva@nexhrms.test",   role: "employee",   department: "Finance" },
-  { name: "Carlo Miguel Gonzales",   email: "carlo.gonzales@nexhrms.test",   role: "employee",   department: "Operations" },
-  { name: "Elena Marie Tan",         email: "elena.tan@nexhrms.test",        role: "hr",         department: "Human Resources" },
-  { name: "Roberto James Aquino",    email: "roberto.aquino@nexhrms.test",   role: "supervisor", department: "Engineering" },
-  { name: "Lisa Marie Fernandez",    email: "lisa.fernandez@nexhrms.test",   role: "employee",   department: "Marketing" },
-  { name: "Mark Anthony Dela Cruz",  email: "mark.delacruz@nexhrms.test",    role: "employee",   department: "Sales" },
-];
+const DEMO_ACCOUNTS = DEMO_USERS.map((user) => {
+  const emp = employeeByEmail.get(user.email.toLowerCase());
+  return {
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    department: emp?.department || ROLE_DEFAULT_DEPARTMENT[user.role] || "Operations",
+  };
+});
 
 // ─── employees table records for accounts that are role="employee" ────────────
 // profileId is populated at runtime after auth user is resolved.
-const DEMO_EMPLOYEE_RECORDS: Record<string, {
-  id: string; name: string; email: string; department: string;
-  job_title: string; work_type: string; salary: number; join_date: string;
-  productivity: number; location: string; phone: string; birthday: string;
-  pin: string; status: string;
-  address?: string; emergency_contact?: string;
-  work_days?: string[]; pay_frequency?: string; whatsapp_number?: string;
-}> = {
-  "employee@sdsi.com": {
-    id: "EMP026",
-    name: "Sam Torres",
-    email: "employee@sdsi.com",
-    department: "Engineering",
-    job_title: "Frontend Developer",
-    work_type: "WFO",
-    salary: 88000,
-    join_date: "2024-01-10",
-    productivity: 82,
-    location: "Manila",
-    phone: "+63-555-0126",
-    birthday: "1995-04-20",
-    pin: "666666",
-    status: "active",
-  },
-  "qr@sdsi.com": {
-    id: "EMP027",
-    name: "Jamie Reyes",
-    email: "qr@sdsi.com",
-    department: "Operations",
-    job_title: "Field Technician",
-    work_type: "ONSITE",
-    salary: 45000,
-    join_date: "2025-03-15",
-    productivity: 88,
-    location: "Marikina, Metro Manila",
-    phone: "+63-917-1234567",
-    birthday: "1998-05-22",
-    pin: "",
-    status: "active",
-    address: "123 Shoe Ave, Marikina City, Metro Manila",
-    emergency_contact: "Maria Reyes - +63-918-7654321",
-    work_days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    pay_frequency: "semi_monthly",
-    whatsapp_number: "+63-917-1234567",
-  },
-  "qr2@sdsi.com": {
-    id: "EMP028",
-    name: "Riley Santos",
-    email: "qr2@sdsi.com",
-    department: "Operations",
-    job_title: "Field Technician",
-    work_type: "ONSITE",
-    salary: 42000,
-    join_date: "2025-06-01",
-    productivity: 82,
-    location: "Quezon City, Metro Manila",
-    phone: "+63-918-9876543",
-    birthday: "1999-11-08",
-    pin: "",
-    status: "active",
-    address: "456 Commonwealth Ave, Quezon City, Metro Manila",
-    emergency_contact: "Carlos Santos - +63-919-1112222",
-    work_days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    pay_frequency: "semi_monthly",
-    whatsapp_number: "+63-918-9876543",
-  },
-  // ─── Payroll Test Employees ─────────────────────────────────────────────────
-  "maria.cruz@nexhrms.test": {
-    id: "EMP-PAY-001",
-    name: "Maria Santos Cruz",
-    email: "maria.cruz@nexhrms.test",
-    department: "Engineering",
-    job_title: "Senior Software Engineer",
-    work_type: "HYBRID",
-    salary: 85000,
-    join_date: "2023-01-15",
-    productivity: 92,
-    location: "Makati City",
-    phone: "+63 917 555 0001",
-    birthday: "1990-08-15",
-    pin: "100100",
-    status: "active",
-    address: "Unit 1205 The Residences, Ayala Avenue, Makati City 1226",
-    emergency_contact: "Juan Cruz (Husband) - +63 918 555 0001",
-    work_days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    pay_frequency: "semi_monthly",
-  },
-  "juan.reyes@nexhrms.test": {
-    id: "EMP-PAY-002",
-    name: "Juan Miguel Reyes",
-    email: "juan.reyes@nexhrms.test",
-    department: "Engineering",
-    job_title: "Full Stack Developer",
-    work_type: "WFH",
-    salary: 65000,
-    join_date: "2023-06-01",
-    productivity: 88,
-    location: "Quezon City",
-    phone: "+63 918 555 0002",
-    birthday: "1992-03-22",
-    pin: "200200",
-    status: "active",
-    address: "123 Kalayaan Avenue, Diliman, Quezon City 1101",
-    emergency_contact: "Rosa Reyes (Mother) - +63 919 555 0002",
-    work_days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    pay_frequency: "semi_monthly",
-  },
-  "ana.villanueva@nexhrms.test": {
-    id: "EMP-PAY-003",
-    name: "Ana Patricia Villanueva",
-    email: "ana.villanueva@nexhrms.test",
-    department: "Finance",
-    job_title: "Senior Accountant",
-    work_type: "WFO",
-    salary: 55000,
-    join_date: "2022-09-15",
-    productivity: 95,
-    location: "Ortigas Center",
-    phone: "+63 917 555 0003",
-    birthday: "1988-11-30",
-    pin: "300300",
-    status: "active",
-    address: "Block 5 Lot 12, Greenwoods Executive Village, Pasig City 1600",
-    emergency_contact: "Pedro Villanueva (Father) - +63 920 555 0003",
-    work_days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    pay_frequency: "semi_monthly",
-  },
-  "carlo.gonzales@nexhrms.test": {
-    id: "EMP-PAY-004",
-    name: "Carlo Miguel Gonzales",
-    email: "carlo.gonzales@nexhrms.test",
-    department: "Operations",
-    job_title: "Field Technician",
-    work_type: "ONSITE",
-    salary: 28000,
-    join_date: "2024-01-10",
-    productivity: 85,
-    location: "Parañaque City",
-    phone: "+63 919 555 0004",
-    birthday: "1995-05-18",
-    pin: "400400",
-    status: "active",
-    address: "456 Don Bosco Street, BF Homes, Parañaque City 1720",
-    emergency_contact: "Lucia Gonzales (Wife) - +63 921 555 0004",
-    work_days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
-    pay_frequency: "semi_monthly",
-  },
-  "elena.tan@nexhrms.test": {
-    id: "EMP-PAY-005",
-    name: "Elena Marie Tan",
-    email: "elena.tan@nexhrms.test",
-    department: "Human Resources",
-    job_title: "HR Manager",
-    work_type: "HYBRID",
-    salary: 75000,
-    join_date: "2021-03-01",
-    productivity: 90,
-    location: "BGC Taguig",
-    phone: "+63 917 555 0005",
-    birthday: "1985-12-08",
-    pin: "500500",
-    status: "active",
-    address: "8th Avenue corner 26th Street, BGC, Taguig City 1634",
-    emergency_contact: "Michael Tan (Brother) - +63 922 555 0005",
-    work_days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    pay_frequency: "semi_monthly",
-  },
-  "roberto.aquino@nexhrms.test": {
-    id: "EMP-PAY-006",
-    name: "Roberto James Aquino",
-    email: "roberto.aquino@nexhrms.test",
-    department: "Engineering",
-    job_title: "Engineering Lead",
-    work_type: "HYBRID",
-    salary: 120000,
-    join_date: "2020-06-15",
-    productivity: 94,
-    location: "Makati City",
-    phone: "+63 918 555 0006",
-    birthday: "1983-07-25",
-    pin: "600600",
-    status: "active",
-    address: "Tower 2, Greenbelt Residences, Makati City 1223",
-    emergency_contact: "Cristina Aquino (Wife) - +63 923 555 0006",
-    work_days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    pay_frequency: "monthly",
-  },
-  "lisa.fernandez@nexhrms.test": {
-    id: "EMP-PAY-007",
-    name: "Lisa Marie Fernandez",
-    email: "lisa.fernandez@nexhrms.test",
-    department: "Marketing",
-    job_title: "Marketing Specialist",
-    work_type: "WFH",
-    salary: 45000,
-    join_date: "2023-11-01",
-    productivity: 82,
-    location: "Cebu City",
-    phone: "+63 917 555 0007",
-    birthday: "1994-09-14",
-    pin: "700700",
-    status: "active",
-    address: "Unit 502 IT Park Tower, Lahug, Cebu City 6000",
-    emergency_contact: "Carmen Fernandez (Mother) - +63 924 555 0007",
-    work_days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    pay_frequency: "semi_monthly",
-  },
-  "mark.delacruz@nexhrms.test": {
-    id: "EMP-PAY-008",
-    name: "Mark Anthony Dela Cruz",
-    email: "mark.delacruz@nexhrms.test",
-    department: "Sales",
-    job_title: "Sales Executive",
-    work_type: "ONSITE",
-    salary: 35000,
-    join_date: "2024-03-15",
-    productivity: 78,
-    location: "Alabang",
-    phone: "+63 919 555 0008",
-    birthday: "1996-02-28",
-    pin: "800800",
-    status: "active",
-    address: "Phase 3 Block 7, Filinvest Corporate City, Alabang 1781",
-    emergency_contact: "Sandra Dela Cruz (Sister) - +63 925 555 0008",
-    work_days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
-    pay_frequency: "semi_monthly",
-  },
-};
+const DEMO_EMPLOYEE_RECORDS: Record<string, DemoEmployeeRecord> = Object.fromEntries(
+  DEMO_USERS
+    .filter((user) => user.role === "employee")
+    .map((user) => {
+      const emp = employeeByEmail.get(user.email.toLowerCase());
+      if (!emp) return null;
+      const row: DemoEmployeeRecord = {
+        id: emp.id,
+        name: emp.name,
+        email: emp.email,
+        department: emp.department,
+        job_title: emp.jobTitle || "Employee",
+        work_type: emp.workType,
+        salary: emp.salary,
+        join_date: emp.joinDate,
+        productivity: emp.productivity,
+        location: emp.location,
+        phone: emp.phone || "",
+        birthday: emp.birthday || "",
+        pin: emp.pin || "",
+        status: emp.status,
+        team_leader: emp.teamLeader,
+        nfc_id: emp.nfcId,
+        biometric_id: emp.biometricId,
+        address: emp.address,
+        emergency_contact: emp.emergencyContact,
+        work_days: emp.workDays,
+        pay_frequency: emp.payFrequency,
+        whatsapp_number: emp.whatsappNumber,
+        preferred_channel: emp.preferredChannel,
+      };
+      return [user.email, row] as const;
+    })
+    .filter((entry): entry is readonly [string, DemoEmployeeRecord] => !!entry)
+);
 
 async function seedUsers() {
   console.log("🔄 Seeding demo users in Supabase...\n");
@@ -386,6 +223,7 @@ async function seedUsers() {
       email: empData.email,
       role: "employee",
       department: empData.department,
+      job_title: empData.job_title,
       status: empData.status,
       work_type: empData.work_type,
       salary: empData.salary,
@@ -394,13 +232,17 @@ async function seedUsers() {
       location: empData.location,
       phone: empData.phone,
       birthday: empData.birthday,
+      ...(empData.team_leader ? { team_leader: empData.team_leader } : {}),
       ...(empData.pin ? { pin: empData.pin } : {}),
+      ...(empData.nfc_id ? { nfc_id: empData.nfc_id } : {}),
+      ...(empData.biometric_id ? { biometric_id: empData.biometric_id } : {}),
       profile_id: profileId,
       ...(empData.address ? { address: empData.address } : {}),
       ...(empData.emergency_contact ? { emergency_contact: empData.emergency_contact } : {}),
       ...(empData.work_days ? { work_days: empData.work_days } : {}),
       ...(empData.pay_frequency ? { pay_frequency: empData.pay_frequency } : {}),
       ...(empData.whatsapp_number ? { whatsapp_number: empData.whatsapp_number } : {}),
+      ...(empData.preferred_channel ? { preferred_channel: empData.preferred_channel } : {}),
     }, { onConflict: "id" });
 
     if (empErr) {

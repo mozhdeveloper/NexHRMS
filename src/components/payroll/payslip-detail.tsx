@@ -80,22 +80,51 @@ export function PayslipDetail({ payslip, employeeName, onSign, onAcknowledge, op
 
                     {/* Breakdown */}
                     <div className="space-y-2 text-sm">
-                        <Row label="Gross Pay" value={formatCurrency(payslip.grossPay)} />
-                        <Row label="Allowances" value={formatCurrency(payslip.allowances)} />
+                        <Row label="Basic Pay" value={formatCurrency(payslip.grossPay)} />
+                        <Row label="Allowances / OT / Benefits" value={formatCurrency(payslip.allowances)} />
                         {payslip.holidayPay ? <Row label="Holiday Pay" value={formatCurrency(payslip.holidayPay)} /> : null}
                         <Separator />
                         <Row label="SSS" value={`-${formatCurrency(payslip.sssDeduction)}`} negative />
                         <Row label="PhilHealth" value={`-${formatCurrency(payslip.philhealthDeduction)}`} negative />
                         <Row label="Pag-IBIG" value={`-${formatCurrency(payslip.pagibigDeduction)}`} negative />
-                        <Row label="Tax" value={`-${formatCurrency(payslip.taxDeduction)}`} negative />
-                        <Row label="Loan Deduction" value={`-${formatCurrency(payslip.loanDeduction)}`} negative />
-                        <Row label="Other Deductions" value={`-${formatCurrency(payslip.otherDeductions)}`} negative />
+                        <Row label="Tax (BIR)" value={`-${formatCurrency(payslip.taxDeduction)}`} negative />
+                        {!!(payslip.loanDeduction) && <Row label="Loan Deduction" value={`-${formatCurrency(payslip.loanDeduction)}`} negative />}
+                        {!!(payslip.otherDeductions) && <Row label="Other Deductions" value={`-${formatCurrency(payslip.otherDeductions)}`} negative />}
+                        {!!(payslip.customDeductions) && <Row label="Custom Deductions" value={`-${formatCurrency(payslip.customDeductions)}`} negative />}
+                        {!!(payslip.lateDeduction) && <Row label="Late Penalty" value={`-${formatCurrency(payslip.lateDeduction)}`} negative />}
+                        {!!(payslip.absentDeduction) && <Row label="Absent Deduction" value={`-${formatCurrency(payslip.absentDeduction)}`} negative />}
+                        {!!(payslip.undertimeDeduction) && <Row label="Undertime Deduction" value={`-${formatCurrency(payslip.undertimeDeduction)}`} negative />}
                         <Separator />
                         <div className="flex justify-between font-semibold text-base">
                             <span>Net Pay</span>
                             <span className="text-emerald-600">{formatCurrency(payslip.netPay)}</span>
                         </div>
                     </div>
+
+                    {/* Attendance Summary */}
+                    {(payslip.attendanceDaysPresent !== undefined || payslip.attendanceDaysAbsent !== undefined || payslip.attendanceLateMinutes !== undefined) && (
+                        <div className="bg-muted/30 rounded-lg p-3 space-y-1.5">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Attendance Summary</p>
+                            {payslip.attendanceDaysPresent !== undefined && (
+                                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Days Present</span><span className="font-medium">{payslip.attendanceDaysPresent}</span></div>
+                            )}
+                            {!!(payslip.attendanceDaysAbsent) && (
+                                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Days Absent</span><span className="font-medium text-red-600">{payslip.attendanceDaysAbsent}</span></div>
+                            )}
+                            {!!(payslip.attendanceLateMinutes) && (
+                                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Late</span><span className="font-medium text-amber-600">{payslip.attendanceLateMinutes} min</span></div>
+                            )}
+                            {!!(payslip.attendanceUndertimeHours) && (
+                                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Undertime</span><span className="font-medium text-amber-600">{payslip.attendanceUndertimeHours.toFixed(1)} hrs</span></div>
+                            )}
+                            {payslip.dailyRate ? (
+                                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Daily Rate</span><span className="text-muted-foreground">{formatCurrency(payslip.dailyRate)}</span></div>
+                            ) : null}
+                            {payslip.hourlyRate ? (
+                                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Hourly Rate</span><span className="text-muted-foreground">{formatCurrency(payslip.hourlyRate)}</span></div>
+                            ) : null}
+                        </div>
+                    )}
 
                     {visibleNotes && (
                         <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">{visibleNotes}</p>
