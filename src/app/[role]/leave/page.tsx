@@ -10,10 +10,10 @@ export default function LeavePage() {
     return (
         <RoleViewDispatcher
             views={{
-                admin: () => <AdminLeaveView />,
-                hr: () => <AdminLeaveView />,
-                supervisor: () => <AdminLeaveView />,
-                employee: () => <EmployeeLeaveView />,
+                admin: AdminLeaveView,
+                hr: AdminLeaveView,
+                supervisor: AdminLeaveView,
+                employee: EmployeeLeaveView,
             }}
         />
     );
