@@ -249,7 +249,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
     // Proration metrics (calendar-day basis, per PH DOLE common practice)
     const prorationInfo = useMemo(() => {
         const nominalDays = differenceInCalendarDays(parseISO(naturalBounds.end), parseISO(naturalBounds.start)) + 1;
-        const actualDays  = differenceInCalendarDays(parseISO(cutoffDates.end), parseISO(cutoffDates.start)) + 1;
+        const actualDays = differenceInCalendarDays(parseISO(cutoffDates.end), parseISO(cutoffDates.start)) + 1;
         const factor = Math.min(1, actualDays / nominalDays);
         const isPartial = actualDays < nominalDays;
         const pct = Math.round(factor * 1000) / 10; // one decimal
@@ -1262,9 +1262,9 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                                 <TableCell>
                                                                     <Badge variant="secondary" className={`text-[10px] ${ps.status === "signed" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" :
                                                                         ps.status === "payment_hold" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" :
-                                                                        ps.status === "published" ? "bg-violet-500/15 text-violet-700 dark:text-violet-400" :
-                                                                            ps.status === "draft" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" :
-                                                                                "bg-slate-500/15 text-slate-700 dark:text-slate-400"
+                                                                            ps.status === "published" ? "bg-violet-500/15 text-violet-700 dark:text-violet-400" :
+                                                                                ps.status === "draft" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" :
+                                                                                    "bg-slate-500/15 text-slate-700 dark:text-slate-400"
                                                                         }`}>{ps.status === "payment_hold" ? "On Hold" : ps.status}</Badge>
                                                                 </TableCell>
                                                                 <TableCell>
@@ -1770,10 +1770,10 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                                 <TableCell>
                                                                     <Badge variant="secondary" className={`text-[10px] ${runStatus === "completed" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" :
                                                                         runStatus === "ended" ? "bg-orange-500/15 text-orange-700 dark:text-orange-400" :
-                                                                        runStatus === "locked" ? "bg-red-500/15 text-red-700 dark:text-red-400" :
-                                                                            runStatus === "published" ? "bg-violet-500/15 text-violet-700 dark:text-violet-400" :
-                                                                                runStatus === "draft" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" :
-                                                                                    "bg-slate-500/15 text-slate-700 dark:text-slate-400"
+                                                                            runStatus === "locked" ? "bg-red-500/15 text-red-700 dark:text-red-400" :
+                                                                                runStatus === "published" ? "bg-violet-500/15 text-violet-700 dark:text-violet-400" :
+                                                                                    runStatus === "draft" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" :
+                                                                                        "bg-slate-500/15 text-slate-700 dark:text-slate-400"
                                                                         }`}>{locked && <Lock className="h-3 w-3 mr-1 inline" />}{runStatus}</Badge>
                                                                 </TableCell>
                                                                 {canIssue && (
@@ -1847,51 +1847,51 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                                                         ? `${signedUnpaid} signed payslip${signedUnpaid !== 1 ? "s" : ""} not yet paid`
                                                                                         : `${draftCount} unpublished payslip${draftCount !== 1 ? "s" : ""}`;
                                                                                 return (
-                                                                                <AlertDialog>
-                                                                                    <AlertDialogTrigger asChild>
-                                                                                        <Button variant="ghost" size="icon" className={`h-7 w-7 ${canEnd ? "text-orange-500" : "text-muted-foreground/40 cursor-not-allowed"}`} title={endTitle} disabled={!canEnd}><Flag className="h-3.5 w-3.5" /></Button>
-                                                                                    </AlertDialogTrigger>
-                                                                                    <AlertDialogContent>
-                                                                                        <AlertDialogHeader>
-                                                                                            <AlertDialogTitle>End Payroll Cycle?</AlertDialogTitle>
-                                                                                            <AlertDialogDescription asChild>
-                                                                                                <div className="space-y-2 text-sm">
-                                                                                                    <p>This will end the cycle for <strong>{periodDisplay}</strong>.</p>
-                                                                                                    {draftCount > 0 && (
-                                                                                                        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-amber-800 dark:text-amber-300">
-                                                                                                            <p className="font-semibold mb-1">⚠ Draft payslips still exist</p>
-                                                                                                            {zeroDeductionCount > 0 ? (
-                                                                                                                <p><strong>{zeroDeductionCount}</strong> of the {draftCount} draft payslip{draftCount !== 1 ? "s" : ""} still have <strong>₱0 government deductions</strong> (SSS, PhilHealth, Pag-IBIG, BIR Tax).</p>
-                                                                                                            ) : (
-                                                                                                                <p><strong>{draftCount}</strong> draft payslip{draftCount !== 1 ? "s" : ""} are not yet published. Consider publishing before ending the cycle.</p>
-                                                                                                            )}
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                    {unsCount > 0 && (
-                                                                                                        <p className="text-amber-600 dark:text-amber-400">
-                                                                                                            ⚠ {unsCount} unsigned employee{unsCount !== 1 ? "s" : ""} will be automatically placed on hold.
-                                                                                                        </p>
-                                                                                                    )}
-                                                                                                    <p className="text-xs text-muted-foreground">After ending, on-hold employees can still sign and be approved. The run can then be marked as complete.</p>
-                                                                                                </div>
-                                                                                            </AlertDialogDescription>
-                                                                                        </AlertDialogHeader>
-                                                                                        <AlertDialogFooter>
-                                                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                                            <AlertDialogAction onClick={() => {
-                                                                                                payslips
-                                                                                                    .filter((p) => (runObj?.payslipIds ?? []).includes(p.id) && p.status === "published" && !p.signedAt)
-                                                                                                    .forEach((p) => {
-                                                                                                        holdPayment(p.id);
-                                                                                                        dispatchNotification("payslip_on_hold", { name: getEmpName(p.employeeId), period: `${p.periodStart} - ${p.periodEnd}`, reason: "Late compliance to payroll submission. Please coordinate with the payroll team to resolve this issue." }, p.employeeId);
-                                                                                                    });
-                                                                                                endRun(run.date);
-                                                                                                useAuditStore.getState().log({ entityType: "payroll_run", entityId: run.date, action: "payroll_ended", performedBy: currentUser.id });
-                                                                                                toast.success("Payroll cycle ended");
-                                                                                            }}>End Cycle</AlertDialogAction>
-                                                                                        </AlertDialogFooter>
-                                                                                    </AlertDialogContent>
-                                                                                </AlertDialog>
+                                                                                    <AlertDialog>
+                                                                                        <AlertDialogTrigger asChild>
+                                                                                            <Button variant="ghost" size="icon" className={`h-7 w-7 ${canEnd ? "text-orange-500" : "text-muted-foreground/40 cursor-not-allowed"}`} title={endTitle} disabled={!canEnd}><Flag className="h-3.5 w-3.5" /></Button>
+                                                                                        </AlertDialogTrigger>
+                                                                                        <AlertDialogContent>
+                                                                                            <AlertDialogHeader>
+                                                                                                <AlertDialogTitle>End Payroll Cycle?</AlertDialogTitle>
+                                                                                                <AlertDialogDescription asChild>
+                                                                                                    <div className="space-y-2 text-sm">
+                                                                                                        <p>This will end the cycle for <strong>{periodDisplay}</strong>.</p>
+                                                                                                        {draftCount > 0 && (
+                                                                                                            <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-amber-800 dark:text-amber-300">
+                                                                                                                <p className="font-semibold mb-1">⚠ Draft payslips still exist</p>
+                                                                                                                {zeroDeductionCount > 0 ? (
+                                                                                                                    <p><strong>{zeroDeductionCount}</strong> of the {draftCount} draft payslip{draftCount !== 1 ? "s" : ""} still have <strong>₱0 government deductions</strong> (SSS, PhilHealth, Pag-IBIG, BIR Tax).</p>
+                                                                                                                ) : (
+                                                                                                                    <p><strong>{draftCount}</strong> draft payslip{draftCount !== 1 ? "s" : ""} are not yet published. Consider publishing before ending the cycle.</p>
+                                                                                                                )}
+                                                                                                            </div>
+                                                                                                        )}
+                                                                                                        {unsCount > 0 && (
+                                                                                                            <p className="text-amber-600 dark:text-amber-400">
+                                                                                                                ⚠ {unsCount} unsigned employee{unsCount !== 1 ? "s" : ""} will be automatically placed on hold.
+                                                                                                            </p>
+                                                                                                        )}
+                                                                                                        <p className="text-xs text-muted-foreground">After ending, on-hold employees can still sign and be approved. The run can then be marked as complete.</p>
+                                                                                                    </div>
+                                                                                                </AlertDialogDescription>
+                                                                                            </AlertDialogHeader>
+                                                                                            <AlertDialogFooter>
+                                                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                                                <AlertDialogAction onClick={() => {
+                                                                                                    payslips
+                                                                                                        .filter((p) => (runObj?.payslipIds ?? []).includes(p.id) && p.status === "published" && !p.signedAt)
+                                                                                                        .forEach((p) => {
+                                                                                                            holdPayment(p.id);
+                                                                                                            dispatchNotification("payslip_on_hold", { name: getEmpName(p.employeeId), period: `${p.periodStart} - ${p.periodEnd}`, reason: "Late compliance to payroll submission. Please coordinate with the payroll team to resolve this issue." }, p.employeeId);
+                                                                                                        });
+                                                                                                    endRun(run.date);
+                                                                                                    useAuditStore.getState().log({ entityType: "payroll_run", entityId: run.date, action: "payroll_ended", performedBy: currentUser.id });
+                                                                                                    toast.success("Payroll cycle ended");
+                                                                                                }}>End Cycle</AlertDialogAction>
+                                                                                            </AlertDialogFooter>
+                                                                                        </AlertDialogContent>
+                                                                                    </AlertDialog>
                                                                                 );
                                                                             })()}
                                                                             {/* Mark as Complete — final step, unlocks Run Payroll */}
