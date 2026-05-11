@@ -14,7 +14,7 @@ import { useAppearanceStore } from "@/store/appearance.store";
 import { useMessagingStore } from "@/store/messaging.store";
 import { useNotificationsStore } from "@/store/notifications.store";
 import { useProjectsStore } from "@/store/projects.store";
-import { NAV_ITEMS } from "@/lib/constants";
+import { NAV_ITEMS, NAV_GROUPS } from "@/lib/constants";
 import {
     LayoutDashboard,
     Users,
@@ -43,6 +43,13 @@ import {
     QrCode,
     ScanFace,
     UserCircle,
+    Landmark,
+    ReceiptText,
+    ShieldCheck,
+    Paintbrush,
+    Calculator,
+    FolderArchive,
+    Gavel,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEffect, useMemo, useCallback, memo } from "react";
@@ -58,6 +65,13 @@ const iconMap: Record<string, React.ElementType> = {
     CalendarOff,
     Wallet,
     Banknote,
+    Landmark,
+    ReceiptText,
+    ShieldCheck,
+    Paintbrush,
+    Calculator,
+    FolderArchive,
+    Gavel,
     BarChart3,
     Settings,
     Bell,
@@ -177,6 +191,22 @@ function SidebarComponent() {
         return { systemItems };
     }, [role, hasPermission, modules, navOverrides, hasFaceProject]);
 
+    // Split filtered items into top-level (no group) and section groups
+    const groupedNav = useMemo(() => {
+        const topLevel = filtered.systemItems.filter((item) => !item.group);
+        const sectionMap = new Map<string, typeof filtered.systemItems>();
+        for (const item of filtered.systemItems) {
+            if (item.group) {
+                if (!sectionMap.has(item.group)) sectionMap.set(item.group, []);
+                sectionMap.get(item.group)!.push(item);
+            }
+        }
+        const sections = NAV_GROUPS
+            .filter((g) => sectionMap.has(g.key))
+            .map((g) => ({ ...g, items: sectionMap.get(g.key)! }));
+        return { topLevel, sections };
+    }, [filtered.systemItems]);
+
     // Build role-prefixed paths
     const rolePrefix = `/${role}`;
 
@@ -195,7 +225,69 @@ function SidebarComponent() {
     }, [setMobileSidebarOpen]);
 
     /* ---------- Shared navigation content ---------- */
-    const navContent = (showLabel: boolean, isMobile: boolean) => (
+    const navContent = (showLabel: boolean, isMobile: boolean) => {
+        const collapsed = !showLabel && !isMobile;
+
+        // Renders a single nav link row
+        const renderNavItem = (item: (typeof filtered.systemItems)[number]) => {
+            const Icon = iconMap[item.icon];
+            const fullHref = item.absolute ? item.href : `${rolePrefix}${item.href}`;
+            const exactMatch = pathname === fullHref;
+            const prefixMatch = pathname.startsWith(fullHref + "/");
+            const moreSpecificExists = prefixMatch && filtered.systemItems.some(
+                (other) =>
+                    other.href !== item.href &&
+                    (pathname === `${rolePrefix}${other.href}` ||
+                        pathname.startsWith(`${rolePrefix}${other.href}/`)) &&
+                    other.href.startsWith(item.href)
+            );
+            const isActive = exactMatch || (prefixMatch && !moreSpecificExists);
+
+            return (
+                <Tooltip key={item.href}>
+                    <TooltipTrigger asChild>
+                        <Link
+                            href={fullHref}
+                            className={cn(
+                                "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
+                                collapsed
+                                    ? "h-10 w-10 mx-auto justify-center"
+                                    : "gap-3 px-3 py-2",
+                                isActive
+                                    ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+                                    : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                            )}
+                        >
+                            {Icon && <Icon className="h-[18px] w-[18px] shrink-0" />}
+                            {!collapsed && <span className="truncate">{item.label}</span>}
+                            {/* Badge counts — expanded mode */}
+                            {!collapsed && item.href === "/messages" && totalUnreadMsgs > 0 && (
+                                <span className="ml-auto text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 rounded-full px-2 py-0.5 min-w-[20px] text-center border border-blue-200/50 dark:border-blue-800/30 shadow-sm leading-none">
+                                    {totalUnreadMsgs}
+                                </span>
+                            )}
+                            {!collapsed && item.href === "/notifications" && totalUnreadNotifications > 0 && (
+                                <span className="ml-auto text-[10px] font-semibold bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 rounded-full px-2 py-0.5 min-w-[20px] text-center border border-rose-200/50 dark:border-rose-800/30 shadow-sm leading-none">
+                                    {totalUnreadNotifications}
+                                </span>
+                            )}
+                            {/* Dot indicators — collapsed mode */}
+                            {collapsed && item.href === "/messages" && totalUnreadMsgs > 0 && (
+                                <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-blue-500 ring-1 ring-background" />
+                            )}
+                            {collapsed && item.href === "/notifications" && totalUnreadNotifications > 0 && (
+                                <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-rose-500 ring-1 ring-background" />
+                            )}
+                        </Link>
+                    </TooltipTrigger>
+                    {collapsed && (
+                        <TooltipContent side="right" sideOffset={8}>{item.label}</TooltipContent>
+                    )}
+                </Tooltip>
+            );
+        };
+
+        return (
         <>
             {/* Logo */}
             <div className={cn("flex h-16 items-center px-4", showLabel || isMobile ? "justify-between" : "justify-center")}>
@@ -245,61 +337,29 @@ function SidebarComponent() {
 
             {/* Navigation */}
             <TooltipProvider delayDuration={600} disableHoverableContent>
-            <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto thin-scrollbar">
-                {filtered.systemItems.map((item) => {
-                    const Icon = iconMap[item.icon];
-                    const fullHref = item.absolute ? item.href : `${rolePrefix}${item.href}`;
-                    const exactMatch = pathname === fullHref;
-                    const prefixMatch = pathname.startsWith(fullHref + "/");
-                    const moreSpecificExists = prefixMatch && filtered.systemItems.some(
-                        (other) => other.href !== item.href && (pathname === `${rolePrefix}${other.href}` || pathname.startsWith(`${rolePrefix}${other.href}/`)) && other.href.startsWith(item.href)
-                    );
-                    const isActive = exactMatch || (prefixMatch && !moreSpecificExists);
-                    const collapsed = !showLabel && !isMobile;
-                    return (
-                        <Tooltip key={item.href}>
-                            <TooltipTrigger asChild>
-                                <Link
-                                    href={fullHref}
-                                    className={cn(
-                                        "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
-                                        collapsed
-                                            ? "h-10 w-10 mx-auto justify-center"
-                                            : "gap-3 px-3 py-2.5",
-                                        isActive
-                                            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
-                                            : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                                    )}
-                                >
-                                    {Icon && <Icon className="h-5 w-5 shrink-0" />}
-                                    {!collapsed && <span className="truncate">{item.label}</span>}
-                                    {/* Badge counts — expanded mode */}
-                                    {!collapsed && item.href === "/messages" && totalUnreadMsgs > 0 && (
-                                        <span className="ml-auto text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 rounded-full px-2 py-0.5 min-w-[20px] text-center border border-blue-200/50 dark:border-blue-800/30 shadow-sm leading-none">
-                                            {totalUnreadMsgs}
-                                        </span>
-                                    )}
-                                    {!collapsed && item.href === "/notifications" && totalUnreadNotifications > 0 && (
-                                        <span className="ml-auto text-[10px] font-semibold bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 rounded-full px-2 py-0.5 min-w-[20px] text-center border border-rose-200/50 dark:border-rose-800/30 shadow-sm leading-none">
-                                            {totalUnreadNotifications}
-                                        </span>
-                                    )}
-                                    {/* Dot indicators — collapsed mode */}
-                                    {collapsed && item.href === "/messages" && totalUnreadMsgs > 0 && (
-                                        <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-blue-500 ring-1 ring-background" />
-                                    )}
-                                    {collapsed && item.href === "/notifications" && totalUnreadNotifications > 0 && (
-                                        <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-rose-500 ring-1 ring-background" />
-                                    )}
-                                </Link>
-                            </TooltipTrigger>
-                            {collapsed && (
-                                <TooltipContent side="right" sideOffset={8}>{item.label}</TooltipContent>
-                            )}
-                        </Tooltip>
-                    );
-                })}
+            <nav className="flex-1 px-3 py-3 overflow-y-auto thin-scrollbar space-y-0.5">
+                {/* Top-level items (Dashboard, My Profile) */}
+                {groupedNav.topLevel.map(renderNavItem)}
 
+                {/* Grouped sections */}
+                {groupedNav.sections.map((section) => (
+                    <div key={section.key}>
+                        {/* Section divider */}
+                        <div className={cn(
+                            "border-t border-sidebar-border/40 mt-3",
+                            collapsed ? "mb-2 mx-1" : "mb-1 mx-0"
+                        )} />
+                        {/* Section label — hidden in collapsed icon-only mode */}
+                        {!collapsed && (
+                            <p className="px-2 pb-1 text-[10px] font-semibold tracking-widest uppercase text-sidebar-foreground/40 select-none">
+                                {section.label}
+                            </p>
+                        )}
+                        <div className="space-y-0.5">
+                            {section.items.map(renderNavItem)}
+                        </div>
+                    </div>
+                ))}
             </nav>
             </TooltipProvider>
 
@@ -348,7 +408,8 @@ function SidebarComponent() {
                 </button>
             )}
         </>
-    );
+        );
+    };
 
     return (
         <>

@@ -90,7 +90,10 @@ export type AuditAction =
   | "mark_absent" | "bulk_mark_absent"
   | "task_created" | "task_assigned" | "task_completed" | "task_verified" | "task_rejected"
   | "tag_created" | "tag_updated" | "tag_deleted"
-  | "announcement_sent" | "channel_created";
+  | "announcement_sent" | "channel_created"
+  | "doc_uploaded" | "doc_approved" | "doc_rejected" | "doc_archived"
+  | "case_created" | "nte_issued" | "nte_acknowledged" | "nte_explained"
+  | "nod_issued" | "nod_acknowledged" | "case_closed";
 
 // ─── Holiday Type ────────────────────────────────────────────
 
@@ -115,6 +118,113 @@ export interface EmployeeDocument {
   uploadedAt: string;
   fileUrl?: string;
   fileType?: string;
+}
+
+// ─── 201 File Document Center ────────────────────────────────
+
+export type Employee201DocType =
+  | "personal_info" | "employment_contract" | "government_id"
+  | "resume" | "application_form" | "job_offer" | "medical"
+  | "training_certificate" | "performance_evaluation"
+  | "payslip" | "leave_record" | "warning" | "nte" | "nod"
+  | "clearance" | "resignation_letter" | "coe"
+  | "final_pay_document" | "other";
+
+export type Document201Status =
+  | "pending_upload" | "uploaded" | "for_review" | "approved"
+  | "rejected" | "expired" | "archived";
+
+export type Document201Visibility =
+  | "hr_only" | "manager" | "employee" | "payroll" | "admin_only";
+
+export interface Employee201Document {
+  id: string;
+  employeeId: string;
+  documentType: Employee201DocType;
+  documentTitle: string;
+  filePath?: string;
+  fileType?: string;
+  fileSize?: number;
+  status: Document201Status;
+  visibility: Document201Visibility;
+  expiryDate?: string;
+  remarks?: string;
+  uploadedBy?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  caseId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Disciplinary (NTE / NOD) ────────────────────────────────
+
+export type DisciplinaryCaseStatus =
+  | "open" | "nte_issued" | "nte_acknowledged" | "explanation_submitted"
+  | "no_response" | "under_review" | "nod_issued" | "nod_acknowledged"
+  | "sanction_active" | "closed";
+
+export interface DisciplinaryCase {
+  id: string;
+  caseNumber: string;
+  employeeId: string;
+  violationType: string;
+  policyReference?: string;
+  incidentDate: string;
+  incidentLocation?: string;
+  description: string;
+  evidenceUrls: string[];
+  status: DisciplinaryCaseStatus;
+  assignedHr?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type NTEStatus =
+  | "draft" | "issued" | "acknowledged" | "explanation_submitted"
+  | "no_response" | "under_review" | "closed" | "moved_to_nod";
+
+export interface NTERecord {
+  id: string;
+  caseId: string;
+  employeeId: string;
+  responseDeadline: string;
+  documentId?: string;
+  issuedBy: string;
+  issuedAt: string;
+  acknowledgedAt?: string;
+  employeeExplanation?: string;
+  explanationSubmittedAt?: string;
+  status: NTEStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type NODDecision =
+  | "no_violation" | "verbal_warning" | "written_warning"
+  | "final_warning" | "suspension" | "termination"
+  | "salary_deduction" | "training_required" | "pip";
+
+export type NODStatus =
+  | "draft" | "issued" | "acknowledged" | "sanction_active" | "completed" | "closed";
+
+export interface NODRecord {
+  id: string;
+  caseId: string;
+  employeeId: string;
+  decision: NODDecision;
+  sanctionStartDate?: string;
+  sanctionEndDate?: string;
+  returnToWorkDate?: string;
+  decisionDetails: string;
+  documentId?: string;
+  issuedBy: string;
+  issuedAt: string;
+  acknowledgedAt?: string;
+  status: NODStatus;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── Job Title ───────────────────────────────────────────────
