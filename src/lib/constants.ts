@@ -157,6 +157,7 @@ export const NAV_ITEMS: {
             icon: "FolderArchive",
             roles: ["admin", "hr", "auditor"],
             permission: "page:employees",
+            moduleFlag: "documentCenter",
             group: "hr",
         },
         {
@@ -173,6 +174,7 @@ export const NAV_ITEMS: {
             icon: "Briefcase",
             roles: ["admin", "hr"],
             permission: "page:jobs",
+            moduleFlag: "jobs",
             group: "hr",
         },
         {
@@ -301,6 +303,7 @@ export const NAV_ITEMS: {
             icon: "ReceiptText",
             roles: ["admin", "finance", "payroll_admin"],
             permission: "payroll:view_all",
+            moduleFlag: "birCompliance",
             group: "payroll",
         },
 

@@ -169,6 +169,10 @@ export interface ModuleFlags {
   tasks: boolean;
   messages: boolean;
   events: boolean;
+  // ── Premium / unpaid features (hidden until client upgrades) ──────────────
+  jobs: boolean;
+  birCompliance: boolean;
+  documentCenter: boolean;
 }
 
 export const DEFAULT_MODULE_FLAGS: ModuleFlags = {
@@ -187,6 +191,10 @@ export const DEFAULT_MODULE_FLAGS: ModuleFlags = {
   tasks: true,
   messages: true,
   events: true,
+  // ── Premium / unpaid features (off by default) ────────────────────────────
+  jobs: false,
+  birCompliance: false,
+  documentCenter: false,
 };
 
 export const MODULE_INFO: Record<keyof ModuleFlags, { label: string; description: string; icon: string }> = {
@@ -205,6 +213,10 @@ export const MODULE_INFO: Record<keyof ModuleFlags, { label: string; description
   tasks: { label: "Task Management", description: "Task groups, assignments, photo & GPS proof", icon: "ListTodo" },
   messages: { label: "Messaging Hub", description: "Channels, announcements, multi-channel messaging", icon: "MessageSquare" },
   events: { label: "Events & Meetings", description: "Company events, meetings, calendar management", icon: "Calendar" },
+  // ── Premium / unpaid features ─────────────────────────────────────────────
+  jobs: { label: "Jobs / Talent Acquisition", description: "Job postings, applications, and hiring pipeline", icon: "Briefcase" },
+  birCompliance: { label: "BIR Compliance (Alphalist)", description: "BIR alphalist generation and tax compliance reports", icon: "ReceiptText" },
+  documentCenter: { label: "Document Center (201 Files)", description: "Employee 201 file management and document storage", icon: "FolderArchive" },
 };
 
 // ─── Navigation Overrides ─────────────────────────────────────────────────────
