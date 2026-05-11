@@ -263,7 +263,7 @@ export default function EmployeeView() {
 
     // ─── Check-out state ──────────────────────────────────────────
     const [checkOutOpen, setCheckOutOpen] = useState(false);
-    const [checkOutStep, setCheckOutStep] = useState<"idle" | "verifying" | "done">("idle");
+    const [checkOutStep, setCheckOutStep] = useState<"idle" | "locating" | "verifying" | "done">("idle");
 
     // ─── OT state ─────────────────────────────────────────────────
     const [otOpen, setOtOpen] = useState(false);
@@ -944,28 +944,62 @@ export default function EmployeeView() {
                 <DialogContent className="max-w-sm w-[calc(100vw-2rem)] max-h-[90dvh] flex flex-col p-0">
                     <DialogHeader className="px-4 pt-4 pb-2 shrink-0"><DialogTitle className="flex items-center gap-2"><LogOut className="h-5 w-5" /> Check Out</DialogTitle></DialogHeader>
                     <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4">
-                        {checkOutStep === "idle" && (<>
-                            {myProject?.verificationMethod === "qr_only" ? (
-                                <div className="pt-1">
-                                    <p className="text-xs text-muted-foreground text-center mb-3">Scan the project QR code to check out</p>
-                                    <ProjectQrScanner
-                                        onScanned={handleProjectQrCheckout}
-                                        onCancel={() => setCheckOutOpen(false)}
-                                    />
-                                </div>
-                            ) : (
-                                <div className="pt-1">
-                                    <p className="text-xs text-muted-foreground text-center mb-3">Verify your identity to check out</p>
-                                    <RealFaceVerification
-                                        onVerified={handleCheckOutFaceVerified}
-                                        autoStart
-                                        employeeId={myEmployeeId}
-                                        employeeName={currentUser.name}
-                                        required={myProject?.verificationMethod === "face_only"}
-                                    />
-                                </div>
-                            )}
-                        </>)}
+                        {checkOutStep === "idle" && myProject?.verificationMethod === "qr_only" && (
+                            <Card className="border border-border/50">
+                                <CardContent className="p-6 flex flex-col items-center gap-3">
+                                    <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center"><Navigation className="h-8 w-8 text-blue-500" /></div>
+                                    <p className="text-sm font-medium">Step 1: Share Location</p>
+                                    <p className="text-xs text-muted-foreground text-center">
+                                        Verify your location before checking out
+                                    </p>
+                                    <Button onClick={() => {
+                                        setCheckOutStep("locating");
+                                        navigator.geolocation.getCurrentPosition(
+                                            (pos) => {
+                                                setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                                                setCheckOutStep("verifying");
+                                            },
+                                            (err) => {
+                                                const msg = err.code === err.PERMISSION_DENIED ? "Location access denied." : err.code === err.TIMEOUT ? "Location request timed out." : "Unable to retrieve location.";
+                                                toast.error(msg);
+                                                setCheckOutStep("idle");
+                                            },
+                                            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                                        );
+                                    }} className="gap-1.5 mt-1"><MapPin className="h-4 w-4" /> Share My Location</Button>
+                                </CardContent>
+                            </Card>
+                        )}
+                        {checkOutStep === "locating" && (
+                            <Card className="border border-border/50">
+                                <CardContent className="p-6 flex flex-col items-center gap-3">
+                                    <div className="h-12 w-12 rounded-full border-4 border-blue-500/30 border-t-blue-500 animate-spin" />
+                                    <p className="text-sm font-medium">Getting your location...</p>
+                                    <p className="text-xs text-muted-foreground">Please allow location access</p>
+                                </CardContent>
+                            </Card>
+                        )}
+                        {checkOutStep === "verifying" && myProject?.verificationMethod === "qr_only" && (
+                            <div className="pt-1">
+                                <p className="text-xs text-muted-foreground text-center mb-3">Step 2: Scan the project QR code to check out</p>
+                                <ProjectQrScanner
+                                    onScanned={handleProjectQrCheckout}
+                                    onCancel={() => setCheckOutOpen(false)}
+                                />
+                            </div>
+                        )}
+                        {checkOutStep === "idle" && myProject?.verificationMethod !== "qr_only" && (
+                            <div className="pt-1">
+                                <p className="text-xs text-muted-foreground text-center mb-3">Verify your identity to check out</p>
+                                <RealFaceVerification
+                                    onVerified={handleCheckOutFaceVerified}
+                                    autoStart
+                                    employeeId={myEmployeeId}
+                                    employeeName={currentUser.name}
+                                    required={myProject?.verificationMethod === "face_only"}
+                                />
+                            </div>
+                        )}
                         {checkOutStep === "done" && (
                             <Card className="border border-emerald-500/30 bg-emerald-500/5">
                                 <CardContent className="p-6 flex flex-col items-center gap-3">
