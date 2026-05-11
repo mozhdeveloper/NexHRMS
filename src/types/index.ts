@@ -245,6 +245,16 @@ export interface Employee {
   deductionExempt?: boolean;       // true = skip ALL government deductions (contract-based employees)
   deductionExemptReason?: string;  // reason for exemption (e.g., "Contract-based", "Minimum wage earner")
   notificationPreferences?: Record<string, boolean>; // per-employee notification opt-outs (from DB jsonb column)
+  // ─── BIR Compliance (migration 056) ──
+  tin?: string;                                  // 12-digit BIR TIN (NNN-NNN-NNN-NNN)
+  employmentClassification?: BIREmploymentClassification;
+  isMWE?: boolean;
+  mweDailyRate?: number;
+  substitutedFiling?: boolean;                   // employer files in lieu of 1700
+  taxStatus?: BIRTaxStatus;
+  taxResidency?: BIRTaxResidency;
+  separationDate?: string;
+  separationType?: BIRSeparationType;
   createdAt?: string;     // ISO timestamptz from DB
   updatedAt?: string;     // ISO timestamptz from DB
 }
@@ -574,6 +584,17 @@ export interface Payslip {
   overtimePay?: number;          // auto: ot_hours * hourly_rate * multiplier
   dailyRate?: number;            // snapshot at issuance
   hourlyRate?: number;           // snapshot at issuance
+  // ─── Attendance snapshot (for receipt display) ──
+  attendanceDaysPresent?: number;    // # of present logs in period
+  attendanceDaysAbsent?: number;     // # of absent logs in period
+  attendanceLateMinutes?: number;    // total late minutes in period
+  attendanceUndertimeHours?: number; // total undertime hours in period (shift - actual)
+  // ─── Gross override ──
+  grossOverrideApplied?: boolean;    // true when admin manually overrode gross for this payslip
+  // ─── BIR Compliance (migration 056) ──
+  taxCategories?: TaxCategoryBreakdown;          // BIR earnings categorization
+  taxableCompensation?: number;                  // taxable total this period
+  nonTaxableCompensation?: number;               // non-taxable total this period
 }
 
 export interface PolicySnapshot {
@@ -1148,3 +1169,213 @@ export interface FaceVerificationResult {
 }
 
 // Project interface is defined above (line ~681) with all verification fields included.
+
+// ─── BIR Compliance Engine ───────────────────────────────────
+// Types backing migration 056 + bir_alphalist.md plan.
+
+export type BIREmploymentClassification = "R" | "C" | "CP" | "S" | "P" | "AL";
+export type BIRTaxStatus = "S" | "M" | "ME" | "MX";
+export type BIRTaxResidency = "resident" | "non_resident";
+export type BIRSeparationType = "resigned" | "terminated" | "end_of_contract";
+export type AnnualTaxStatus = "open" | "reconciled" | "finalized" | "exported";
+export type AnnualTaxAdjustmentType = "over_withheld" | "under_withheld" | "balanced";
+export type Form2316Status = "draft" | "for_signature" | "released" | "downloaded" | "revoked";
+export type AlphalistScheduleType = "schedule_1" | "schedule_2" | "both";
+export type AlphalistExportFormat = "csv" | "xlsx" | "dat";
+export type AlphalistValidationStatus = "passed" | "has_warnings" | "has_errors";
+export type EFPSStatus = "draft" | "validated" | "ready" | "submitted" | "payment_pending" | "paid" | "completed";
+
+/**
+ * BIR earnings categorization on a single payslip.
+ * Persisted in payslips.tax_categories (jsonb).
+ */
+export interface TaxCategoryBreakdown {
+  // Basic compensation
+  basicPay: number;                      // taxable basic salary
+  mweBasic: number;                      // basic exempt under MWE rules
+
+  // Time-based earnings
+  overtimePay: number;                   // taxable OT
+  mweOvertimePay: number;                // OT exempt under MWE
+  holidayPay: number;                    // taxable holiday
+  mweHolidayPay: number;                 // holiday exempt under MWE
+  nightDiff: number;                     // taxable night-diff
+  mweNightDiff: number;                  // exempt under MWE
+  hazardPay: number;                     // taxable hazard
+  mweHazardPay: number;                  // exempt under MWE
+
+  // 13th month + bonuses (₱90k ceiling under TRAIN)
+  thirteenthMonth: number;               // total 13th month + Christmas bonus
+  thirteenthMonthTaxable: number;        // amount above ₱90k ceiling
+  thirteenthMonthNonTaxable: number;     // up to ₱90k
+
+  // De minimis benefits (RR 11-2018)
+  deMinimisRiceSubsidy: number;          // up to ₱2,000/month
+  deMinimisMedicalAllowance: number;     // up to ₱1,500/qtr
+  deMinimisLaundryAllowance: number;     // up to ₱300/month
+  deMinimisUniformAllowance: number;     // up to ₱6,000/yr
+  deMinimisMealAllowance: number;        // up to 25% of basic min wage
+  deMinimisOther: number;
+  deMinimisExcess: number;               // amount above caps → taxable
+
+  // Allowances / fringe
+  taxableAllowances: number;             // fully taxable allowances
+  nonTaxableAllowances: number;
+
+  // Government statutory contributions (employee share — non-taxable)
+  sssContribution: number;
+  philhealthContribution: number;
+  pagibigContribution: number;
+  unionDues: number;
+
+  // Tax computed
+  withholdingTax: number;                // BIR tax withheld this period
+
+  // Roll-up totals (precomputed for convenience)
+  taxableTotal: number;                  // sum of taxable items
+  nonTaxableTotal: number;               // sum of non-taxable items + MWE exempt + de minimis within cap
+}
+
+/** Per-employee BIR profile (1:1 with employees). */
+export interface EmployeeTaxProfile {
+  id: string;
+  employeeId: string;
+  tin?: string;                          // 12-digit (NNN-NNN-NNN-NNN)
+  employmentClassification: BIREmploymentClassification;
+  isMWE: boolean;
+  mweDailyRate?: number;
+  substitutedFiling: boolean;
+  taxStatus: BIRTaxStatus;
+  taxResidency: BIRTaxResidency;
+  prevEmployerTin?: string;
+  prevEmployerName?: string;
+  prevIncome?: number;
+  prevTaxWithheld?: number;
+  prev2316Received: boolean;
+  separationDate?: string;
+  separationType?: BIRSeparationType;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Annual aggregated taxable summary used to issue Form 2316. */
+export interface AnnualTaxSummary {
+  id: string;
+  employeeId: string;
+  year: number;
+  totalTaxableComp: number;
+  totalNonTaxableComp: number;
+  totalDeMinimis: number;
+  totalSSS: number;
+  totalPhilHealth: number;
+  totalPagIBIG: number;
+  total13thNonTaxable: number;           // up to ₱90k
+  total13thTaxable: number;              // excess above ₱90k
+  totalOtherBenefits: number;
+  totalTaxWithheld: number;
+  prevEmployerIncome: number;            // copied from PreviousEmployerRecord(s)
+  prevEmployerTax: number;
+  annualTaxDue?: number;                 // computed via annual TRAIN brackets
+  adjustmentType?: AnnualTaxAdjustmentType;
+  adjustmentAmount?: number;             // signed: + = under-withheld owed; - = over-withheld refund
+  status: AnnualTaxStatus;
+  finalizedAt?: string;
+  finalizedBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Previous employer income record (mid-year hires). */
+export interface PreviousEmployerRecord {
+  id: string;
+  employeeId: string;
+  year: number;
+  employerName: string;
+  employerTin?: string;
+  employerAddress?: string;
+  totalIncome: number;
+  totalTaxWithheld: number;
+  reference2316?: string;                // BIR Form 2316 reference number
+  submittedAt: string;
+  submittedBy?: string;
+  createdAt: string;
+}
+
+/** BIR Form 2316 issuance record. */
+export interface Form2316Record {
+  id: string;
+  employeeId: string;
+  year: number;
+  annualSummaryId?: string;
+  generatedAt: string;
+  generatedBy?: string;
+  employerSignedAt?: string;
+  employerSignedBy?: string;
+  employerSignatureUrl?: string;
+  employeeSignedAt?: string;
+  employeeSignatureUrl?: string;
+  pdfUrl?: string;
+  documentHash?: string;                 // SHA-256 of the rendered PDF for tamper-detection
+  status: Form2316Status;
+  releasedAt?: string;
+  downloadedAt?: string;
+  downloadedBy?: string;
+  revokedAt?: string;
+  revokedBy?: string;
+  revokeReason?: string;
+  createdAt: string;
+}
+
+/** Alphalist export header / metadata. */
+export interface AlphalistExport {
+  id: string;
+  year: number;
+  scheduleType: AlphalistScheduleType;
+  generatedAt: string;
+  generatedBy?: string;
+  employeeCount: number;
+  totalTaxableComp: number;
+  totalTaxWithheld: number;
+  validationStatus: AlphalistValidationStatus;
+  validationErrors?: BIRValidationIssue[];
+  exportFormat: AlphalistExportFormat;
+  fileUrl?: string;
+  efpsStatus: EFPSStatus;
+  submittedAt?: string;
+  submittedBy?: string;
+  createdAt: string;
+}
+
+/** Validation finding emitted by BIR validators. */
+export interface BIRValidationIssue {
+  severity: "error" | "warning" | "info";
+  code: string;                          // machine code e.g. "TIN_MISSING"
+  message: string;                       // human-readable
+  employeeId?: string;
+  field?: string;
+  value?: unknown;
+  suggestedFix?: string;
+}
+
+/** Single row in Alphalist Schedule 1 (active employees). */
+export interface AlphalistRow {
+  sequenceNumber: number;
+  tin: string;
+  lastName: string;
+  firstName: string;
+  middleName: string;
+  employmentClassification: BIREmploymentClassification;
+  taxStatus: BIRTaxStatus;
+  isMWE: boolean;
+  grossCompensation: number;
+  nonTaxableCompensation: number;
+  taxableCompensation: number;
+  taxWithheld: number;
+  taxDue: number;
+  overUnderWithheld: number;             // signed
+  prevEmployerIncome: number;
+  prevEmployerTax: number;
+  separationDate?: string;
+  separationType?: BIRSeparationType;
+}
+
