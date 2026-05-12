@@ -8,10 +8,6 @@ import { useAttendanceStore } from "@/store/attendance.store";
 import { useLeaveStore } from "@/store/leave.store";
 import { usePayrollStore } from "@/store/payroll.store";
 import { useLoansStore } from "@/store/loans.store";
-import { useDocumentsStore, REQUIRED_201_DOC_TYPES } from "@/store/documents.store";
-import { useDisciplinaryStore } from "@/store/disciplinary.store";
-import Link from "next/link";
-import { useRoleHref } from "@/lib/hooks/use-role-href";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,7 +25,7 @@ import { getInitials, formatCurrency, formatDate, validatePhone } from "@/lib/fo
 import { SYSTEM_ROLES, LOCATIONS } from "@/lib/constants";
 import { useDepartmentsStore } from "@/store/departments.store";
 import { useJobTitlesStore } from "@/store/job-titles.store";
-import { Mail, MapPin, Phone, Briefcase, Calendar, DollarSign, FileText, Pencil, Banknote, UserMinus, X, FolderArchive, Gavel, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Mail, MapPin, Phone, Briefcase, Calendar, DollarSign, FileText, Pencil, Banknote, UserMinus, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuditStore } from "@/store/audit.store";
 import type { WorkType, PayFrequency } from "@/types";
@@ -99,17 +95,6 @@ export default function AdminProfileView() {
     const [docFile, setDocFile] = useState<File | null>(null);
     const [docUploading, setDocUploading] = useState(false);
     const empDocs = id ? getDocuments(id) : [];
-
-    // 201 File + Disciplinary live data
-    const rh = useRoleHref();
-    const docs201ByEmp = useDocumentsStore((s) => s.getByEmployee);
-    const completeness201 = useDocumentsStore((s) => s.getCompletenessForEmployee);
-    const missing201 = useDocumentsStore((s) => s.getMissingForEmployee);
-    const cases201 = useDisciplinaryStore((s) => s.getByEmployee);
-    const empDocs201 = id ? docs201ByEmp(id) : [];
-    const empMissing201 = id ? missing201(id) : [];
-    const empCompleteness = id ? completeness201(id) : 0;
-    const empCases = id ? cases201(id) : [];
 
     const openEditDialog = () => {
         if (!employee) return;
@@ -256,8 +241,6 @@ export default function AdminProfileView() {
                     <TabsTrigger value="payslips">Payslips</TabsTrigger>
                     <TabsTrigger value="loans">Loans</TabsTrigger>
                     <TabsTrigger value="documents">Documents</TabsTrigger>
-                    <TabsTrigger value="201file">201 File</TabsTrigger>
-                    <TabsTrigger value="disciplinary">Disciplinary</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview" className="mt-4">
@@ -505,123 +488,6 @@ export default function AdminProfileView() {
                                     </div>
                                 </DialogContent>
                             </Dialog>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                {/* ── 201 File ─────────────────────────────────────── */}
-                <TabsContent value="201file" className="mt-4">
-                    <Card className="border border-border/50">
-                        <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                                <FolderArchive className="h-4 w-4" /> 201 File
-                            </CardTitle>
-                            <Link href={rh("/employees/201-files")}>
-                                <Button size="sm" variant="outline">Open Document Center</Button>
-                            </Link>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center gap-3">
-                                <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                                    <div
-                                        className={`h-full ${empCompleteness >= 1 ? "bg-emerald-500" : empCompleteness >= 0.6 ? "bg-amber-500" : "bg-red-500"}`}
-                                        style={{ width: `${Math.round(empCompleteness * 100)}%` }}
-                                    />
-                                </div>
-                                <span className="text-sm font-medium">{Math.round(empCompleteness * 100)}%</span>
-                            </div>
-
-                            {empMissing201.length > 0 ? (
-                                <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
-                                    <div className="text-xs font-semibold text-amber-900 mb-2 flex items-center gap-2">
-                                        <AlertTriangle className="h-4 w-4" /> Missing required documents
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {empMissing201.map((t) => (
-                                            <Badge key={t} variant="outline" className="border-amber-300 text-amber-900 text-[10px] capitalize">
-                                                {t.replace(/_/g, " ")}
-                                            </Badge>
-                                        ))}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 flex items-center gap-2 text-sm text-emerald-800">
-                                    <ShieldCheck className="h-4 w-4" /> All {REQUIRED_201_DOC_TYPES.length} required documents on file.
-                                </div>
-                            )}
-
-                            <div className="border rounded-md">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="text-xs">Title</TableHead>
-                                            <TableHead className="text-xs">Type</TableHead>
-                                            <TableHead className="text-xs">Status</TableHead>
-                                            <TableHead className="text-xs">Updated</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {empDocs201.length === 0 ? (
-                                            <TableRow><TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">No 201 documents yet.</TableCell></TableRow>
-                                        ) : (
-                                            empDocs201.map((d) => (
-                                                <TableRow key={d.id}>
-                                                    <TableCell className="text-sm font-medium">{d.documentTitle}</TableCell>
-                                                    <TableCell className="text-xs capitalize">{d.documentType.replace(/_/g, " ")}</TableCell>
-                                                    <TableCell><Badge variant="secondary" className="text-[10px] capitalize">{d.status.replace("_", " ")}</Badge></TableCell>
-                                                    <TableCell className="text-xs">{new Date(d.updatedAt).toLocaleDateString()}</TableCell>
-                                                </TableRow>
-                                            ))
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                {/* ── Disciplinary ─────────────────────────────────── */}
-                <TabsContent value="disciplinary" className="mt-4">
-                    <Card className="border border-border/50">
-                        <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                                <Gavel className="h-4 w-4" /> Disciplinary History
-                            </CardTitle>
-                            <Link href={rh("/disciplinary")}>
-                                <Button size="sm" variant="outline">All Cases</Button>
-                            </Link>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="text-xs">Case #</TableHead>
-                                        <TableHead className="text-xs">Violation</TableHead>
-                                        <TableHead className="text-xs">Incident</TableHead>
-                                        <TableHead className="text-xs">Status</TableHead>
-                                        <TableHead className="text-xs text-right">Open</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {empCases.length === 0 ? (
-                                        <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">No disciplinary cases on record.</TableCell></TableRow>
-                                    ) : (
-                                        empCases.map((c) => (
-                                            <TableRow key={c.id}>
-                                                <TableCell className="font-mono text-xs">{c.caseNumber}</TableCell>
-                                                <TableCell className="text-sm">{c.violationType}</TableCell>
-                                                <TableCell className="text-xs">{new Date(c.incidentDate).toLocaleDateString()}</TableCell>
-                                                <TableCell><Badge variant="secondary" className="text-[10px] capitalize">{c.status.replace(/_/g, " ")}</Badge></TableCell>
-                                                <TableCell className="text-right">
-                                                    <Link href={rh(`/disciplinary/${c.id}`)}>
-                                                        <Button size="sm" variant="ghost">Open</Button>
-                                                    </Link>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
                         </CardContent>
                     </Card>
                 </TabsContent>

@@ -68,7 +68,7 @@ export const useDeductionsStore = create<DeductionsState>()(
                     } else {
                         set({ error: json.message || "Failed to fetch templates", isLoading: false });
                     }
-                } catch (err) {
+                } catch {
                     set({ error: "Failed to fetch templates", isLoading: false });
                 }
             },

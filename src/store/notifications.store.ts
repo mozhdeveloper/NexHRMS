@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
-import type { NotificationLog, NotificationType, NotificationChannel, NotificationRule, NotificationTrigger } from "@/types";
+import type { NotificationLog, NotificationType, NotificationRule, NotificationTrigger } from "@/types";
 import { useEmployeesStore } from "@/store/employees.store";
 
 // ─── Default Rules ────────────────────────────────────────────

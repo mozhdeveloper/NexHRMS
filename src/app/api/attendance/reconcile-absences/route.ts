@@ -143,7 +143,6 @@ export async function POST(req: Request) {
 
   while (current <= end) {
     const dateStr = current.toISOString().split("T")[0];
-    const dayOfWeek = current.getDay();
 
     // Skip holidays
     if (!holidaySet.has(dateStr)) {

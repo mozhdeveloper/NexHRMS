@@ -8,8 +8,7 @@
  * 2. Dynamic QR (legacy) — 30-second single-use tokens for high-security sites
  */
 
-import { createServerSupabaseClient, createAdminSupabaseClient } from "./supabase-server";
-import type { QRTokenRow } from "@/types";
+import { createAdminSupabaseClient } from "./supabase-server";
 import { nanoid } from "nanoid";
 import { isWithinGeofence } from "@/lib/geofence";
 import { parseDailyQRPayload, parseEmployeeQRPayload, detectQRType } from "@/lib/qr-utils";

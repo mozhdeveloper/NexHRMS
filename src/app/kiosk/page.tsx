@@ -163,6 +163,7 @@ export default function KioskLandingPage() {
             <header className="relative z-10 w-full grid grid-cols-3 items-center px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
                 <div className="flex items-center gap-3">
                     {settings.showLogo && logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img 
                             src={logoUrl} 
                             alt={companyName} 

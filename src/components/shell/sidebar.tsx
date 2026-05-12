@@ -54,7 +54,7 @@ import {
     Briefcase,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useEffect, useMemo, useCallback, memo } from "react";
+import { useEffect, useMemo, memo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 const iconMap: Record<string, React.ElementType> = {
@@ -208,7 +208,7 @@ function SidebarComponent() {
             .filter((g) => sectionMap.has(g.key))
             .map((g) => ({ ...g, items: sectionMap.get(g.key)! }));
         return { topLevel, sections };
-    }, [filtered.systemItems]);
+    }, [filtered]);
 
     // Build role-prefixed paths
     const rolePrefix = `/${role}`;
@@ -296,6 +296,7 @@ function SidebarComponent() {
             <div className={cn("flex h-16 items-center px-4", showLabel || isMobile ? "justify-between" : "justify-center")}>
                 <Link href={`${rolePrefix}/dashboard`} className="flex items-center gap-2.5">
                     {logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={logoUrl}
                             alt={companyName}

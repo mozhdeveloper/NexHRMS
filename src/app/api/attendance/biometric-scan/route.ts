@@ -131,10 +131,10 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        async function parseIncomingBody(req: NextRequest): Promise<any> {
+        async function parseIncomingBody(req: NextRequest): Promise<Record<string, unknown>> {
             // Try JSON first
             try {
-                return await req.json();
+                return await req.json() as Record<string, unknown>;
             } catch (e) {
                 // Not JSON — try plain text
                 try {

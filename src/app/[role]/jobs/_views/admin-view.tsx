@@ -157,13 +157,6 @@ export default function JobsAdminView() {
         void fetchJobs();
     }, [fetchJobs]);
 
-    // Fetch applications for selected job when it changes
-    useEffect(() => {
-        if (selectedJobId) void fetchApplications(selectedJobId);
-    }, [selectedJobId, fetchApplications]);
-
-    const stats = useMemo(() => getStats(), [jobs, applications, getStats]);
-
     // ── filters ──────────────────────────────────────────────────────────────
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<JobStatus | "all">("all");
@@ -175,6 +168,13 @@ export default function JobsAdminView() {
     const [appOpen, setAppOpen] = useState(false);
     const [viewingAppId, setViewingAppId] = useState<string | null>(null);
     const [isUploadingResume, setIsUploadingResume] = useState(false);
+
+    // Fetch applications for selected job when it changes
+    useEffect(() => {
+        if (selectedJobId) void fetchApplications(selectedJobId);
+    }, [selectedJobId, fetchApplications]);
+
+    const stats = useMemo(() => getStats(), [jobs, applications, getStats]);
 
     // ── job form ─────────────────────────────────────────────────────────────
     const BLANK_JOB = {
@@ -601,7 +601,7 @@ export default function JobsAdminView() {
                                     <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground border border-dashed rounded-lg">
                                         <Inbox className="h-8 w-8 mb-2 text-muted-foreground/30" />
                                         <p className="text-sm">No applicants yet.</p>
-                                        <p className="text-xs mt-1">Click "Add Applicant" to log an application.</p>
+                                        <p className="text-xs mt-1">Click &quot;Add Applicant&quot; to log an application.</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-2">

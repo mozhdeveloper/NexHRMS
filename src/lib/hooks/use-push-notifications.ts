@@ -127,6 +127,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       tag: latest.id,
       data: { url: fullUrl },
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logs, permission, isSupported, isAuthenticated, employees, currentUser, currentUserRole]);
 
   /**

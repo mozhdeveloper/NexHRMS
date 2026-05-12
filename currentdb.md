@@ -1,3 +1,26 @@
+## Table `alphalist_exports`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `text` | Primary |
+| `year` | `int4` |  |
+| `schedule_type` | `text` |  |
+| `generated_at` | `timestamptz` |  |
+| `generated_by` | `text` |  Nullable |
+| `employee_count` | `int4` |  |
+| `total_taxable_comp` | `numeric` |  |
+| `total_tax_withheld` | `numeric` |  |
+| `validation_status` | `text` |  |
+| `validation_errors` | `jsonb` |  Nullable |
+| `export_format` | `text` |  |
+| `file_url` | `text` |  Nullable |
+| `efps_status` | `text` |  |
+| `submitted_at` | `timestamptz` |  Nullable |
+| `submitted_by` | `text` |  Nullable |
+| `created_at` | `timestamptz` |  |
+
 ## Table `announcements`
 
 ### Columns
@@ -17,6 +40,36 @@
 | `status` | `text` |  |
 | `read_by` | `_text` |  |
 | `attachment_url` | `text` |  Nullable |
+
+## Table `annual_tax_summaries`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `text` | Primary |
+| `employee_id` | `text` |  |
+| `year` | `int4` |  |
+| `total_taxable_comp` | `numeric` |  |
+| `total_non_taxable_comp` | `numeric` |  |
+| `total_de_minimis` | `numeric` |  |
+| `total_sss` | `numeric` |  |
+| `total_philhealth` | `numeric` |  |
+| `total_pagibig` | `numeric` |  |
+| `total_13th_non_taxable` | `numeric` |  |
+| `total_13th_taxable` | `numeric` |  |
+| `total_other_benefits` | `numeric` |  |
+| `total_tax_withheld` | `numeric` |  |
+| `prev_employer_income` | `numeric` |  |
+| `prev_employer_tax` | `numeric` |  |
+| `annual_tax_due` | `numeric` |  Nullable |
+| `adjustment_type` | `text` |  Nullable |
+| `adjustment_amount` | `numeric` |  Nullable |
+| `status` | `text` |  |
+| `finalized_at` | `timestamptz` |  Nullable |
+| `finalized_by` | `text` |  Nullable |
+| `created_at` | `timestamptz` |  |
+| `updated_at` | `timestamptz` |  |
 
 ## Table `appearance_config`
 
@@ -121,6 +174,11 @@
 | `night_diff_start` | `text` |  Nullable |
 | `night_diff_end` | `text` |  Nullable |
 | `holiday_multiplier` | `numeric` |  |
+| `ot_multiplier_regular` | `numeric` |  |
+| `ot_multiplier_rest_day` | `numeric` |  |
+| `ot_multiplier_special_holiday` | `numeric` |  |
+| `ot_multiplier_regular_holiday` | `numeric` |  |
+| `ot_multiplier_night_diff` | `numeric` |  |
 
 ## Table `audit_logs`
 
@@ -137,6 +195,37 @@
 | `reason` | `text` |  Nullable |
 | `before_snapshot` | `jsonb` |  Nullable |
 | `after_snapshot` | `jsonb` |  Nullable |
+
+## Table `biometric_logs`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary |
+| `biometric_id` | `text` |  Nullable |
+| `device_id` | `text` |  Nullable |
+| `action` | `text` |  Nullable |
+| `payload` | `jsonb` |  Nullable |
+| `created_at` | `timestamptz` |  Nullable |
+
+## Table `biometric_templates`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary |
+| `biometric_id` | `text` |  Unique |
+| `employee_id` | `text` |  Nullable |
+| `name` | `text` |  Nullable |
+| `privilege` | `int4` |  Nullable |
+| `password` | `text` |  Nullable |
+| `card_no` | `text` |  Nullable |
+| `finger_template` | `text` |  Nullable |
+| `face_template` | `text` |  Nullable |
+| `created_at` | `timestamptz` |  Nullable |
+| `updated_at` | `timestamptz` |  Nullable |
 
 ## Table `break_records`
 
@@ -293,6 +382,51 @@
 | `created_at` | `timestamptz` |  |
 | `updated_at` | `timestamptz` |  |
 
+## Table `disciplinary_cases`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `text` | Primary |
+| `case_number` | `text` |  Unique |
+| `employee_id` | `text` |  |
+| `violation_type` | `text` |  |
+| `policy_reference` | `text` |  Nullable |
+| `incident_date` | `timestamptz` |  |
+| `incident_location` | `text` |  Nullable |
+| `description` | `text` |  |
+| `evidence_urls` | `jsonb` |  |
+| `status` | `text` |  |
+| `assigned_hr` | `text` |  Nullable |
+| `created_by` | `text` |  |
+| `created_at` | `timestamptz` |  |
+| `updated_at` | `timestamptz` |  |
+
+## Table `employee_201_documents`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `text` | Primary |
+| `employee_id` | `text` |  |
+| `document_type` | `text` |  |
+| `document_title` | `text` |  |
+| `file_path` | `text` |  Nullable |
+| `file_type` | `text` |  Nullable |
+| `file_size` | `int8` |  Nullable |
+| `status` | `text` |  |
+| `visibility` | `text` |  |
+| `expiry_date` | `date` |  Nullable |
+| `remarks` | `text` |  Nullable |
+| `uploaded_by` | `text` |  Nullable |
+| `reviewed_by` | `text` |  Nullable |
+| `reviewed_at` | `timestamptz` |  Nullable |
+| `case_id` | `text` |  Nullable |
+| `created_at` | `timestamptz` |  |
+| `updated_at` | `timestamptz` |  |
+
 ## Table `employee_deduction_assignments`
 
 ### Columns
@@ -333,6 +467,31 @@
 | `shift_id` | `text` |  |
 | `assigned_at` | `timestamptz` |  |
 
+## Table `employee_tax_profiles`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `text` | Primary |
+| `employee_id` | `text` |  Unique |
+| `tin` | `text` |  Nullable |
+| `employment_classification` | `text` |  |
+| `is_mwe` | `bool` |  |
+| `mwe_daily_rate` | `numeric` |  Nullable |
+| `substituted_filing` | `bool` |  |
+| `tax_status` | `text` |  |
+| `tax_residency` | `text` |  |
+| `prev_employer_tin` | `text` |  Nullable |
+| `prev_employer_name` | `text` |  Nullable |
+| `prev_income` | `numeric` |  Nullable |
+| `prev_tax_withheld` | `numeric` |  Nullable |
+| `prev_2316_received` | `bool` |  |
+| `separation_date` | `date` |  Nullable |
+| `separation_type` | `text` |  Nullable |
+| `created_at` | `timestamptz` |  |
+| `updated_at` | `timestamptz` |  |
+
 ## Table `employees`
 
 ### Columns
@@ -372,6 +531,15 @@
 | `deduction_exempt_reason` | `text` |  Nullable |
 | `notification_preferences` | `jsonb` |  |
 | `biometric_id` | `text` |  Nullable |
+| `tin` | `text` |  Nullable |
+| `employment_classification` | `text` |  |
+| `is_mwe` | `bool` |  |
+| `mwe_daily_rate` | `numeric` |  Nullable |
+| `substituted_filing` | `bool` |  |
+| `tax_status` | `text` |  |
+| `tax_residency` | `text` |  |
+| `separation_date` | `date` |  Nullable |
+| `separation_type` | `text` |  Nullable |
 
 ## Table `face_enrollments`
 
@@ -412,6 +580,34 @@
 | `created_at` | `timestamptz` |  |
 | `payslip_id` | `text` |  Nullable |
 
+## Table `form_2316_records`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `text` | Primary |
+| `employee_id` | `text` |  |
+| `year` | `int4` |  |
+| `annual_summary_id` | `text` |  Nullable |
+| `generated_at` | `timestamptz` |  |
+| `generated_by` | `text` |  Nullable |
+| `employer_signed_at` | `timestamptz` |  Nullable |
+| `employer_signed_by` | `text` |  Nullable |
+| `employer_signature_url` | `text` |  Nullable |
+| `employee_signed_at` | `timestamptz` |  Nullable |
+| `employee_signature_url` | `text` |  Nullable |
+| `pdf_url` | `text` |  Nullable |
+| `document_hash` | `text` |  Nullable |
+| `status` | `text` |  |
+| `released_at` | `timestamptz` |  Nullable |
+| `downloaded_at` | `timestamptz` |  Nullable |
+| `downloaded_by` | `text` |  Nullable |
+| `revoked_at` | `timestamptz` |  Nullable |
+| `revoked_by` | `text` |  Nullable |
+| `revoke_reason` | `text` |  Nullable |
+| `created_at` | `timestamptz` |  |
+
 ## Table `gov_table_versions`
 
 ### Columns
@@ -438,6 +634,53 @@
 | `multiplier` | `numeric` |  |
 | `is_custom` | `bool` |  |
 | `created_at` | `timestamptz` |  |
+
+## Table `job_applications`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `text` | Primary |
+| `job_id` | `text` |  |
+| `applicant_name` | `text` |  |
+| `applicant_email` | `text` |  |
+| `applicant_phone` | `text` |  Nullable |
+| `resume_url` | `text` |  Nullable |
+| `cover_letter` | `text` |  Nullable |
+| `source` | `text` |  |
+| `status` | `text` |  |
+| `interview_date` | `timestamptz` |  Nullable |
+| `offer_salary` | `numeric` |  Nullable |
+| `notes` | `text` |  Nullable |
+| `reviewed_by` | `text` |  Nullable |
+| `reviewed_at` | `timestamptz` |  Nullable |
+| `created_at` | `timestamptz` |  |
+| `updated_at` | `timestamptz` |  |
+
+## Table `job_postings`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `text` | Primary |
+| `title` | `text` |  |
+| `department` | `text` |  |
+| `location` | `text` |  |
+| `type` | `text` |  |
+| `status` | `text` |  |
+| `priority` | `text` |  |
+| `headcount` | `int4` |  |
+| `salary_min` | `numeric` |  Nullable |
+| `salary_max` | `numeric` |  Nullable |
+| `description` | `text` |  |
+| `requirements` | `text` |  |
+| `responsibilities` | `text` |  |
+| `deadline` | `date` |  Nullable |
+| `created_by` | `text` |  |
+| `created_at` | `timestamptz` |  |
+| `updated_at` | `timestamptz` |  |
 
 ## Table `job_titles`
 
@@ -723,6 +966,28 @@
 | `notes` | `text` |  Nullable |
 | `created_at` | `timestamptz` |  Nullable |
 
+## Table `nod_records`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `text` | Primary |
+| `case_id` | `text` |  Unique |
+| `employee_id` | `text` |  |
+| `decision` | `text` |  |
+| `sanction_start_date` | `date` |  Nullable |
+| `sanction_end_date` | `date` |  Nullable |
+| `return_to_work_date` | `date` |  Nullable |
+| `decision_details` | `text` |  |
+| `document_id` | `text` |  Nullable |
+| `issued_by` | `text` |  |
+| `issued_at` | `timestamptz` |  |
+| `acknowledged_at` | `timestamptz` |  Nullable |
+| `status` | `text` |  |
+| `created_at` | `timestamptz` |  |
+| `updated_at` | `timestamptz` |  |
+
 ## Table `notification_logs`
 
 ### Columns
@@ -776,6 +1041,26 @@
 | `body_template` | `text` |  |
 | `sms_template` | `text` |  Nullable |
 
+## Table `nte_records`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `text` | Primary |
+| `case_id` | `text` |  Unique |
+| `employee_id` | `text` |  |
+| `response_deadline` | `date` |  |
+| `document_id` | `text` |  Nullable |
+| `issued_by` | `text` |  |
+| `issued_at` | `timestamptz` |  |
+| `acknowledged_at` | `timestamptz` |  Nullable |
+| `employee_explanation` | `text` |  Nullable |
+| `explanation_submitted_at` | `timestamptz` |  Nullable |
+| `status` | `text` |  |
+| `created_at` | `timestamptz` |  |
+| `updated_at` | `timestamptz` |  |
+
 ## Table `overtime_requests`
 
 ### Columns
@@ -810,6 +1095,11 @@
 | `weekly_pay_day` | `int4` |  |
 | `deduct_gov_from` | `text` |  |
 | `updated_at` | `timestamptz` |  |
+| `auto_deduct_late` | `bool` |  |
+| `auto_deduct_absent` | `bool` |  |
+| `auto_deduct_undertime` | `bool` |  |
+| `auto_add_overtime` | `bool` |  |
+| `work_days_per_month` | `int4` |  |
 
 ## Table `payroll_adjustments`
 
@@ -859,6 +1149,8 @@
 | `policy_snapshot` | `jsonb` |  Nullable |
 | `run_type` | `text` |  Nullable |
 | `completed_at` | `timestamptz` |  Nullable |
+| `period_start` | `date` |  Nullable |
+| `period_end` | `date` |  Nullable |
 
 ## Table `payroll_signature_config`
 
@@ -930,6 +1222,15 @@
 | `line_items_json` | `jsonb` |  Nullable |
 | `payment_proof_url` | `text` |  Nullable |
 | `cash_amount` | `numeric` |  Nullable |
+| `late_deduction` | `numeric` |  |
+| `absent_deduction` | `numeric` |  |
+| `undertime_deduction` | `numeric` |  |
+| `overtime_pay` | `numeric` |  |
+| `daily_rate` | `numeric` |  |
+| `hourly_rate` | `numeric` |  |
+| `tax_categories` | `jsonb` |  Nullable |
+| `taxable_compensation` | `numeric` |  |
+| `non_taxable_compensation` | `numeric` |  |
 
 ## Table `penalty_records`
 
@@ -943,6 +1244,25 @@
 | `triggered_at` | `timestamptz` |  |
 | `penalty_until` | `timestamptz` |  |
 | `resolved` | `bool` |  |
+
+## Table `previous_employer_records`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `text` | Primary |
+| `employee_id` | `text` |  |
+| `year` | `int4` |  |
+| `employer_name` | `text` |  |
+| `employer_tin` | `text` |  Nullable |
+| `employer_address` | `text` |  Nullable |
+| `total_income` | `numeric` |  |
+| `total_tax_withheld` | `numeric` |  |
+| `reference_2316` | `text` |  Nullable |
+| `submitted_at` | `timestamptz` |  |
+| `submitted_by` | `text` |  Nullable |
+| `created_at` | `timestamptz` |  |
 
 ## Table `profiles`
 
@@ -1010,6 +1330,8 @@
 | `require_geofence` | `bool` |  Nullable |
 | `geofence_radius_meters` | `int4` |  Nullable |
 | `location_address` | `text` |  Nullable |
+| `qr_secret` | `text` |  |
+| `qr_enabled` | `bool` |  |
 
 ## Table `push_subscriptions`
 
@@ -1194,7 +1516,7 @@ Web Push API subscriptions for PWA push notifications
 | Name | Type | Constraints |
 |------|------|-------------|
 | `id` | `text` | Primary |
-| `group_id` | `text` |  |
+| `group_id` | `text` |  Nullable |
 | `title` | `text` |  |
 | `description` | `text` |  |
 | `priority` | `text` |  |
@@ -1207,6 +1529,7 @@ Web Push API subscriptions for PWA push notifications
 | `completion_required` | `bool` |  |
 | `tags` | `_text` |  Nullable |
 | `project_id` | `text` |  Nullable |
+| `start_date` | `date` |  Nullable |
 
 ## Table `text_channels`
 

@@ -223,25 +223,25 @@ export function PrintablePayslip({
                             {(payslip.customDeductions || 0) > 0 && (
                                 <tr style={{ borderBottom: "1px solid #e5e5e5" }}>
                                     <td style={{ padding: "6px 8px" }}>Custom Deductions</td>
-                                    <td style={{ padding: "6px 8px", textAlign: "right", color: "#dc2626" }}>{formatCurrency(payslip.customDeductions)}</td>
+                                    <td style={{ padding: "6px 8px", textAlign: "right", color: "#dc2626" }}>{formatCurrency(payslip.customDeductions ?? 0)}</td>
                                 </tr>
                             )}
                             {(payslip.lateDeduction || 0) > 0 && (
                                 <tr style={{ borderBottom: "1px solid #e5e5e5" }}>
                                     <td style={{ padding: "6px 8px" }}>Late Penalty{payslip.attendanceLateMinutes ? ` (${payslip.attendanceLateMinutes} min)` : ""}</td>
-                                    <td style={{ padding: "6px 8px", textAlign: "right", color: "#dc2626" }}>{formatCurrency(payslip.lateDeduction)}</td>
+                                    <td style={{ padding: "6px 8px", textAlign: "right", color: "#dc2626" }}>{formatCurrency(payslip.lateDeduction ?? 0)}</td>
                                 </tr>
                             )}
                             {(payslip.absentDeduction || 0) > 0 && (
                                 <tr style={{ borderBottom: "1px solid #e5e5e5" }}>
                                     <td style={{ padding: "6px 8px" }}>Absent Deduction{payslip.attendanceDaysAbsent ? ` (${payslip.attendanceDaysAbsent} day${payslip.attendanceDaysAbsent > 1 ? "s" : ""})` : ""}</td>
-                                    <td style={{ padding: "6px 8px", textAlign: "right", color: "#dc2626" }}>{formatCurrency(payslip.absentDeduction)}</td>
+                                    <td style={{ padding: "6px 8px", textAlign: "right", color: "#dc2626" }}>{formatCurrency(payslip.absentDeduction ?? 0)}</td>
                                 </tr>
                             )}
                             {(payslip.undertimeDeduction || 0) > 0 && (
                                 <tr style={{ borderBottom: "1px solid #e5e5e5" }}>
                                     <td style={{ padding: "6px 8px" }}>Undertime Deduction{payslip.attendanceUndertimeHours ? ` (${payslip.attendanceUndertimeHours.toFixed(1)} hrs)` : ""}</td>
-                                    <td style={{ padding: "6px 8px", textAlign: "right", color: "#dc2626" }}>{formatCurrency(payslip.undertimeDeduction)}</td>
+                                    <td style={{ padding: "6px 8px", textAlign: "right", color: "#dc2626" }}>{formatCurrency(payslip.undertimeDeduction ?? 0)}</td>
                                 </tr>
                             )}
                             <tr style={{ borderBottom: "2px solid #1a1a1a", fontWeight: 700 }}>
