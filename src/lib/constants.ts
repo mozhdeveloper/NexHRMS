@@ -152,7 +152,7 @@ export const NAV_ITEMS: {
             group: "hr",
         },
         {
-            label: "Jobs",
+            label: "Recruitment",
             href: "/jobs",
             icon: "Briefcase",
             roles: ["admin", "hr"],
@@ -207,8 +207,8 @@ export const NAV_ITEMS: {
             group: "attendance",
         },
         {
-            label: "Kiosk (QR)",
-            href: "/kiosk/qr",
+            label: "Kiosk",
+            href: "/kiosk",
             icon: "QrCode",
             roles: ["admin", "hr"],
             permission: "page:kiosk",
@@ -236,7 +236,7 @@ export const NAV_ITEMS: {
             group: "attendance",
         },
         {
-            label: "Events",
+            label: "Holidays",
             href: "/events",
             icon: "Calendar",
             roles: ["admin", "hr", "finance", "employee", "supervisor", "payroll_admin", "auditor"],
@@ -256,10 +256,19 @@ export const NAV_ITEMS: {
             group: "payroll",
         },
         {
+            label: "Payslips",
+            href: "/my-payslips",
+            icon: "FileText",
+            roles: ["admin", "hr", "finance", "payroll_admin", "auditor"],
+            permission: "payroll:view_own",
+            moduleFlag: "myPayslips",
+            group: "payroll",
+        },
+        {
             label: "My Payslips",
             href: "/my-payslips",
             icon: "FileText",
-            roles: ["admin", "hr", "finance", "payroll_admin", "supervisor", "employee", "auditor"],
+            roles: ["employee", "supervisor"],
             permission: "payroll:view_own",
             moduleFlag: "myPayslips",
             group: "payroll",
@@ -274,7 +283,7 @@ export const NAV_ITEMS: {
             group: "payroll",
         },
         {
-            label: "Gov. Contributions",
+            label: "Government Contributions",
             href: "/reports/government",
             icon: "Landmark",
             roles: ["admin", "hr", "finance", "payroll_admin"],
