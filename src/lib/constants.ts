@@ -374,11 +374,11 @@ export const NAV_ITEMS: {
             group: "admin",
         },
         {
-            label: "Tax Rules",
+            label: "Payroll Settings",
             href: "/payroll/settings",
             icon: "Calculator",
             roles: ["admin", "finance", "payroll_admin"],
-            permission: "payroll:generate",
+            permission: "page:payroll",
             group: "admin",
         },
 
@@ -392,67 +392,8 @@ export const NAV_ITEMS: {
         },
     ];
 
-export const ROLE_ACCESS: Record<Role, string[]> = {
-    admin: [
-        "/dashboard",
-        "/employees",
-        "/projects",
-        "/tasks",
-        "/messages",
-        "/attendance",
-        "/leave",
-        "/payroll",
-        "/payroll/settings",
-        "/my-payslips",
-        "/loans",
-        "/reports",
-        "/reports/government",
-        "/settings",
-        "/settings/shifts",
-        "/settings/organization",
-        "/settings/roles",
+// NOTE: ROLE_ACCESS and PATH_TO_PERMISSION were removed (Nov 2025).
+// Route protection is enforced by `canAccessRoute` in `permissions-server.ts`,
+// which uses `PROTECTED_ROUTES` as the single source of truth.
+// Sidebar visibility is enforced by `NAV_ITEMS[].roles` + `permission` checks.
 
-        "/notifications",
-        "/timesheets",
-        "/audit",
-        "/kiosk",
-    ],
-    hr: ["/dashboard", "/employees", "/projects", "/tasks", "/messages", "/attendance", "/leave", "/reports", "/notifications", "/timesheets", "/settings/shifts", "/kiosk", "/profile", "/my-payslips"],
-    finance: ["/dashboard", "/payroll", "/payroll/settings", "/my-payslips", "/loans", "/reports", "/reports/government", "/employees/directory", "/employees/manage", "/notifications", "/profile"],
-    employee: ["/dashboard", "/attendance", "/leave", "/my-payslips", "/tasks", "/messages", "/notifications", "/face-enrollment", "/profile", "/settings"],
-    supervisor: ["/dashboard", "/attendance", "/leave", "/my-payslips", "/timesheets", "/employees", "/projects", "/tasks", "/messages", "/notifications", "/face-enrollment", "/profile", "/settings"],
-    payroll_admin: ["/dashboard", "/payroll", "/payroll/settings", "/my-payslips", "/loans", "/reports", "/reports/government", "/timesheets", "/notifications", "/profile"],
-    auditor: ["/dashboard", "/audit", "/reports", "/employees", "/notifications", "/profile", "/settings", "/my-payslips"],
-};
-
-/** Map a URL path to the permission needed to access it */
-export const PATH_TO_PERMISSION: Record<string, Permission> = {
-    "/dashboard": "page:dashboard",
-    "/employees": "page:employees",
-    "/employees/manage": "page:employees",
-    "/employees/directory": "page:employees",
-    "/projects": "page:projects",
-    "/tasks": "page:tasks",
-    "/messages": "page:messages",
-    "/attendance": "page:attendance",
-    "/leave": "page:leave",
-    "/payroll": "page:payroll",
-    "/payroll/settings": "page:payroll",
-    "/my-payslips": "payroll:view_own",
-    "/loans": "page:loans",
-    "/reports": "page:reports",
-    "/reports/government": "reports:government",
-    "/settings": "page:settings",
-    "/settings/shifts": "settings:shifts",
-    "/settings/organization": "settings:organization",
-    "/settings/roles": "settings:roles",
-    "/settings/appearance": "settings:organization",
-    "/settings/branding": "settings:organization",
-    "/settings/modules": "settings:organization",
-    "/settings/navigation": "settings:organization",
-    "/notifications": "page:notifications",
-    "/timesheets": "page:timesheets",
-    "/audit": "page:audit",
-    "/kiosk": "page:kiosk",
-    "/profile": "page:dashboard",
-};

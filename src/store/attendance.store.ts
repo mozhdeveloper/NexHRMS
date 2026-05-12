@@ -12,6 +12,7 @@ import { SEED_ATTENDANCE } from "@/data/seed";
 import { DEFAULT_HOLIDAYS } from "@/lib/constants";
 import { useNotificationsStore } from "@/store/notifications.store";
 import { useEmployeesStore } from "@/store/employees.store";
+import { useAuditStore } from "@/store/audit.store";
 
 interface AttendanceState {
     // ─── Append-only event ledger (§2A) ───────────────
@@ -266,7 +267,6 @@ export const useAttendanceStore = create<AttendanceState>()(
                     const allEmployees = useEmployeesStore.getState().employees;
                     const notifStore = useNotificationsStore.getState();
                     const adminHrEmployees = allEmployees.filter((e) => e.role === "admin" || e.role === "hr");
-                    const { useAuditStore } = require("@/store/audit.store");
 
                     for (const empId of toMarkAbsent) {
                         const emp = allEmployees.find((e) => e.id === empId);
@@ -506,7 +506,6 @@ export const useAttendanceStore = create<AttendanceState>()(
                     const adminHrEmployees = allEmployees.filter((e) => e.role === "admin" || e.role === "hr");
                     const emp = allEmployees.find((e) => e.id === employeeId);
                     const empName = emp?.name || employeeId;
-                    const { useAuditStore } = require("@/store/audit.store");
 
                     // Notify each admin/HR
                     for (const admin of adminHrEmployees) {

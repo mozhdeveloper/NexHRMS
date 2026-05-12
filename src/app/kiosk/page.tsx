@@ -83,10 +83,22 @@ export default function KioskLandingPage() {
                     const data = await res.json() as { valid?: boolean };
                     pinValid = data.valid === true;
                 } else {
-                    pinValid = pin === (settings.adminPin || "000000");
+                    // Server validation failed — never fall back to client-side comparison
+                    setError("Unable to verify PIN. Please try again.");
+                    setShowError(true);
+                    setPin("");
+                    toast.error("PIN verification failed");
+                    setIsLoading(false);
+                    return;
                 }
             } catch {
-                pinValid = pin === (settings.adminPin || "000000");
+                // Network failure — deny access (do not trust client store)
+                setError("Connection error. Please try again.");
+                setShowError(true);
+                setPin("");
+                toast.error("Connection error");
+                setIsLoading(false);
+                return;
             }
 
             if (!pinValid) {
