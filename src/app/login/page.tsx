@@ -7,13 +7,11 @@ import { useAppearanceStore } from "@/store/appearance.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { signIn } from "@/services/auth.service";
 import { hydrateAllStores, startWriteThrough, startRealtime } from "@/services/sync.service";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { DEMO_USERS } from "@/data/seed";
@@ -63,15 +61,11 @@ export default function LoginPage() {
 
     // Consolidated branding from appearance store
     const {
-        loginHeading, loginSubheading, loginBackground, loginBgColor,
-        loginCardStyle, logoUrl, companyName, brandTagline
+        loginHeading, loginSubheading, logoUrl, companyName, brandTagline
     } = useAppearanceStore(
         useShallow((s) => ({
             loginHeading: s.loginHeading,
             loginSubheading: s.loginSubheading,
-            loginBackground: s.loginBackground,
-            loginBgColor: s.loginBgColor,
-            loginCardStyle: s.loginCardStyle,
             logoUrl: s.logoUrl,
             companyName: s.companyName,
             brandTagline: s.brandTagline,
@@ -161,163 +155,186 @@ export default function LoginPage() {
     };
 
     return (
-        <div
-            className={cn(
-                "min-h-screen flex p-4",
-                loginCardStyle === "split" ? "flex-row" : "items-center justify-center",
-                loginBackground === "gradient" && "bg-gradient-to-br from-background via-muted/30 to-background",
-                loginBackground === "pattern" && "bg-background",
-            )}
-            style={loginBackground === "solid" ? { backgroundColor: loginBgColor || undefined } : undefined}
-        >
-            {/* Pattern overlay */}
-            {loginBackground !== "solid" && (
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,.02)_1px,transparent_1px)] bg-[size:60px_60px] dark:bg-[linear-gradient(rgba(255,255,255,.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.015)_1px,transparent_1px)]" />
-            )}
+        <div className="min-h-screen bg-background flex">
+            {/* Left side: Branding / Decorative (Hidden on mobile) */}
+            <div className="hidden lg:flex w-1/2 flex-col justify-between bg-zinc-950 text-white p-12 relative overflow-hidden">
+                {/* Background Pattern */}
+                <div className="absolute inset-0 opacity-10 bg-[linear-gradient(rgba(255,255,255,0.5)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.5)_1px,transparent_1px)] bg-[size:40px_40px]" />
+                
+                {/* Top Branding */}
+                <div className="relative z-10 flex items-center gap-3">
+                    {logoUrl ? (
+                        <div className="bg-white/10 p-2 rounded-xl backdrop-blur-md border border-white/10">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={logoUrl} alt={companyName} className="h-8 object-contain brightness-0 invert" />
+                        </div>
+                    ) : (
+                        <div className="bg-primary/20 p-2 rounded-xl backdrop-blur-md border border-primary/20">
+                            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center font-bold text-lg text-primary-foreground shadow-lg">
+                                {companyName.charAt(0)}
+                            </div>
+                        </div>
+                    )}
+                    <span className="font-bold text-xl tracking-tight">{companyName}</span>
+                </div>
 
-            {/* Split layout — branding panel */}
-            {loginCardStyle === "split" && (
-                <div className="hidden md:flex w-1/2 items-center justify-center bg-primary/5 relative">
-                    <div className="text-center space-y-4 p-8">
+                {/* Center Message */}
+                <div className="relative z-10 max-w-lg mb-20 space-y-6">
+                    <h1 className="text-4xl lg:text-5xl leading-tight font-bold text-white mb-6">
+                        {loginHeading || "Your complete HR & Payroll ecosystem."}
+                    </h1>
+                    <p className="text-zinc-400 text-lg leading-relaxed">
+                        {brandTagline || "Streamline attendance, simplify payroll, and empower your workforce with one integrated platform."}
+                    </p>
+                </div>
+
+                {/* Bottom Graphic / Sub */}
+                <div className="relative z-10 flex items-center gap-4 text-zinc-500 text-sm">
+                    <div className="flex -space-x-3">
+                        {["admin", "hr", "finance", "employee"].map((r, i) => (
+                            <div key={r} style={{ zIndex: 10 - i }} className={`h-8 w-8 rounded-full border-2 border-zinc-950 flex items-center justify-center text-[10px] font-bold ${ROLE_COLORS[r].split(" ")[0].replace("/15", "")} ${ROLE_COLORS[r].split(" ")[1].replace("text-", "text-white ")} shadow-sm`}>
+                                {r.charAt(0).toUpperCase()}
+                            </div>
+                        ))}
+                    </div>
+                    <span>Powered by Nexvision Innovations Inc.</span>
+                </div>
+            </div>
+
+            {/* Right side: Login Form Panel */}
+            <div className="flex w-full lg:w-1/2 flex-col items-center justify-center p-6 sm:p-12 relative overflow-y-auto">
+                <div className="w-full max-w-[420px] space-y-8 relative z-10">
+                    
+                    {/* Mobile Branding (Only visible on small screens) */}
+                    <div className="lg:hidden flex flex-col items-center justify-center mb-8 space-y-4">
                         {logoUrl ? (
-                            <img src={logoUrl} alt={companyName} className="h-16 mx-auto object-contain" />
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={logoUrl} alt={companyName} className="h-16 md:h-20 w-auto object-contain max-w-[200px]" />
                         ) : (
                             <>
-                                <Image src="/logo.png" alt={companyName} width={80} height={80} className="mx-auto dark:hidden" />
-                                <Image src="/darklogo.png" alt={companyName} width={80} height={80} className="mx-auto hidden dark:block" />
+                                <Image src="/logo.png" alt={companyName} width={200} height={80} className="h-16 md:h-20 w-auto object-contain dark:hidden" priority />
+                                <Image src="/darklogo.png" alt={companyName} width={200} height={80} className="h-16 md:h-20 w-auto object-contain hidden dark:block" priority />
                             </>
                         )}
-                        <h2 className="text-2xl font-bold">{companyName}</h2>
-                        {brandTagline && (
-                            <p className="text-muted-foreground">{brandTagline}</p>
-                        )}
+                        <h2 className="text-2xl font-bold tracking-tight text-foreground text-center">
+                            {companyName}
+                        </h2>
                     </div>
-                </div>
-            )}
 
-            <div className={cn(
-                "flex items-center justify-center",
-                loginCardStyle === "split" ? "w-full md:w-1/2 p-4 md:p-8" : "relative w-full"
-            )}>
-                <Card className="relative w-full max-w-lg overflow-hidden border-0 shadow-[0_8px_30px_rgb(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] bg-card sm:rounded-2xl rounded-xl">
-                    {/* Decorative Top Accent line */}
-                    <div className="absolute top-0 left-0 right-0 h-1.5 bg-primary" />
-                    
-                    <CardHeader className="text-center space-y-1 pb-4 pt-12">
-                        <div className="flex justify-center mb-6">
-                            {logoUrl ? (
-                                <img src={logoUrl} alt={companyName} className="h-16 md:h-24 w-auto object-contain max-w-[280px] drop-shadow-sm" />
-                            ) : (
-                                <>
-                                    <Image src="/logo.png" alt={companyName} width={240} height={96} className="h-16 md:h-24 w-auto object-contain drop-shadow-sm dark:hidden" priority />
-                                    <Image src="/darklogo.png" alt={companyName} width={240} height={96} className="h-16 md:h-24 w-auto object-contain drop-shadow-sm hidden dark:block" priority />
-                                </>
-                            )}
-                        </div>
-                        <div>
-                            <p className="text-sm md:text-base text-muted-foreground font-medium">
-                                {loginSubheading || "Sign in to your secure portal"}
-                            </p>
-                        </div>
-                    </CardHeader>
+                    {/* Form Header */}
+                    <div className="space-y-2 text-center lg:text-left">
+                        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Welcome back</h2>
+                        <p className="text-sm text-muted-foreground">
+                            {loginSubheading || "Enter your credentials to access your account"}
+                        </p>
+                    </div>
 
-                <CardContent className="space-y-6 px-6 md:px-10 pb-8">
                     {/* Login Form */}
-                    <form onSubmit={handleLogin} className="space-y-4">
-                        <div>
-                            <label className="text-sm font-medium">Email</label>
-                            <Input
-                                type="email"
-                                placeholder="admin@sdsi.com"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="mt-1.5"
-                                required
-                            />
+                    <form onSubmit={handleLogin} className="space-y-5">
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium leading-none">
+                                    Email address
+                                </label>
+                                <Input
+                                    type="email"
+                                    placeholder="name@company.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="h-12 bg-muted/50 border-muted-foreground/20 focus-visible:ring-primary/30 transition-shadow"
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-sm font-medium leading-none">Password</label>
+                                </div>
+                                <Input
+                                    type="password"
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="h-12 bg-muted/50 border-muted-foreground/20 focus-visible:ring-primary/30 transition-shadow"
+                                    required
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <label className="text-sm font-medium">Password</label>
-                            <Input
-                                type="password"
-                                placeholder="••••••••"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="mt-1.5"
-                                required
-                            />
-                        </div>
-                        <Button type="submit" size="lg" className="w-full text-base font-semibold transition-transform active:scale-[0.99] shadow-md" disabled={loading}>
-                            {loading ? "Authenticating..." : "Secure Sign In"}
+                        
+                        <Button type="submit" size="lg" className="w-full h-12 text-base font-semibold shadow-md active:scale-[0.99] transition-all" disabled={loading}>
+                            {loading ? "Signing in..." : "Sign in"}
                         </Button>
                     </form>
 
-                    {/* Divider */}
-                    <div className="relative py-2">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-border/60" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase font-medium tracking-widest">
-                            <span className="bg-card px-4 text-muted-foreground/70">Demo Access</span>
-                        </div>
-                    </div>
-
-                    {/* Quick Login Buttons */}
-                    <div className="grid grid-cols-2 gap-2 mt-4">
-                        {systemDemoAccounts.map((acc) => (
-                            <Button
-                                key={acc.email}
-                                variant="outline"
-                                className="h-12 w-full justify-start px-3 shadow-none border-dashed border-border/80 hover:border-primary/40 hover:bg-primary/5 transition-colors group"
-                                disabled={loading}
-                                onClick={() => handleQuickLogin(acc.email)}
-                            >
-                                <Badge variant="secondary" className={`text-[10px] w-20 font-semibold flex items-center justify-center tracking-wide ${acc.color} shrink-0`}>
-                                    {toRoleLabel(acc.role)}
-                                </Badge>
-                                <span className="text-[11px] sm:text-xs text-muted-foreground truncate group-hover:text-primary transition-colors ml-1">{acc.email}</span>
-                            </Button>
-                        ))}
-                    </div>
-
-                    {/* Employee Demo Accounts — collapsible */}
-                    <div className="rounded-lg border border-dashed border-border/60 overflow-hidden">
-                        <button
-                            type="button"
-                            className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground/70 hover:bg-muted/30 transition-colors"
-                            onClick={() => setShowEmployeeAccounts((v) => !v)}
-                        >
-                            <span>Employee Demo Accounts ({employeeDemoAccounts.length})</span>
-                            {showEmployeeAccounts ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                        </button>
-                        {showEmployeeAccounts && (
-                            <div className="grid grid-cols-2 gap-2 p-2 pt-1 border-t border-border/40">
-                                {employeeDemoAccounts.map((acc) => (
-                                    <Button
-                                        key={acc.email}
-                                        variant="outline"
-                                        className="h-12 w-full justify-start px-3 shadow-none border-dashed border-border/80 hover:border-primary/40 hover:bg-primary/5 transition-colors group"
-                                        disabled={loading}
-                                        onClick={() => handleQuickLogin(acc.email)}
-                                    >
-                                        <Badge variant="secondary" className={`text-[10px] w-20 font-semibold flex items-center justify-center tracking-wide ${acc.color} shrink-0`}>
-                                            {toRoleLabel(acc.role)}
-                                        </Badge>
-                                        <span className="text-[11px] sm:text-xs text-muted-foreground truncate group-hover:text-primary transition-colors ml-1">{acc.name}</span>
-                                    </Button>
-                                ))}
+                    {/* Demo Access section */}
+                    <div className="pt-6">
+                        <div className="relative mb-6">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-border" />
                             </div>
-                        )}
-                    </div>
+                            <div className="relative flex justify-center text-xs uppercase">
+                                <span className="bg-background px-3 text-muted-foreground/70 font-semibold tracking-wider">Demo Accounts</span>
+                            </div>
+                        </div>
 
-                    {/* Demo hint */}
-                    <div className="pt-2 text-center rounded-lg bg-muted/30 pb-2">
-                        <p className="text-xs text-muted-foreground font-medium">
-                            <span className="opacity-80">Default password: </span>
-                            <code className="font-mono bg-background border px-2 py-0.5 rounded text-[11px] shadow-sm select-all">demo1234</code>
-                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {systemDemoAccounts.map((acc) => (
+                                <button
+                                    key={acc.email}
+                                    type="button"
+                                    className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/60 hover:border-border/80 transition-all text-left group"
+                                    disabled={loading}
+                                    onClick={() => handleQuickLogin(acc.email)}
+                                >
+                                    <div className={`h-8 w-8 rounded-lg shrink-0 flex items-center justify-center shadow-sm ${acc.color}`}>
+                                        <span className="text-xs font-bold uppercase">{acc.role.slice(0, 2)}</span>
+                                    </div>
+                                    <div className="flex flex-col overflow-hidden">
+                                        <span className="text-xs font-semibold text-foreground truncate group-hover:text-primary transition-colors">{toRoleLabel(acc.role)}</span>
+                                        <span className="text-[10px] text-muted-foreground truncate">{acc.email}</span>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Collapsible Employee Demos */}
+                        <div className="mt-4 rounded-xl border border-border/60 overflow-hidden bg-muted/10">
+                            <button
+                                type="button"
+                                className="w-full flex items-center justify-between px-4 py-3 text-xs font-semibold text-muted-foreground hover:bg-muted/30 transition-colors"
+                                onClick={() => setShowEmployeeAccounts((v) => !v)}
+                            >
+                                <span>Employee Demos ({employeeDemoAccounts.length})</span>
+                                {showEmployeeAccounts ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </button>
+                            {showEmployeeAccounts && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 border-t border-border/40 bg-background/50">
+                                    {employeeDemoAccounts.map((acc) => (
+                                        <button
+                                            key={acc.email}
+                                            type="button"
+                                            className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted/60 transition-all text-left"
+                                            disabled={loading}
+                                            onClick={() => handleQuickLogin(acc.email)}
+                                        >
+                                            <Badge variant="outline" className={`text-[9px] px-1.5 py-0 rounded font-semibold ${acc.color} shadow-none shrink-0`}>
+                                                {toRoleLabel(acc.role)}
+                                            </Badge>
+                                            <span className="text-[11px] text-muted-foreground truncate">{acc.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Demo hint */}
+                        <div className="mt-4 text-center">
+                            <p className="text-xs text-muted-foreground font-medium">
+                                <span className="opacity-80">Default password: </span>
+                                <code className="font-mono bg-muted/50 border border-border/50 px-2 py-0.5 rounded text-[11px] select-all">demo1234</code>
+                            </p>
+                        </div>
                     </div>
-                </CardContent>
-            </Card>
+                </div>
             </div>
         </div>
     );
