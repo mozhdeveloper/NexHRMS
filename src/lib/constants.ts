@@ -111,12 +111,12 @@ export const POLICY_VERSIONS = {
 export type NavGroup = "hr" | "attendance" | "payroll" | "workflow" | "reports" | "admin";
 
 export const NAV_GROUPS: { key: NavGroup; label: string }[] = [
-    { key: "hr",         label: "HR" },
+    { key: "hr", label: "HR" },
     { key: "attendance", label: "Attendance" },
-    { key: "payroll",    label: "Payroll" },
-    { key: "workflow",   label: "Workflow" },
-    { key: "reports",    label: "Reports" },
-    { key: "admin",      label: "Admin" },
+    { key: "payroll", label: "Payroll" },
+    { key: "workflow", label: "Workflow" },
+    { key: "reports", label: "Reports" },
+    { key: "admin", label: "Admin" },
 ];
 
 export const NAV_ITEMS: {
@@ -234,16 +234,17 @@ export const NAV_ITEMS: {
             absolute: true,
             group: "attendance",
         },
-        {
-            label: "Kiosk (Face)",
-            href: "/kiosk/face",
-            icon: "ScanFace",
-            roles: ["admin", "hr"],
-            permission: "page:kiosk",
-            moduleFlag: "kiosk",
-            absolute: true,
-            group: "attendance",
-        },
+        // DEMO: hidden — uncomment moduleFlag to re - enable
+        // {
+        //     label: "Kiosk (Face)",
+        //     href: "/kiosk/face",
+        //     icon: "ScanFace",
+        //     roles: ["admin", "hr"],
+        //     permission: "page:kiosk",
+        //     moduleFlag: "kiosk",
+        //     absolute: true,
+        //     group: "attendance",
+        // },
         {
             label: "Face Enrollment",
             href: "/face-enrollment",
