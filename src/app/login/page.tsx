@@ -265,8 +265,7 @@ export default function LoginPage() {
                         </Button>
                     </form>
 
-                    {/* Demo Access section — only shown in demo mode */}
-                    {USE_DEMO_MODE && (
+                    {/* Demo Access section */}
                     <div className="pt-6">
                         <div className="relative mb-6">
                             <div className="absolute inset-0 flex items-center">
@@ -335,7 +334,6 @@ export default function LoginPage() {
                             </p>
                         </div>
                     </div>
-                    )}
                 </div>
             </div>
         </div>
