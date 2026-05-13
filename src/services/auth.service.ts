@@ -51,13 +51,22 @@ export async function signIn(email: string, password: string) {
     };
   }
 
+  // Auto-repair role mismatch: if employee has a valid role that differs from profile, sync profile
+  const VALID_ROLES = ["admin", "hr", "finance", "employee", "supervisor", "payroll_admin", "auditor"];
+  if (employee && profile && employee.role && VALID_ROLES.includes(employee.role) && employee.role !== profile.role) {
+    // Employee role takes precedence (set by admin during account creation)
+    const adminSupabase = await createAdminSupabaseClient();
+    await adminSupabase.from("profiles").update({ role: employee.role }).eq("id", data.user.id);
+    profile.role = employee.role;
+  }
+
   return {
     ok: true as const,
     user: {
       id: employee?.id ?? data.user.id,
       name: profile?.name ?? data.user.user_metadata?.name ?? "",
       email: data.user.email ?? "",
-      role: (profile?.role ?? data.user.user_metadata?.role ?? "employee") as Role,
+      role: (profile?.role ?? employee?.role ?? data.user.user_metadata?.role ?? "employee") as Role,
       avatarUrl: profile?.avatar_url,
       mustChangePassword: profile?.must_change_password ?? false,
       profileComplete: profile?.profile_complete ?? false,
