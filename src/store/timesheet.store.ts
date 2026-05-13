@@ -197,11 +197,16 @@ export const useTimesheetStore = create<TimesheetState>()(
                     };
 
                     // Replace existing for same employee+date if still in computed status
+                    // For submitted/approved timesheets, update in place rather than creating duplicates
                     const existing = s.timesheets.find(
                         (t) => t.employeeId === data.employeeId && t.date === data.date
                     );
-                    if (existing && existing.status === "computed") {
-                        return { timesheets: s.timesheets.map((t) => (t.id === existing.id ? ts : t)) };
+                    if (existing) {
+                        if (existing.status === "computed" || existing.status === "rejected") {
+                            return { timesheets: s.timesheets.map((t) => (t.id === existing.id ? ts : t)) };
+                        }
+                        // For submitted/approved, don't overwrite — return unchanged
+                        return {};
                     }
                     return { timesheets: [...s.timesheets, ts] };
                 }),

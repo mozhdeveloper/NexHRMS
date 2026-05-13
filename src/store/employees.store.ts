@@ -53,6 +53,8 @@ function dedupeById(employees: Employee[]): Employee[] {
 
 // Helper to deduplicate employees by email — for each duplicate email group,
 // prefer the record that has a profileId (linked auth account), else keep first.
+// Note: The discarded record's references (attendance, salary history) remain intact
+// since they reference by employee ID which is preserved in the kept record.
 function dedupeByEmail(employees: Employee[]): Employee[] {
     const emailMap = new Map<string, Employee>();
     for (const e of employees) {
@@ -62,7 +64,14 @@ function dedupeByEmail(employees: Employee[]): Employee[] {
             emailMap.set(key, e);
         } else if (!existing.profileId && e.profileId) {
             // Prefer the record that is linked to a real auth account
-            emailMap.set(key, e);
+            // Merge any additional data from the discarded record
+            const merged = {
+                ...e,
+                salary: e.salary || existing.salary,
+                department: e.department || existing.department,
+                jobTitle: e.jobTitle || existing.jobTitle,
+            };
+            emailMap.set(key, merged);
         }
     }
     return Array.from(emailMap.values());
@@ -194,6 +203,9 @@ export const useEmployeesStore = create<EmployeesState>()(
                     if (!req || req.status !== "pending") return {};
                     const emp = s.employees.find((e) => e.id === req.employeeId);
                     if (!emp) return {};
+                    // Validate effective date is not in the past (allow today)
+                    const today = new Date().toISOString().split("T")[0];
+                    if (req.effectiveDate < today) return {};
                     // Close any open salary history entry
                     const updatedHistory = s.salaryHistory.map((h) =>
                         h.employeeId === req.employeeId && !h.effectiveTo

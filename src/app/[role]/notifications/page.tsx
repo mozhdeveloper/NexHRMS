@@ -92,7 +92,9 @@ export default function NotificationsPage() {
         }
         // Always navigate if there's a link; otherwise stay on notifications page
         if (link) {
-            router.push(rh(link));
+            // Normalize link: strip any existing role prefix before applying current role
+            const normalizedLink = link.replace(/^\/(admin|hr|finance|employee|supervisor|payroll_admin|auditor)/, "");
+            router.push(rh(normalizedLink));
         }
     };
 

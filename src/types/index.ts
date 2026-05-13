@@ -393,6 +393,7 @@ export interface AttendanceLog {
   };
   faceVerified?: boolean;
   lateMinutes?: number;
+  approvedOTHours?: number;
   shiftId?: string;
   flags?: AttendanceFlag[];
   createdAt?: string;  // ISO 8601

@@ -172,13 +172,30 @@ export const usePayrollStore = create<PayrollState>()(
             issuePayslip: (data) =>
                 set((s) => {
                     // Duplicate guard: skip if a payslip already exists for this employee + period
+                    // Allow re-issue if existing is in "draft" status (for correction workflows)
                     const duplicate = s.payslips.find(
                         (p) => p.employeeId === data.employeeId
                             && p.periodStart === data.periodStart
                             && p.periodEnd === data.periodEnd
                             && p.payFrequency === data.payFrequency
                     );
-                    if (duplicate) return {};
+                    if (duplicate) {
+                        if (duplicate.status === "draft") {
+                            // Replace the existing draft with updated data
+                            const updatedPayslip = {
+                                ...data,
+                                id: duplicate.id,
+                                status: "draft" as const,
+                                issuedAt: data.issuedAt ?? new Date().toISOString().split("T")[0],
+                                payrollBatchId: duplicate.payrollBatchId,
+                            };
+                            return {
+                                payslips: s.payslips.map((p) => p.id === duplicate.id ? updatedPayslip : p),
+                            };
+                        }
+                        // Non-draft duplicate — don't overwrite
+                        return {};
+                    }
                     const newId = `PS-${nanoid(8)}`;
                     const periodKey = `${data.periodStart}/${data.periodEnd}`;
                     const runId = `RUN-${periodKey}`;
@@ -540,20 +557,24 @@ export const usePayrollStore = create<PayrollState>()(
                     if (!adj || adj.status !== "approved") return {};
                     // Create an adjustment payslip
                     const origPayslip = s.payslips.find((p) => p.id === adj.referencePayslipId);
+                    const grossAmount = adj.adjustmentType === "earnings" ? adj.amount : 0;
+                    const deductionAmount = adj.adjustmentType === "deduction" ? Math.abs(adj.amount) : 0;
+                    const statutoryCorrection = adj.adjustmentType === "statutory_correction" && adj.amount < 0 ? Math.abs(adj.amount) : 0;
+                    const netAmount = grossAmount - deductionAmount - statutoryCorrection;
                     const adjPayslip: Payslip = {
                         id: `PS-ADJ-${nanoid(8)}`,
                         employeeId: adj.employeeId,
                         periodStart: origPayslip?.periodStart ?? new Date().toISOString().split("T")[0],
                         periodEnd: origPayslip?.periodEnd ?? new Date().toISOString().split("T")[0],
-                        grossPay: adj.adjustmentType === "earnings" ? adj.amount : 0,
+                        grossPay: grossAmount,
                         allowances: 0,
-                        sssDeduction: adj.adjustmentType === "statutory_correction" && adj.amount < 0 ? Math.abs(adj.amount) : 0,
+                        sssDeduction: statutoryCorrection,
                         philhealthDeduction: 0,
                         pagibigDeduction: 0,
                         taxDeduction: 0,
-                        otherDeductions: adj.adjustmentType === "deduction" ? Math.abs(adj.amount) : 0,
+                        otherDeductions: deductionAmount,
                         loanDeduction: 0,
-                        netPay: adj.amount,
+                        netPay: netAmount,
                         issuedAt: new Date().toISOString().split("T")[0],
                         status: "draft",
                         notes: `Payroll Adjustment — Prior Period (${adj.reason})`,
@@ -582,8 +603,10 @@ export const usePayrollStore = create<PayrollState>()(
                     // Leave cash-out at daily rate
                     const leavePayout = Math.round(data.leaveDays * dailyRate);
                     const grossFinalPay = proRatedSalary + unpaidOT + leavePayout;
-                    // Government deductions (SSS, PhilHealth, Pag-IBIG, withholding tax)
-                    const govDeductions = computeAllPHDeductions(grossFinalPay);
+                    // Government deductions based on MONTHLY salary (not lump sum)
+                    // SSS, PhilHealth, Pag-IBIG are computed on regular monthly salary
+                    // Withholding tax is computed on the pro-rated salary portion only
+                    const govDeductions = computeAllPHDeductions(data.salary);
                     const deductions = data.loanBalance + govDeductions.totalDeductions;
                     const netFinalPay = Math.max(0, grossFinalPay - deductions);
 
@@ -727,13 +750,18 @@ export const usePayrollStore = create<PayrollState>()(
             name: "soren-payroll",
             version: 9,
             storage: safePersistStorage,
-            migrate: () => ({
-                payslips: [],
-                runs: [],
-                adjustments: [],
-                finalPayComputations: [],
-                paySchedule: DEFAULT_PAY_SCHEDULE,
-            }),
+            migrate: (persistedState: unknown, version: number) => {
+                const state = (persistedState ?? {}) as Record<string, unknown>;
+                // Preserve existing data during migrations
+                if (version < 9) {
+                    if (!Array.isArray(state.payslips)) state.payslips = [];
+                    if (!Array.isArray(state.runs)) state.runs = [];
+                    if (!Array.isArray(state.adjustments)) state.adjustments = [];
+                    if (!Array.isArray(state.finalPayComputations)) state.finalPayComputations = [];
+                    if (!state.paySchedule) state.paySchedule = DEFAULT_PAY_SCHEDULE;
+                }
+                return state;
+            },
         }
     )
 );

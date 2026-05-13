@@ -246,8 +246,8 @@ export async function adminResetPassword(userId: string, newPassword: string) {
     return { ok: false as const, error: "Only admins can reset passwords" };
   }
 
-  if (newPassword.length < 6) {
-    return { ok: false as const, error: "Password must be at least 6 characters" };
+  if (newPassword.length < 8) {
+    return { ok: false as const, error: "Password must be at least 8 characters" };
   }
 
   const supabase = await createAdminSupabaseClient();
@@ -299,8 +299,8 @@ export async function changeMyPassword(newPassword: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false as const, error: "Not authenticated" };
 
-  if (newPassword.length < 6) {
-    return { ok: false as const, error: "Password must be at least 6 characters" };
+  if (newPassword.length < 8) {
+    return { ok: false as const, error: "Password must be at least 8 characters" };
   }
 
   const { error } = await supabase.auth.updateUser({ password: newPassword });
