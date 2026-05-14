@@ -254,6 +254,10 @@ export const useTimesheetStore = create<TimesheetState>()(
             resetToSeed: () => set({ timesheets: [] }),
         }),
         { name: "soren-timesheet", version: 2, storage: safePersistStorage,
+          // Only persist rule sets — timesheets come from Supabase
+          partialize: (state: TimesheetState) => ({
+            ruleSets: state.ruleSets,
+          }),
           migrate: (persistedState: unknown, version: number) => {
             // v1 → v2 (migration 055): back-fill OT multipliers on existing rule sets
             const s = (persistedState ?? {}) as { ruleSets?: AttendanceRuleSet[] };

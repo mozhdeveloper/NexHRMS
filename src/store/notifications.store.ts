@@ -468,6 +468,12 @@ export const useNotificationsStore = create<NotificationsState>()(
             name: "soren-notifications",
             version: 6,
             storage: safePersistStorage,
+            // Only persist rules and prefs — logs come from Supabase
+            partialize: (state: NotificationsState) => ({
+                rules: state.rules,
+                providerConfig: state.providerConfig,
+                employeePrefs: state.employeePrefs,
+            }),
             migrate: (persisted: unknown) => {
                 // Carry over rules and logs from previous versions; reset everything else.
                 const p = persisted as Partial<NotificationsState> | null;
