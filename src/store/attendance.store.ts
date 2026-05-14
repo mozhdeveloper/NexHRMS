@@ -6,7 +6,7 @@ import { nanoid } from "nanoid";
 import type {
     AttendanceLog, AttendanceFlag, AttendanceEvent, AttendanceEvidence,
     AttendanceException, OvertimeRequest, ShiftTemplate, PenaltyRecord,
-    Holiday,
+    Holiday, AttendanceMethod,
 } from "@/types";
 import { SEED_ATTENDANCE } from "@/data/seed";
 import { DEFAULT_HOLIDAYS } from "@/lib/constants";
@@ -43,8 +43,8 @@ interface AttendanceState {
     getExceptions: (filters?: { employeeId?: string; date?: string; resolved?: boolean }) => AttendanceException[];
 
     // ─── Legacy log operations (derived view) ─────────
-    checkIn: (employeeId: string, projectId?: string) => void;
-    checkOut: (employeeId: string, projectId?: string) => void;
+    checkIn: (employeeId: string, projectId?: string, method?: AttendanceMethod) => void;
+    checkOut: (employeeId: string, projectId?: string, method?: AttendanceMethod) => { ok: boolean; error?: string };
     markAbsent: (employeeId: string, date: string) => void;
     addFlag: (logId: string, flag: AttendanceFlag) => void;
     removeFlag: (logId: string, flag: AttendanceFlag) => void;
@@ -418,10 +418,11 @@ export const useAttendanceStore = create<AttendanceState>()(
             },
 
             // ─── Legacy log operations (also append event) ───────────
-            checkIn: (employeeId, projectId) => {
+            checkIn: (employeeId, projectId, method) => {
                 const today = new Date().toISOString().split("T")[0];
                 const now = new Date();
                 const timeStr = formatTimeWithSeconds(now);
+                const checkInMethod: AttendanceMethod = method || "web_face";
 
                 // Append to event ledger
                 const eventId = `EVT-${nanoid(8)}`;
@@ -457,7 +458,7 @@ export const useAttendanceStore = create<AttendanceState>()(
                 if (existing) {
                     set((s) => ({
                         logs: s.logs.map((l) =>
-                            l.id === existing.id ? { ...l, checkIn: timeStr, status: "present" as const, lateMinutes, projectId, updatedAt: now.toISOString() } : l
+                            l.id === existing.id ? { ...l, checkIn: timeStr, status: "present" as const, lateMinutes, projectId, checkInMethod, updatedAt: now.toISOString() } : l
                         ),
                     }));
                 } else {
@@ -472,6 +473,7 @@ export const useAttendanceStore = create<AttendanceState>()(
                                 checkIn: timeStr,
                                 status: "present" as const,
                                 lateMinutes,
+                                checkInMethod,
                                 createdAt: now.toISOString(),
                                 updatedAt: now.toISOString(),
                             },
@@ -480,17 +482,34 @@ export const useAttendanceStore = create<AttendanceState>()(
                 }
             },
 
-            checkOut: (employeeId, projectId) => {
+            checkOut: (employeeId, projectId, method) => {
                 const today = new Date().toISOString().split("T")[0];
                 const now = new Date();
                 const timeStr = formatTimeWithSeconds(now);
+                const checkOutMethod: AttendanceMethod = method || "web_face";
 
                 // Verify employee has checked in today before allowing check-out
                 const todayLog = get().logs.find(
                     (l) => l.employeeId === employeeId && l.date === today
                 );
                 if (!todayLog?.checkIn) {
-                    return; // Cannot check out without checking in first
+                    return { ok: false, error: "Cannot check out without checking in first" };
+                }
+
+                // Enforce same-method rule: check-out method must match check-in method
+                // Exception: manual (admin override) can always check out
+                if (todayLog.checkInMethod && checkOutMethod !== "manual" && todayLog.checkInMethod !== checkOutMethod) {
+                    const methodLabels: Record<AttendanceMethod, string> = {
+                        biometric: "biometric device",
+                        web_face: "web face recognition",
+                        qr: "QR code",
+                        manual: "admin manual entry",
+                        self_checkin: "self check-in",
+                    };
+                    return {
+                        ok: false,
+                        error: `You checked in via ${methodLabels[todayLog.checkInMethod]}. Please use the same method to check out.`,
+                    };
                 }
 
                 // Append OUT event
@@ -504,11 +523,13 @@ export const useAttendanceStore = create<AttendanceState>()(
                 set((s) => ({
                     logs: s.logs.map((l) => {
                         if (l.employeeId === employeeId && l.date === today && l.checkIn) {
-                            return { ...l, checkOut: timeStr, hours: calculateHours(l.checkIn, timeStr), updatedAt: now.toISOString() };
+                            return { ...l, checkOut: timeStr, checkOutMethod, hours: calculateHours(l.checkIn, timeStr), updatedAt: now.toISOString() };
                         }
                         return l;
                     }),
                 }));
+
+                return { ok: true };
             },
 
             markAbsent: (employeeId, date) => {

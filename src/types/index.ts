@@ -377,6 +377,9 @@ export interface PenaltyRecord {
   resolved: boolean;     // admin can manually clear
 }
 
+/** Attendance method used for check-in/out */
+export type AttendanceMethod = "biometric" | "web_face" | "qr" | "manual" | "self_checkin";
+
 /** Computed daily summary — derived from events + rule set + shift */
 export interface AttendanceLog {
   id: string;
@@ -394,6 +397,8 @@ export interface AttendanceLog {
   faceVerified?: boolean;
   lateMinutes?: number;
   approvedOTHours?: number;
+  checkInMethod?: AttendanceMethod;   // Method used for Time IN
+  checkOutMethod?: AttendanceMethod;  // Method used for Time OUT
   shiftId?: string;
   flags?: AttendanceFlag[];
   createdAt?: string;  // ISO 8601

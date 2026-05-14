@@ -91,6 +91,7 @@ export async function POST(req: Request) {
           employee_id: emp.id,
           date: scanDay,
           check_in: timeStr,
+          check_in_method: "self_checkin",
           status: "present",
           updated_at: nowISO,
         },
