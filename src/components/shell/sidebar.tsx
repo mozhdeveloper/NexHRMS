@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
 import { useEmployeesStore } from "@/store/employees.store";
@@ -94,6 +94,7 @@ const iconMap: Record<string, React.ElementType> = {
 
 function SidebarComponent() {
     const pathname = usePathname();
+    const router = useRouter();
     
     // Consolidated auth store selector
     const { role, currentUserId, currentUserEmail, currentUserName } = useAuthStore(
@@ -212,6 +213,18 @@ function SidebarComponent() {
 
     // Build role-prefixed paths
     const rolePrefix = `/${role}`;
+
+    // Prefetch all nav routes on mount for instant page transitions
+    useEffect(() => {
+        if (!role) return;
+        const routes = filtered.systemItems.map((item) =>
+            item.absolute ? item.href : `${rolePrefix}${item.href}`
+        );
+        // Prefetch in batches to avoid overwhelming the browser
+        routes.forEach((route, i) => {
+            setTimeout(() => router.prefetch(route), i * 100);
+        });
+    }, [role, rolePrefix, filtered.systemItems, router]);
 
     // Close mobile sidebar on route change
     useEffect(() => {

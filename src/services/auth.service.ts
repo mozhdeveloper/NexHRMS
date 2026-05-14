@@ -370,11 +370,16 @@ export async function listUserAccounts() {
   );
   
   // Find profiles without corresponding employees and create them
+  // SKIP orphan repair if the profile has no employee — it may have been intentionally deleted
+  // Only create employee records for profiles that were JUST created (within last 5 minutes)
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
   const orphanProfiles = profiles.filter((p) => {
     // Already has an employee via profile_id link
     if (profileIdsWithEmployees.has(p.id)) return false;
     // Already has an employee via email match
     if (emailToEmployeeId.has(p.email?.toLowerCase())) return false;
+    // Only auto-create for recently created profiles (not old orphans from deleted employees)
+    if (p.created_at && p.created_at < fiveMinutesAgo) return false;
     return true;
   });
   
