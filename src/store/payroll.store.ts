@@ -750,6 +750,13 @@ export const usePayrollStore = create<PayrollState>()(
             name: "soren-payroll",
             version: 9,
             storage: safePersistStorage,
+            // Only persist config — transactional data (payslips, runs) comes from Supabase
+            partialize: (state: PayrollState) => ({
+                paySchedule: state.paySchedule,
+                signatureConfig: state.signatureConfig,
+                deductionOverrides: state.deductionOverrides,
+                globalDefaults: state.globalDefaults,
+            }),
             migrate: (persistedState: unknown, version: number) => {
                 const state = (persistedState ?? {}) as Record<string, unknown>;
                 // Preserve existing data during migrations

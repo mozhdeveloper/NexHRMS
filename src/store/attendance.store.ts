@@ -836,6 +836,13 @@ export const useAttendanceStore = create<AttendanceState>()(
             name: "soren-attendance",
             version: 5,
             storage: safePersistStorage,
+            // Only persist config/templates — transactional data (logs, events) comes from Supabase
+            partialize: (state: AttendanceState) => ({
+                shiftTemplates: state.shiftTemplates,
+                employeeShifts: state.employeeShifts,
+                holidays: state.holidays,
+                penalties: state.penalties,
+            }),
             migrate: (persistedState: unknown, version: number) => {
                 const state = (persistedState ?? {}) as Record<string, unknown>;
                 if (version < 4) {
