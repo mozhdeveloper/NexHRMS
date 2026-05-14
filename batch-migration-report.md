@@ -8,6 +8,7 @@
 4. [Performance Impact](#performance-impact)
 5. [Migration Guide: Zustand → Supabase](#migration-guide)
 6. [Risk Assessment](#risk-assessment)
+7. [Verdict: Why Optimize Zustand Before Migration](#verdict)
 
 ---
 
@@ -477,6 +478,50 @@ Each store migration is independent. If payroll service layer fails:
 1. Revert `admin-view.tsx` to use store methods directly
 2. Re-enable payroll write-through subscriber
 3. No data loss — DB was already being written to before and after
+
+---
+
+## Verdict: Why Optimize Zustand Before Migration
+
+> Should we optimize Zustand now before migrating to Supabase, or leave it and optimize after?
+
+**Optimize now, migrate later. This is the correct sequence.**
+
+### Reason 1: Batch Methods Become Migration Swap Points
+
+The batch methods we built (`batchReleasePaymentHold`, `batchPublishPayslips`, `batchRecordPayment`) have clean function signatures that the UI depends on. During migration, only the **internals** change:
+
+```
+Current:   setState (Zustand-first) → write-through → DB
+Migrated:  DB (Supabase-first) → setState (cache update)
+```
+
+The UI handler code (`handleBatchReissue`, `handleBatchPublish`, etc.) calls the same function either way. If we skipped this step, migration would require refactoring the `forEach` loops AND building the DB-first pattern at the same time — two changes in one shot, higher risk of breakage.
+
+### Reason 2: Immediate Performance Gains
+
+The system is slow **today**. A full Supabase migration takes weeks to months (13 stores, FK ordering, RLS testing, offline strategy). Users shouldn't wait that long. The batch optimization delivers a 95% reduction in DB calls and re-renders right now.
+
+### Reason 3: DB Layer Is Already Built
+
+The batch DB primitives (`batchUpsertPayslips`, `batchInsertLogs`) are already written and tested. When migration happens, these methods are reused directly — no new DB code needed. If we'd skipped optimization and migrated the raw `forEach` pattern to Supabase-first, we'd still end up with N individual DB calls per batch. The batching work would still need to happen, just later and under more pressure.
+
+### Reason 4: Testing Surface Is Smaller
+
+Optimizing Zustand batch mutations is a contained change — same data flow, same write-through, same DB. Migrating to Supabase-first changes the data flow direction entirely. Doing both at once doubles the testing surface and makes it harder to isolate bugs when something breaks.
+
+### The Only Scenario Where Skipping Makes Sense
+
+If the plan were to throw away ALL Zustand stores and rewrite from scratch with React Query within 2-4 weeks. But with 23 stores, 13 synced domains, and 17+ consumer files for payroll alone, that's not a realistic timeline for a production system.
+
+### Verdict Summary
+
+```
+✅ Optimize Zustand → Migrate to Supabase → Remove write-through → Remove persist
+❌ Leave Zustand slow → Migrate to Supabase (still slow) → Optimize DB calls → Fix UI
+```
+
+The first path is incremental, each step is independently testable, and users benefit immediately. The second path delays pain, compounds risk, and delivers no value until the entire migration is complete.
 
 ---
 
