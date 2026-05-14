@@ -571,95 +571,7 @@ export function startWriteThrough(): void {
     )
   );
 
-  // ─── Payroll write-through ────────────────────────────────
-  _subscriptions.push(
-    usePayrollStore.subscribe(
-      (state, prevState) => {
-        if (_writePaused) return;
-        // Only roles with payroll write access may push mutations through the browser
-        // client. Employees, supervisors, and auditors are read-only on payslips —
-        // their mutations go through API routes (admin client) to bypass RLS.
-        const payrollRole = useAuthStore.getState().currentUser?.role ?? "";
-        const canWritePayroll = ["admin", "hr", "finance", "payroll_admin"].includes(payrollRole);
-        if (!canWritePayroll) return;
-
-        // Build set of real employee IDs to guard FK integrity.
-        // Seed/demo payslips use placeholder IDs (EMP001 etc.) that may not
-        // exist in Supabase — skip those to avoid FK constraint violations.
-        const validEmployeeIds = new Set(
-          useEmployeesStore.getState().employees.map((e) => e.id)
-        );
-
-        // Batch-aware payslip write-through: collect all changed payslips, upsert in one DB call
-        const changedPayslips = state.payslips.filter((ps) => {
-          if (!validEmployeeIds.has(ps.employeeId)) return false; // skip seed data
-          const prev = prevState.payslips.find((p) => p.id === ps.id);
-          return !prev || JSON.stringify(prev) !== JSON.stringify(ps);
-        });
-        if (changedPayslips.length > 1) {
-          payrollDb.batchUpsertPayslips(changedPayslips);
-        } else if (changedPayslips.length === 1) {
-          payrollDb.upsertPayslip(changedPayslips[0]);
-        }
-        for (const run of state.runs) {
-          const prev = prevState.runs.find((r) => r.id === run.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(run)) {
-            payrollDb.upsertRun(run);
-          }
-        }
-        for (const adj of state.adjustments) {
-          if (!validEmployeeIds.has(adj.employeeId)) continue;
-          const prev = prevState.adjustments.find((a) => a.id === adj.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(adj)) {
-            payrollDb.upsertAdjustment(adj);
-          }
-        }
-        for (const fp of state.finalPayComputations) {
-          if (!validEmployeeIds.has(fp.employeeId)) continue;
-          const prev = prevState.finalPayComputations.find((f) => f.id === fp.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(fp)) {
-            payrollDb.upsertFinalPay(fp);
-          }
-        }
-        if (JSON.stringify(state.paySchedule) !== JSON.stringify(prevState.paySchedule)) {
-          payrollDb.upsertPaySchedule({ id: "default", ...state.paySchedule });
-        }
-
-        // ─── Deduction Overrides write-through ─────────────────
-        // Upsert new or changed overrides
-        for (const ov of state.deductionOverrides) {
-          const prev = prevState.deductionOverrides.find(
-            (d) => d.employeeId === ov.employeeId && d.deductionType === ov.deductionType
-          );
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(ov)) {
-            payrollDb.upsertDeductionOverride(ov);
-          }
-        }
-        // Delete removed overrides
-        for (const prev of prevState.deductionOverrides) {
-          const stillExists = state.deductionOverrides.find(
-            (d) => d.employeeId === prev.employeeId && d.deductionType === prev.deductionType
-          );
-          if (!stillExists) {
-            payrollDb.deleteDeductionOverride(prev.employeeId, prev.deductionType);
-          }
-        }
-
-        // ─── Global Defaults write-through ─────────────────────
-        for (const gd of state.globalDefaults) {
-          const prev = prevState.globalDefaults.find((d) => d.deductionType === gd.deductionType);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(gd)) {
-            payrollDb.upsertGlobalDefault(gd as unknown as Record<string, unknown>);
-          }
-        }
-
-        // ─── Signature Config write-through ────────────────────
-        if (JSON.stringify(state.signatureConfig) !== JSON.stringify(prevState.signatureConfig)) {
-          payrollDb.upsertSignatureConfig(state.signatureConfig);
-        }
-      }
-    )
-  );
+  // ─── Payroll write-through — REMOVED (DB-first via payroll.store.ts + payroll-actions.service.ts) ───
 
   // ─── Loans write-through ──────────────────────────────────
   _subscriptions.push(
@@ -710,59 +622,10 @@ export function startWriteThrough(): void {
     )
   );
 
-  // ─── Projects write-through ───────────────────────────────
-  _subscriptions.push(
-    useProjectsStore.subscribe(
-      (state, prevState) => {
-        if (_writePaused) return;
-        for (const proj of state.projects) {
-          const prev = prevState.projects.find((p) => p.id === proj.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(proj)) {
-            projectsDb.upsert(proj);
-          }
-        }
-        for (const prev of prevState.projects) {
-          if (!state.projects.find((p) => p.id === prev.id)) {
-            projectsDb.remove(prev.id);
-          }
-        }
-      }
-    )
-  );
+  // ─── Projects write-through — REMOVED (DB-first via projects.store.ts) ───
 
-  // ─── Audit write-through ──────────────────────────────────
-  _subscriptions.push(
-    useAuditStore.subscribe(
-      (state, prevState) => {
-        if (_writePaused) return;
-        for (const entry of state.logs) {
-          if (!prevState.logs.find((l) => l.id === entry.id)) {
-            auditDb.insert(entry);
-          }
-        }
-      }
-    )
-  );
-
-  // ─── Events write-through ─────────────────────────────────
-  _subscriptions.push(
-    useEventsStore.subscribe(
-      (state, prevState) => {
-        if (_writePaused) return;
-        for (const evt of state.events) {
-          const prev = prevState.events.find((e) => e.id === evt.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(evt)) {
-            eventsDb.upsert(evt);
-          }
-        }
-        for (const prev of prevState.events) {
-          if (!state.events.find((e) => e.id === prev.id)) {
-            eventsDb.remove(prev.id);
-          }
-        }
-      }
-    )
-  );
+  // ─── Audit write-through — REMOVED (DB-first via audit.store.ts) ───
+  // ─── Events write-through — REMOVED (DB-first via events.store.ts) ───
 
   // ─── Messaging write-through ──────────────────────────────
   _subscriptions.push(
@@ -906,37 +769,7 @@ export function startWriteThrough(): void {
     )
   );
 
-  // ─── Notifications write-through ──────────────────────────
-  _subscriptions.push(
-    useNotificationsStore.subscribe(
-      (state, prevState) => {
-        if (_writePaused) return;
-        // Batch-aware notification log write-through
-        const newLogs = state.logs.filter((log) => !prevState.logs.find((pl) => pl.id === log.id));
-        const changedLogs = state.logs.filter((log) => {
-          const prev = prevState.logs.find((pl) => pl.id === log.id);
-          return prev && JSON.stringify(prev) !== JSON.stringify(log);
-        });
-        // Batch insert new logs (single DB call)
-        if (newLogs.length > 1) {
-          notificationsDb.batchInsertLogs(newLogs);
-        } else if (newLogs.length === 1) {
-          notificationsDb.insertLog(newLogs[0]);
-        }
-        // Upsert changed logs individually (rare — e.g. read status changes)
-        for (const log of changedLogs) {
-          notificationsDb.upsertLog(log);
-        }
-        // Rules
-        for (const rule of state.rules) {
-          const prev = prevState.rules.find((pr) => pr.id === rule.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(rule)) {
-            notificationsDb.upsertRule(rule);
-          }
-        }
-      }
-    )
-  );
+  // ─── Notifications write-through — REMOVED (DB-first via notifications.store.ts) ───
 
   // ─── Location write-through ───────────────────────────────
   _subscriptions.push(

@@ -5,6 +5,7 @@ import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type { NotificationLog, NotificationType, NotificationRule, NotificationTrigger } from "@/types";
 import { useEmployeesStore } from "@/store/employees.store";
+import { notificationsDb } from "@/services/db.service";
 
 // ─── Default Rules ────────────────────────────────────────────
 
@@ -423,6 +424,23 @@ export const useNotificationsStore = create<NotificationsState>()(
                     ].slice(0, 500),
                 }));
 
+                // Write to DB (fire-and-forget)
+                notificationsDb.insertLog({
+                    id: notificationId,
+                    employeeId: recipientEmployeeId,
+                    type: trigger,
+                    channel: channel as NotificationLog["channel"],
+                    subject,
+                    body: logBody,
+                    sentAt: new Date().toISOString(),
+                    status: "simulated" as const,
+                    recipientEmail: channel === "email" || channel === "both" ? recipientEmail : undefined,
+                    recipientPhone: channel === "sms" || channel === "both" ? recipientPhone : undefined,
+                    link: autoLink,
+                } as NotificationLog).catch((err) => {
+                    console.warn("[notifications] DB write failed:", err);
+                });
+
                 // ─── Fire real push notification (fire-and-forget) ───
                 // Only send push if the employee has push enabled in their prefs.
                 const recipientPrefs = { ...DEFAULT_EMPLOYEE_PREFS, ...state.employeePrefs[recipientEmployeeId] };
@@ -512,6 +530,10 @@ export const useNotificationsStore = create<NotificationsState>()(
                     set((s) => ({
                         logs: [...newLogs, ...s.logs].slice(0, 500),
                     }));
+                    // Write to DB (fire-and-forget)
+                    notificationsDb.batchInsertLogs(newLogs).catch((err) => {
+                        console.warn("[notifications] batch DB write failed:", err);
+                    });
                 }
 
                 // Fire push notifications in parallel (fire-and-forget)

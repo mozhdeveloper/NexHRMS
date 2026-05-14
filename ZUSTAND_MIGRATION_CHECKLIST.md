@@ -606,11 +606,11 @@ Each store follows the same 5-step process:
 
 | # | Store | Service | UI Updated | Write-Through Removed | Persist Removed | Verified |
 |---|-------|---------|------------|----------------------|-----------------|----------|
-| 1 | payroll | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 2 | notifications | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 3 | audit | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 4 | events | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 5 | projects | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 1 | payroll | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 2 | notifications | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 3 | audit | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 4 | events | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 5 | projects | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 6 | departments | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 7 | job-titles | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 8 | roles | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |

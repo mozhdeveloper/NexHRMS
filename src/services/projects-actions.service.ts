@@ -41,7 +41,7 @@ export async function updateProject(id: string, data: Partial<Omit<Project, "id"
     const existing = store.projects.find((p) => p.id === id);
     if (!existing) return false;
 
-    const updated: Project = { ...existing, ...data, updatedAt: new Date().toISOString() };
+    const updated: Project = { ...existing, ...data };
 
     // 1. Write to DB first
     const ok = await projectsDb.upsert(updated);
