@@ -599,6 +599,10 @@ export default function AdminEmployeesView() {
             return;
         }
         
+        // Reset page to 1 and clear search so the new employee is visible
+        setPage(1);
+        setSearchQuery("");
+        
         // Close dialog immediately for better perceived performance
         setAddOpen(false);
         
