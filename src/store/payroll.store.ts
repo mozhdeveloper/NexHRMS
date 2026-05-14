@@ -61,6 +61,10 @@ interface PayrollState {
     confirmPaidByFinance: (id: string, confirmedBy: string, method: Payslip["paymentMethod"], reference: string, cashAmount?: number, paymentProofUrl?: string) => void;
     holdPayment: (id: string, note?: string) => void;
     releasePaymentHold: (id: string) => void;
+    // ─── Batch mutations (single setState → single write-through → single DB call) ───
+    batchReleasePaymentHold: (ids: string[]) => void;
+    batchPublishPayslips: (ids: string[]) => void;
+    batchRecordPayment: (ids: string[], paymentMethod: Payslip["paymentMethod"], bankReferenceId: string) => void;
     /** Reject a held payslip's signature — clears signedAt so employee must re-sign */
     rejectHoldSignature: (id: string) => void;
     /** Update a payslip with data from server (avoids timestamp mismatch with write-through) */
@@ -365,6 +369,43 @@ export const usePayrollStore = create<PayrollState>()(
                             : p
                     ),
                 })),
+
+            // ─── Batch mutations ─────────────────────────────────────
+            batchReleasePaymentHold: (ids) =>
+                set((s) => {
+                    const idSet = new Set(ids);
+                    return {
+                        payslips: s.payslips.map((p) =>
+                            idSet.has(p.id) && p.status === "payment_hold"
+                                ? { ...p, status: "published" as const, holdNote: undefined, heldAt: undefined }
+                                : p
+                        ),
+                    };
+                }),
+
+            batchPublishPayslips: (ids) =>
+                set((s) => {
+                    const idSet = new Set(ids);
+                    return {
+                        payslips: s.payslips.map((p) =>
+                            idSet.has(p.id) && p.status === "draft"
+                                ? { ...p, status: "published" as const, publishedAt: new Date().toISOString() }
+                                : p
+                        ),
+                    };
+                }),
+
+            batchRecordPayment: (ids, paymentMethod, bankReferenceId) =>
+                set((s) => {
+                    const idSet = new Set(ids);
+                    return {
+                        payslips: s.payslips.map((p) =>
+                            idSet.has(p.id) && p.status === "signed"
+                                ? { ...p, status: "paid" as const, paidAt: new Date().toISOString(), paymentMethod, bankReferenceId }
+                                : p
+                        ),
+                    };
+                }),
 
             rejectHoldSignature: (id) =>
                 set((s) => ({

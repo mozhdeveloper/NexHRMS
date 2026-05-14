@@ -141,6 +141,27 @@ export function dispatchNotification(
 }
 
 /**
+ * Batch dispatch notifications — single store setState, parallel push, one summary toast.
+ * Replaces forEach → dispatchNotification loops in batch handlers.
+ */
+export function dispatchBatchNotifications(
+    items: Array<{
+        trigger: NotificationTrigger;
+        vars: Record<string, string>;
+        recipientEmployeeId: string;
+        recipientEmail?: string;
+        recipientPhone?: string;
+        link?: string;
+    }>,
+    summaryToast?: string
+): void {
+    if (items.length === 0) return;
+    const store = useNotificationsStore.getState();
+    store.batchDispatch(items);
+    if (summaryToast) toast.success(summaryToast);
+}
+
+/**
  * Convenience factories for common notification types.
  */
 export function notifyProjectAssignment(params: {

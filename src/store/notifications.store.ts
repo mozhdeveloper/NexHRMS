@@ -90,6 +90,8 @@ interface NotificationsState {
 
     // Dispatch (simulated send)
     dispatch: (trigger: NotificationTrigger, vars: Record<string, string>, recipientEmployeeId: string, recipientEmail?: string, recipientPhone?: string, link?: string) => void;
+    /** Batch dispatch — single setState for all entries, push in parallel */
+    batchDispatch: (entries: Array<{ trigger: NotificationTrigger; vars: Record<string, string>; recipientEmployeeId: string; recipientEmail?: string; recipientPhone?: string; link?: string }>) => void;
 
     resetToSeed: () => void;
 }
@@ -446,6 +448,83 @@ export const useNotificationsStore = create<NotificationsState>()(
                     }).catch((err) => {
                         console.debug("[notifications] Push send failed (non-critical):", err);
                     });
+                }
+            },
+
+            // ─── Batch Dispatch ─────────────────────────────
+            batchDispatch: (entries) => {
+                const state = get();
+                const newLogs: NotificationLog[] = [];
+                const pushPayloads: Array<{ employeeId: string; title: string; body: string; url: string; tag: string }> = [];
+
+                for (const entry of entries) {
+                    const rule = state.rules.find((r) => r.trigger === entry.trigger);
+                    if (!rule || !rule.enabled) continue;
+
+                    // Per-employee opt-out check
+                    const prefKey = prefKeyForTrigger(entry.trigger);
+                    if (prefKey !== null) {
+                        const prefs = { ...DEFAULT_EMPLOYEE_PREFS, ...state.employeePrefs[entry.recipientEmployeeId] };
+                        if (!prefs[prefKey]) continue;
+                    }
+
+                    const subject = renderTemplate(rule.subjectTemplate, entry.vars);
+                    const body = renderTemplate(rule.bodyTemplate, entry.vars);
+                    const channel = rule.channel;
+                    const autoLink = entry.link || getDefaultLinkForTrigger(entry.trigger);
+                    const notificationId = `NOTIF-${nanoid(8)}`;
+
+                    const logBody =
+                        (channel === "sms" || channel === "both") && rule.smsTemplate
+                            ? renderTemplate(rule.smsTemplate, entry.vars)
+                            : body;
+
+                    if (isLegacyIosAltitudeFalsePositiveNotification({ type: entry.trigger, body: logBody })) continue;
+
+                    newLogs.push({
+                        id: notificationId,
+                        employeeId: entry.recipientEmployeeId,
+                        type: entry.trigger,
+                        channel: channel as NotificationLog["channel"],
+                        subject,
+                        body: logBody,
+                        sentAt: new Date().toISOString(),
+                        status: "simulated" as const,
+                        recipientEmail: channel === "email" || channel === "both" ? entry.recipientEmail : undefined,
+                        recipientPhone: channel === "sms" || channel === "both" ? entry.recipientPhone : undefined,
+                        link: autoLink,
+                    });
+
+                    // Collect push payloads
+                    const recipientPrefs = { ...DEFAULT_EMPLOYEE_PREFS, ...state.employeePrefs[entry.recipientEmployeeId] };
+                    if (recipientPrefs.pushEnabled) {
+                        let pushUrl = autoLink;
+                        try {
+                            const emp = useEmployeesStore.getState().employees.find((e) => e.id === entry.recipientEmployeeId);
+                            if (emp?.role) pushUrl = `/${emp.role}${autoLink}`;
+                        } catch { /* best-effort */ }
+                        pushPayloads.push({ employeeId: entry.recipientEmployeeId, title: subject, body, url: pushUrl, tag: notificationId });
+                    }
+                }
+
+                // Single setState for all logs
+                if (newLogs.length > 0) {
+                    set((s) => ({
+                        logs: [...newLogs, ...s.logs].slice(0, 500),
+                    }));
+                }
+
+                // Fire push notifications in parallel (fire-and-forget)
+                if (pushPayloads.length > 0) {
+                    Promise.all(
+                        pushPayloads.map((p) =>
+                            fetch("/api/push/send", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(p),
+                            }).catch(() => { /* push is best-effort */ })
+                        )
+                    ).catch(() => { /* best-effort */ });
                 }
             },
 

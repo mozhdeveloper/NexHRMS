@@ -44,7 +44,7 @@ import { PrintablePayslip } from "@/components/payroll/printable-payslip";
 import { PayrollReadinessChecklist } from "@/components/payroll/payroll-readiness-checklist";
 import { format, endOfMonth, subMonths, getYear, getMonth, parseISO, differenceInCalendarDays, getDaysInMonth } from "date-fns";
 import { Textarea } from "@/components/ui/textarea";
-import { dispatchNotification } from "@/lib/notifications";
+import { dispatchNotification, dispatchBatchNotifications } from "@/lib/notifications";
 import { useAuditStore } from "@/store/audit.store";
 import { payrollDb } from "@/services/db.service";
 import type { DeductionType, DeductionOverrideMode, DeductionTemplate, DeductionTemplateType, DeductionCalculationMode, Department, Project, Payslip } from "@/types";
@@ -73,7 +73,7 @@ interface AdminPayrollViewProps {
 export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewProps) {
     const params = useParams();
     const role = params.role as string;
-    const { payslips, runs, adjustments, finalPayComputations, issuePayslip, confirmPayslip, publishPayslip, recordPayment, confirmPaidByFinance, holdPayment, releasePaymentHold, rejectHoldSignature, lockRun, unlockRun, publishRun, endRun, reactivateRun, markRunPaid, approveAdjustment, applyAdjustment, createAdjustment, computeFinalPay, generate13thMonth, exportBankFile, createDraftRun, validateRun, resetToSeed, paySchedule, updatePaySchedule, signatureConfig, updateSignatureConfig, deductionOverrides, setDeductionOverride, removeDeductionOverride, clearEmployeeOverrides, getDeductionOverride, getEmployeeOverrides, globalDefaults, updateGlobalDefault, getGlobalDefault, updatePayslipFromServer, isPayslipRunLocked } = usePayrollStore();
+    const { payslips, runs, adjustments, finalPayComputations, issuePayslip, confirmPayslip, publishPayslip, recordPayment, confirmPaidByFinance, holdPayment, releasePaymentHold, rejectHoldSignature, lockRun, unlockRun, publishRun, endRun, reactivateRun, markRunPaid, approveAdjustment, applyAdjustment, createAdjustment, computeFinalPay, generate13thMonth, exportBankFile, createDraftRun, validateRun, resetToSeed, paySchedule, updatePaySchedule, signatureConfig, updateSignatureConfig, deductionOverrides, setDeductionOverride, removeDeductionOverride, clearEmployeeOverrides, getDeductionOverride, getEmployeeOverrides, globalDefaults, updateGlobalDefault, getGlobalDefault, updatePayslipFromServer, isPayslipRunLocked, batchReleasePaymentHold, batchPublishPayslips, batchRecordPayment } = usePayrollStore();
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
     const { getActiveByEmployee, recordDeduction } = useLoansStore();
@@ -728,33 +728,30 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
 
     const handleBatchReissue = useCallback((items: Payslip[]) => {
         if (items.length === 0) { toast.error("No on-hold payslips to re-issue"); return; }
-        items.forEach((ps) => {
-            releasePaymentHold(ps.id);
-            dispatchNotification(
-                "payslip_published",
-                { name: getEmpName(ps.employeeId), period: `${ps.periodStart} — ${ps.periodEnd}`, amount: formatCurrency(ps.netPay) },
-                ps.employeeId,
-                undefined,
-                undefined,
-                undefined,
-                { suppressToast: true }
-            );
-        });
+        // Single setState → single write-through → single DB upsert
+        batchReleasePaymentHold(items.map((ps) => ps.id));
+        // Single setState for all notification logs + parallel push
+        dispatchBatchNotifications(
+            items.map((ps) => ({
+                trigger: "payslip_published" as const,
+                vars: { name: getEmpName(ps.employeeId), period: `${ps.periodStart} — ${ps.periodEnd}`, amount: formatCurrency(ps.netPay) },
+                recipientEmployeeId: ps.employeeId,
+            }))
+        );
         const employeeCount = new Set(items.map((ps) => ps.employeeId)).size;
         toast.success(`Re-issued ${employeeCount} employee${employeeCount !== 1 ? "s" : ""} (${items.length} payslip${items.length !== 1 ? "s" : ""})`);
-    }, [releasePaymentHold, getEmpName]);
+    }, [batchReleasePaymentHold, getEmpName]);
 
-    // ─── Batch handlers ──────────────────────────────────────────
-    // Use store-first pattern (matching single-action buttons).
-    // The write-through subscriber in sync.service.ts persists to Supabase.
     const handleBatchPublish = useCallback(() => {
         const draftSlips = filteredPayslips.filter((p) => p.status === "draft" && isPayslipRunLocked(p.id));
         if (draftSlips.length === 0) { toast.error("No draft payslips in a locked payroll run to publish"); return; }
         setBatchProcessing(true);
         try {
             const publishedEmployeeCount = new Set(draftSlips.map((ps) => ps.employeeId)).size;
+            // Single setState → single write-through → single DB upsert
+            batchPublishPayslips(draftSlips.map((ps) => ps.id));
+            // Audit logs still individual (append-only, no batch concern)
             draftSlips.forEach((ps) => {
-                publishPayslip(ps.id);
                 useAuditStore.getState().log({ entityType: "payslip", entityId: ps.id, action: "payroll_published", performedBy: currentUser.id });
             });
             toast.success(`Published ${publishedEmployeeCount} employee${publishedEmployeeCount !== 1 ? "s" : ""} (${draftSlips.length} payslip${draftSlips.length !== 1 ? "s" : ""})`);
@@ -763,25 +760,35 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
         } finally {
             setBatchProcessing(false);
         }
-    }, [filteredPayslips, publishPayslip, currentUser.id, isPayslipRunLocked]);
+    }, [filteredPayslips, batchPublishPayslips, currentUser.id, isPayslipRunLocked]);
 
     const handleBatchRecordPayment = useCallback(() => {
         const signedSlips = filteredPayslips.filter((p) => p.status === "signed");
         if (signedSlips.length === 0) { toast.error("No signed payslips to record payment for"); return; }
         setBatchProcessing(true);
         try {
+            const batchRef = `BATCH-REF-${Date.now()}`;
+            // Single setState → single write-through → single DB upsert
+            batchRecordPayment(signedSlips.map((ps) => ps.id), "bank_transfer", batchRef);
+            // Audit logs still individual (append-only)
             signedSlips.forEach((ps) => {
-                recordPayment(ps.id, "bank_transfer", `BATCH-REF-${Date.now()}-${ps.id}`);
                 useAuditStore.getState().log({ entityType: "payslip", entityId: ps.id, action: "payment_recorded", performedBy: currentUser.id });
-                dispatchNotification("payment_confirmed", { name: getEmpName(ps.employeeId), period: `${ps.periodStart} — ${ps.periodEnd}`, amount: formatCurrency(ps.netPay) }, ps.employeeId);
             });
+            // Single setState for all notification logs + parallel push
+            dispatchBatchNotifications(
+                signedSlips.map((ps) => ({
+                    trigger: "payment_confirmed" as const,
+                    vars: { name: getEmpName(ps.employeeId), period: `${ps.periodStart} — ${ps.periodEnd}`, amount: formatCurrency(ps.netPay) },
+                    recipientEmployeeId: ps.employeeId,
+                }))
+            );
             toast.success(`Recorded payment for ${signedSlips.length} payslip${signedSlips.length > 1 ? "s" : ""}`);
         } catch (err) {
             toast.error(`Failed to record payments: ${err instanceof Error ? err.message : "Unknown error"}`);
         } finally {
             setBatchProcessing(false);
         }
-    }, [filteredPayslips, recordPayment, currentUser.id]);
+    }, [filteredPayslips, batchRecordPayment, currentUser.id, getEmpName]);
 
     /** Recompute government + custom deductions on draft payslips using current Tax Settings. */
     const handleBatchRecomputeDeductions = useCallback(() => {

@@ -590,12 +590,16 @@ export function startWriteThrough(): void {
           useEmployeesStore.getState().employees.map((e) => e.id)
         );
 
-        for (const ps of state.payslips) {
-          if (!validEmployeeIds.has(ps.employeeId)) continue; // skip seed data
+        // Batch-aware payslip write-through: collect all changed payslips, upsert in one DB call
+        const changedPayslips = state.payslips.filter((ps) => {
+          if (!validEmployeeIds.has(ps.employeeId)) return false; // skip seed data
           const prev = prevState.payslips.find((p) => p.id === ps.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(ps)) {
-            payrollDb.upsertPayslip(ps);
-          }
+          return !prev || JSON.stringify(prev) !== JSON.stringify(ps);
+        });
+        if (changedPayslips.length > 1) {
+          payrollDb.batchUpsertPayslips(changedPayslips);
+        } else if (changedPayslips.length === 1) {
+          payrollDb.upsertPayslip(changedPayslips[0]);
         }
         for (const run of state.runs) {
           const prev = prevState.runs.find((r) => r.id === run.id);
@@ -907,15 +911,21 @@ export function startWriteThrough(): void {
     useNotificationsStore.subscribe(
       (state, prevState) => {
         if (_writePaused) return;
-        // Logs: insert new logs OR upsert changed logs (e.g. read status)
-        for (const log of state.logs) {
+        // Batch-aware notification log write-through
+        const newLogs = state.logs.filter((log) => !prevState.logs.find((pl) => pl.id === log.id));
+        const changedLogs = state.logs.filter((log) => {
           const prev = prevState.logs.find((pl) => pl.id === log.id);
-          if (!prev) {
-            notificationsDb.insertLog(log);
-          } else if (JSON.stringify(prev) !== JSON.stringify(log)) {
-            // Log changed (e.g. read: false → true) — sync to DB
-            notificationsDb.upsertLog(log);
-          }
+          return prev && JSON.stringify(prev) !== JSON.stringify(log);
+        });
+        // Batch insert new logs (single DB call)
+        if (newLogs.length > 1) {
+          notificationsDb.batchInsertLogs(newLogs);
+        } else if (newLogs.length === 1) {
+          notificationsDb.insertLog(newLogs[0]);
+        }
+        // Upsert changed logs individually (rare — e.g. read status changes)
+        for (const log of changedLogs) {
+          notificationsDb.upsertLog(log);
         }
         // Rules
         for (const rule of state.rules) {
