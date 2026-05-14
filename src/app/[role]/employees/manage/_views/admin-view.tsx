@@ -43,7 +43,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { nanoid } from "nanoid";
 import { Search, SlidersHorizontal, Eye, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Plus, Trash2, UserMinus, Pencil, Mail, MapPin, Phone, Cake, DollarSign, RefreshCw, KeyRound, ShieldCheck, Briefcase, User, FolderKanban, Users, Tag, Crown, Building2, Receipt, Calculator, XCircle } from "lucide-react";
-import { getInitials, formatCurrency, formatDate, validatePhone } from "@/lib/format";
+import { getInitials, formatCurrency, formatDate, validatePhone, validateEmailDomain } from "@/lib/format";
 import Link from "next/link";
 import { ImportDataDialog } from "@/components/import-data-dialog";
 import { useRoleHref } from "@/lib/hooks/use-role-href";
@@ -119,6 +119,15 @@ export default function AdminEmployeesView() {
             if (!res.ok || data.ok === false) {
                 toast.error(data.error || "Failed to delete employee from database");
                 return;
+            }
+
+            // Also delete the auth account/profile if the employee has one
+            if (emp.profileId) {
+                try {
+                    await adminDeleteAccount(emp.profileId);
+                } catch (e) {
+                    console.warn("[employees] auth account delete failed (non-blocking):", e);
+                }
             }
 
             removeEmployee(emp.id);
@@ -548,7 +557,8 @@ export default function AdminEmployeesView() {
         if (!newName.trim()) { toast.error("Employee name is required"); return; }
         if (!newEmail.trim()) { toast.error("Email address is required"); return; }
         if (!newJobTitle || !newDept) { toast.error("Please fill all required fields (job title, department)"); return; }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim())) { toast.error("Please enter a valid email address"); return; }
+        const emailCheck = validateEmailDomain(newEmail.trim());
+        if (!emailCheck.valid) { toast.error(emailCheck.error || "Please enter a valid email address"); return; }
         if (!newPassword || newPassword.length < 8) { toast.error("Password is required and must be at least 8 characters"); return; }
         if (employees.some((e) => e.email.toLowerCase() === newEmail.trim().toLowerCase())) { toast.error("An employee with this email already exists"); return; }
         if (newBiometricId.trim() && employees.some((e) => e.biometricId === newBiometricId.trim())) { toast.error("This biometric ID is already assigned to another employee"); return; }
@@ -716,7 +726,8 @@ export default function AdminEmployeesView() {
         if (!editName.trim()) { toast.error("Employee name is required"); return; }
         if (!editEmail.trim()) { toast.error("Email address is required"); return; }
         if (!editDept) { toast.error("Department is required"); return; }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editEmail.trim())) { toast.error("Please enter a valid email address"); return; }
+        const editEmailCheck = validateEmailDomain(editEmail.trim());
+        if (!editEmailCheck.valid) { toast.error(editEmailCheck.error || "Please enter a valid email address"); return; }
         if (employees.some((e) => e.id !== editingEmp.id && e.email.toLowerCase() === editEmail.trim().toLowerCase())) { toast.error("An employee with this email already exists"); return; }
         if (editBiometricId.trim() && employees.some((e) => e.id !== editingEmp.id && e.biometricId === editBiometricId.trim())) { toast.error("This biometric ID is already assigned to another employee"); return; }
         const editSalaryNum = Number(editSalary);
