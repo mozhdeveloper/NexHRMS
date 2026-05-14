@@ -77,6 +77,8 @@ interface PayrollState {
     unlockRun: (runDate: string, unlockedBy?: string) => void;
     publishRun: (runDate: string) => void;
     endRun: (runDate: string) => void;
+    /** Revert an ended run back to locked (e.g. when a re-issued payslip needs signing before completion) */
+    reactivateRun: (runDate: string) => void;
     markRunPaid: (runDate: string) => void;
     // ─── Adjustments ──────────────────────────────────
     createAdjustment: (data: Omit<PayrollAdjustment, "id" | "status" | "createdAt">) => void;
@@ -500,6 +502,20 @@ export const usePayrollStore = create<PayrollState>()(
                         runs: s.runs.map((r) =>
                             r.periodLabel === runDate
                                 ? { ...r, status: "ended" as const }
+                                : r
+                        ),
+                    };
+                }),
+
+            // Reactivate run: ended → locked (when a re-issued payslip needs signing again)
+            reactivateRun: (runDate) =>
+                set((s) => {
+                    const run = s.runs.find((r) => r.periodLabel === runDate);
+                    if (!run || run.status !== "ended") return {};
+                    return {
+                        runs: s.runs.map((r) =>
+                            r.periodLabel === runDate
+                                ? { ...r, status: "locked" as const }
                                 : r
                         ),
                     };

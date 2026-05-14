@@ -73,7 +73,7 @@ interface AdminPayrollViewProps {
 export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewProps) {
     const params = useParams();
     const role = params.role as string;
-    const { payslips, runs, adjustments, finalPayComputations, issuePayslip, confirmPayslip, publishPayslip, recordPayment, confirmPaidByFinance, holdPayment, releasePaymentHold, rejectHoldSignature, lockRun, unlockRun, publishRun, endRun, markRunPaid, approveAdjustment, applyAdjustment, createAdjustment, computeFinalPay, generate13thMonth, exportBankFile, createDraftRun, validateRun, resetToSeed, paySchedule, updatePaySchedule, signatureConfig, updateSignatureConfig, deductionOverrides, setDeductionOverride, removeDeductionOverride, clearEmployeeOverrides, getDeductionOverride, getEmployeeOverrides, globalDefaults, updateGlobalDefault, getGlobalDefault, updatePayslipFromServer, isPayslipRunLocked } = usePayrollStore();
+    const { payslips, runs, adjustments, finalPayComputations, issuePayslip, confirmPayslip, publishPayslip, recordPayment, confirmPaidByFinance, holdPayment, releasePaymentHold, rejectHoldSignature, lockRun, unlockRun, publishRun, endRun, reactivateRun, markRunPaid, approveAdjustment, applyAdjustment, createAdjustment, computeFinalPay, generate13thMonth, exportBankFile, createDraftRun, validateRun, resetToSeed, paySchedule, updatePaySchedule, signatureConfig, updateSignatureConfig, deductionOverrides, setDeductionOverride, removeDeductionOverride, clearEmployeeOverrides, getDeductionOverride, getEmployeeOverrides, globalDefaults, updateGlobalDefault, getGlobalDefault, updatePayslipFromServer, isPayslipRunLocked } = usePayrollStore();
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
     const { getActiveByEmployee, recordDeduction } = useLoansStore();
@@ -1599,7 +1599,11 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
                                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleBatchReissue(activeRunHoldPayslips)}>
+                                                        <AlertDialogAction onClick={() => {
+                                                            handleBatchReissue(activeRunHoldPayslips);
+                                                            // Re-issue before completing the run — revert to E-sign stage
+                                                            if (activeRun?.status === "ended") reactivateRun(activeRun.periodLabel);
+                                                        }}>
                                                             Re-Issue All
                                                         </AlertDialogAction>
                                                     </AlertDialogFooter>
@@ -1780,6 +1784,11 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                             if (!reissueConfirmId) return;
                                             const ps = payslips.find((p) => p.id === reissueConfirmId);
                                             releasePaymentHold(reissueConfirmId);
+                                            // If re-issue happens before cycle completion, revert run to E-sign stage
+                                            if (ps?.payrollBatchId) {
+                                                const runObj = runs.find((r) => r.id === ps.payrollBatchId);
+                                                if (runObj?.status === "ended") reactivateRun(runObj.periodLabel);
+                                            }
                                             if (ps) dispatchNotification("payslip_published", { name: getEmpName(ps.employeeId), period: `${ps.periodStart} — ${ps.periodEnd}`, amount: formatCurrency(ps.netPay) }, ps.employeeId);
                                             toast.success("Payslip re-issued");
                                             setReissueConfirmId(null);
@@ -1869,7 +1878,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                                                     </AlertDialogContent>
                                                                                 </AlertDialog>
                                                                             )}
-                                                                            {locked && canLock && runStatus !== "completed" && (
+                                                                            {locked && canLock && runStatus !== "completed" && runStatus !== "ended" && (
                                                                                 <AlertDialog>
                                                                                     <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-amber-500" title="Unlock for correction"><LockOpen className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
                                                                                     <AlertDialogContent>
@@ -2074,7 +2083,9 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                                         <Button
                                                                             variant="outline"
                                                                             size="sm"
-                                                                            className="h-8 text-xs gap-1.5 text-amber-600 border-amber-200 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                                                                            className={`h-8 text-xs gap-1.5 ${hasActiveRun ? "text-amber-600 border-amber-200 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/30" : "text-muted-foreground/40 border-border/40 cursor-not-allowed"}`}
+                                                                            title={hasActiveRun ? "Re-Issue All On-Hold" : "Start a payroll run to re-issue"}
+                                                                            disabled={!hasActiveRun}
                                                                         >
                                                                             <RotateCcw className="h-3.5 w-3.5" />
                                                                             Re-Issue All (Completed Runs) ({completedHoldPayslips.length})
