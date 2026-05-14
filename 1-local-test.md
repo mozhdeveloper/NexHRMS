@@ -1,48 +1,31 @@
-## Phase 1: Boot the Middleware on your Wi-Fi
+---
+description:
+globs:
+alwaysApply: false
+---
 
-Since your fk-bridge.js script has a brilliant built-in feature that automatically detects your Wi-Fi IP address, we are going to start the server first to grab those coordinates. We will force it to run on port 8080 to avoid any administrator permission issues.
+You are a world-class software engineer with decades of experience. You are given a task that is related to the current project. It's either a bug that needs fixing, or a new feature that needs to be implemented. Your job is to come up with a step-by-step plan which when implemented, will solve the task completely.
 
-Connect Both Devices: Ensure your laptop and the T800 biometric device are connected to the exact same Wi-Fi network.
+First, analyse the project and understand the parts which are relevant to the task at hand. Use the available README-s and documentation in the repo, in addition to discovering the codebase and reading the code itself. Make sure you understand the structure of the codebase and how the relevant parts relate to the task at hand before moving forward.
 
-Open your Terminal: Navigate to the root directory of your NexVision HRMS project where your scripts folder is located.
+Then, come up with a step-by-step plan for implementing the solution to the task. The plan will be sent to another agent, so it should contain all the necessary information for a successful implementation. Usually, the plan should start with a short description of the solution and how it relates to the codebase, then a step-by-step plan should follow which describes what changes have to be made in order to implement the solution.
 
-Start the Server: Run the following command based on your operating system:
+Output the plan in a code block at the end of your response as a formatted markdown document. Do not implement any changes. Another agent will take over from there.
 
-Mac/Linux: FK_BRIDGE_PORT=8080 node scripts/fk-bridge.js
+This is the task that needs to be solved:
 
-Windows (PowerShell): $env:FK_BRIDGE_PORT="8080"; node scripts/fk-bridge.js
+# Pre-task
 
-Windows (CMD): set FK_BRIDGE_PORT=8080 && node scripts/fk-bridge.js
+- Always make an implementation plan on an artifact first, so the developer can review the plan first.
 
-## Phase 2: Grab Your Wi-Fi Coordinates
+# Main Task
 
-Once the server starts, look closely at your terminal output. Your script will print out exactly where it lives on the Wi-Fi network.
+## Phase 1 - Employee Menu Fixes
 
-Look for the line that says: [info] bridge listening {"port":8080...}
+- The initial password field accepts spaces as a character. It shouldn't be.
+- Also under User Accounts tab reset password modal also accepts space as characters.
+- On employee view, when Require password change on first login is activated on the user added. Th user can also input space and will be recognized as a character.
 
-Right below it, look for the line that says: [info] local addresses {"addresses":["192.168.x.x"]}
+## Phase 2 - Projects Menu Fixes
 
-Write down that 192.168.x.x number. This is your laptop's unique address on your Wi-Fi router.
-
-## Phase 3: Route the Biometrics
-
-Now, we tell the T800 to stop looking for Render on the public internet and instead look across your Wi-Fi room to your laptop.
-
-On the T800 device, navigate to the Network settings.
-
-Select ServerIP: Delete the .onrender.com URL and type in the IP address you wrote down in Phase 2.
-
-Select ServerPort: Change this to 8080.
-
-Save the settings and exit to the main screen.
-
-Reboot the T800 (unplug and plug back in, or use the power menu) to force it to initiate a fresh connection over the Wi-Fi.
-
-## Phase 4: The Payload Drop
-
-With the device rebooting, keep your eyes locked on your terminal where fk-bridge.js is running.
-
-Success Looks Like: Within 30 to 60 seconds of the scanner booting up, you should see a payload drop into your terminal logs:
-[info] post request received {"path":"/","remote":"...","requestCode":"receive_cmd","devId":"202604210001", ...}
-
-Troubleshooting: If the T800 shows a red cloud icon or nothing appears in the terminal after 2 minutes, your laptop's firewall is blocking the Wi-Fi traffic. Temporarily turn off Windows Defender Firewall or your Mac's Firewall, then restart the T800.
+- Under verification column, the icon of the chosen verification method is duplicated (look at the photo).

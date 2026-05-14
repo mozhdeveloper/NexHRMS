@@ -348,6 +348,7 @@ export default function AdminEmployeesView() {
 
     const handleResetPassword = async () => {
         if (!resetPwUserId || resetPwValue.length < 6) { toast.error("Password must be at least 6 characters."); return; }
+        if (/\s/.test(resetPwValue)) { toast.error("Password cannot contain spaces."); return; }
         setActionLoading(true);
         if (USE_DEMO_MODE) {
             demoAdminSetPassword(resetPwUserId, resetPwValue);
@@ -550,6 +551,7 @@ export default function AdminEmployeesView() {
         if (!newJobTitle || !newDept) { toast.error("Please fill all required fields (job title, department)"); return; }
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim())) { toast.error("Please enter a valid email address"); return; }
         if (!newPassword || newPassword.length < 8) { toast.error("Password is required and must be at least 8 characters"); return; }
+        if (/\s/.test(newPassword)) { toast.error("Password cannot contain spaces."); return; }
         if (employees.some((e) => e.email.toLowerCase() === newEmail.trim().toLowerCase())) { toast.error("An employee with this email already exists"); return; }
         if (newBiometricId.trim() && employees.some((e) => e.biometricId === newBiometricId.trim())) { toast.error("This biometric ID is already assigned to another employee"); return; }
         const salaryVal = Number(newSalary);
@@ -955,7 +957,7 @@ export default function AdminEmployeesView() {
                                                 </div>
                                                 <div><label className="text-xs font-medium text-muted-foreground">Initial Password <span className="text-red-500">*</span></label>
                                                     <div className="flex gap-1.5 mt-1">
-                                                        <Input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min. 8 characters" className={`h-8 text-sm font-mono ${!newPassword || newPassword.length < 8 ? "border-red-300 focus-visible:ring-red-500" : ""}`} />
+                                                        <Input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value.replace(/\s/g, ""))} placeholder="Min. 8 characters" className={`h-8 text-sm font-mono ${!newPassword || newPassword.length < 8 ? "border-red-300 focus-visible:ring-red-500" : ""}`} />
                                                         <button type="button" onClick={generatePassword} title="Generate random password" className="shrink-0 rounded-md border h-8 px-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"><RefreshCw className="h-3.5 w-3.5" /></button>
                                                     </div>
                                                 </div>
@@ -2433,7 +2435,7 @@ export default function AdminEmployeesView() {
                         <p className="text-sm text-muted-foreground">Set a new temporary password for <strong>{accounts.find((a) => a.id === resetPwUserId)?.name}</strong>. They will be prompted to change it on next login.</p>
                         <div className="space-y-1.5">
                             <label className="text-sm font-medium">New Password *</label>
-                            <Input type="password" value={resetPwValue} onChange={(e) => setResetPwValue(e.target.value)} placeholder="Minimum 6 characters" />
+                            <Input type="password" value={resetPwValue} onChange={(e) => setResetPwValue(e.target.value.replace(/\s/g, ""))} placeholder="Minimum 6 characters" />
                         </div>
                         <div className="flex gap-2 pt-1">
                             <Button variant="outline" className="flex-1" onClick={() => { setResetPwUserId(null); setResetPwValue(""); }}>Cancel</Button>

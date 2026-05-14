@@ -3,6 +3,8 @@
 import { createAdminSupabaseClient, createServerSupabaseClient } from "./supabase-server";
 import type { Role } from "@/types";
 
+const PASSWORD_WHITESPACE_RE = /\s/;
+
 /**
  * Sign in with email/password via Supabase Auth.
  * Called from client via server action.
@@ -108,6 +110,9 @@ export async function createUserAccount(input: {
   emergencyContact?: string;
 }) {
   // Password complexity - check before any network calls
+  if (PASSWORD_WHITESPACE_RE.test(input.password)) {
+    return { ok: false as const, error: "Password cannot contain spaces" };
+  }
   if (input.password.length < 8) {
     return { ok: false as const, error: "Password must be at least 8 characters" };
   }
@@ -255,6 +260,9 @@ export async function adminResetPassword(userId: string, newPassword: string) {
     return { ok: false as const, error: "Only admins can reset passwords" };
   }
 
+  if (PASSWORD_WHITESPACE_RE.test(newPassword)) {
+    return { ok: false as const, error: "Password cannot contain spaces" };
+  }
   if (newPassword.length < 8) {
     return { ok: false as const, error: "Password must be at least 8 characters" };
   }
@@ -308,6 +316,9 @@ export async function changeMyPassword(newPassword: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false as const, error: "Not authenticated" };
 
+  if (PASSWORD_WHITESPACE_RE.test(newPassword)) {
+    return { ok: false as const, error: "Password cannot contain spaces" };
+  }
   if (newPassword.length < 8) {
     return { ok: false as const, error: "Password must be at least 8 characters" };
   }
