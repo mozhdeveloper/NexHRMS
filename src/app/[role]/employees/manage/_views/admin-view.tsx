@@ -138,7 +138,7 @@ export default function AdminEmployeesView() {
                 performedBy: currentUser.id,
             });
             toast.success(`${emp.name} removed`);
-            try { await forceRehydrate(); } catch { /* keep local state if refresh fails */ }
+            try { await forceRehydrate({ force: true }); } catch { /* keep local state if refresh fails */ }
         } catch (error) {
             console.error("[employees] delete failed:", error);
             toast.error("Network error while deleting employee");

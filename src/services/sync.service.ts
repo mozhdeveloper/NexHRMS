@@ -87,10 +87,21 @@ export async function hydrateAllStores(opts?: { skipSessionCheck?: boolean }): P
  * Force a full re-hydration from Supabase, bypassing the `_hydrated` guard.
  * Use after operations (like attendance reset) that modify the DB outside the
  * write-through flow so the local store is guaranteed to match the DB state.
+ * 
+ * Throttled: will not re-run if called within 30 seconds of the last successful hydration.
+ * Pass `{ force: true }` to bypass the throttle (e.g., after explicit user action like delete).
  */
-export async function forceRehydrate(): Promise<void> {
+let _lastHydratedAt = 0;
+const HYDRATE_THROTTLE_MS = 30_000; // 30 seconds
+
+export async function forceRehydrate(opts?: { force?: boolean }): Promise<void> {
+  const now = Date.now();
+  if (!opts?.force && now - _lastHydratedAt < HYDRATE_THROTTLE_MS) {
+    return; // Skip — recently hydrated
+  }
   _hydrated = false;
   await hydrateAllStoresInternal();
+  _lastHydratedAt = Date.now();
 }
 
 async function hydrateAllStoresInternal(opts?: { skipSessionCheck?: boolean }): Promise<void> {
