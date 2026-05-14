@@ -20,12 +20,58 @@ This is the task that needs to be solved:
 
 # Main Task
 
-## Phase 1 - Employee Menu Fixes
+## Phase 1 - Payroll Run
 
-- The initial password field accepts spaces as a character. It shouldn't be.
-- Also under User Accounts tab reset password modal also accepts space as characters.
-- On employee view, when Require password change on first login is activated on the user added. Th user can also input space and will be recognized as a character.
+- Make all the tables in the payroll run menu max 10 rows then activate a pagination.
+- Add a re-issue all batch action button on the Record Payment stage when the cycle ended and on the on-hold modal too when the payroll run is completed.
+- When the pulblish all batch actionis clicked, instead of spamming notification on on each employee, just put on notification the number of employee published.
 
-## Phase 2 - Projects Menu Fixes
+## Implementation Plan
 
-- Under verification column, the icon of the chosen verification method is duplicated (look at the photo).
+```markdown
+# Payroll Run Updates (Plan)
+
+## Summary
+
+- Reduce all payroll-run tables to 10 rows per page and keep pagination visible.
+- Add batch re-issue actions for on-hold payslips when a cycle is ended/completed.
+- Replace per-employee publish notifications in batch publish with a single summary notification.
+
+## Files to Review
+
+- src/app/[role]/payroll/\_views/admin-view.tsx
+- src/components/payroll/payslip-table.tsx
+- src/lib/notifications.ts (notification behavior)
+- src/types/index.ts and src/store/notifications.store.ts (only if adding a new notification trigger)
+
+## Steps
+
+1. Set page size to 10 for payroll run UI tables.
+   - In admin payroll view, change the shared `pageSize` (used by payslip list, publish list, sign list, payroll runs table, and on-hold modal) from 50 to 10.
+   - In PayslipTable (Record Payment stage), change its local `pageSize` from 50 to 10 so the Record Payment table also caps at 10 rows.
+   - Confirm existing pagination blocks still render when total pages > 1.
+
+2. Add batch re-issue action on the Record Payment step when the cycle is ended.
+   - Identify the active run status (e.g., `activeRun?.status === "ended"`).
+   - Compute eligible on-hold payslips for that run (`status === "payment_hold"` and `payrollBatchId` matches the run).
+   - Add a “Re-Issue All On-Hold” button near the Record Payment header or above the PayslipTable.
+   - Show a confirmation dialog listing the count, then call `releasePaymentHold` per payslip, log audit entries, and re-send `payslip_published` notifications (matching single re-issue behavior).
+   - Show a toast summary like “Re-issued N on-hold payslips.”
+
+3. Add batch re-issue action in the On-Hold modal for completed runs.
+   - In the On-Hold modal, compute on-hold payslips that belong to runs with `status === "completed"`.
+   - Show a “Re-Issue All (Completed Runs)” button only when eligible items exist.
+   - Use the same release + audit + notification flow as the single re-issue action.
+
+4. Change batch publish notifications to a single summary.
+   - In `handleBatchPublish`, remove per-employee `dispatchNotification("payslip_published", ...)` calls.
+   - Replace with a single summary notification (e.g., toast saying “Published X payslips”).
+   - If an in-app notification is required, add a new notification trigger (e.g., `payroll_batch_published`) in types and notification rules, then dispatch it once to the current user or admin roles.
+
+## Validation Checklist
+
+- All payroll-run tables show a maximum of 10 rows and paginate correctly.
+- Record Payment step shows batch re-issue only when the active run is ended.
+- On-Hold modal shows batch re-issue only for completed runs’ holds.
+- Batch publish produces a single summary notification and no per-employee spam.
+```

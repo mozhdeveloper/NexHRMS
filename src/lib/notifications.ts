@@ -123,14 +123,16 @@ export function dispatchNotification(
     vars: Record<string, string>,
     recipientEmployeeId: string,
     recipientEmail?: string,
-    recipientPhone?: string
+    recipientPhone?: string,
+    link?: string,
+    options?: { suppressToast?: boolean }
 ): void {
     const store = useNotificationsStore.getState();
-    store.dispatch(trigger, vars, recipientEmployeeId, recipientEmail, recipientPhone);
+    store.dispatch(trigger, vars, recipientEmployeeId, recipientEmail, recipientPhone, link);
 
     // Show toast for the user
     const rule = store.getRuleByTrigger(trigger);
-    if (rule && rule.enabled) {
+    if (rule && rule.enabled && !options?.suppressToast) {
         const subject = rule.subjectTemplate.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? `{${key}}`);
         const channelLabel = rule.channel === "sms" ? "SMS" : rule.channel === "both" ? "Email + SMS" : rule.channel === "in_app" ? "In-app" : "Email";
         const icon = rule.channel === "sms" ? "\uD83D\uDCF1" : rule.channel === "both" ? "\uD83D\uDCE8" : "\uD83D\uDCE7";

@@ -47,7 +47,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { dispatchNotification, notifyPayslipOnHold } from "@/lib/notifications";
 import { useAuditStore } from "@/store/audit.store";
 import { payrollDb } from "@/services/db.service";
-import type { DeductionType, DeductionOverrideMode, DeductionTemplate, DeductionTemplateType, DeductionCalculationMode, Department, Project } from "@/types";
+import type { DeductionType, DeductionOverrideMode, DeductionTemplate, DeductionTemplateType, DeductionCalculationMode, Department, Project, Payslip } from "@/types";
 import { PH_EXEMPTION_REASONS } from "@/types";
 import { useDepartmentsStore } from "@/store/departments.store";
 import { useProjectsStore } from "@/store/projects.store";
@@ -174,7 +174,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
     const [publishPage, setPublishPage] = useState(1);
     const [signPage, setSignPage] = useState(1);
     const [runsPage, setRunsPage] = useState(1);
-    const pageSize = 50;
+    const pageSize = 10;
 
     // ─── Dialog states ───────────────────────────────────────────
     const [printPayslipId, setPrintPayslipId] = useState<string | null>(null);
@@ -277,6 +277,14 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
         () => activeRun ? payslips.filter((p) => activeRunPayslipIds.has(p.id)) : [],
         [payslips, activeRunPayslipIds, activeRun]
     );
+    const activeRunHoldPayslips = useMemo(
+        () => activeRunPayslips.filter((p) => p.status === "payment_hold"),
+        [activeRunPayslips]
+    );
+    const completedHoldPayslips = useMemo(() => {
+        const completedRunIds = new Set(runs.filter((r) => r.status === "completed").map((r) => r.id));
+        return payslips.filter((p) => p.status === "payment_hold" && p.payrollBatchId && completedRunIds.has(p.payrollBatchId));
+    }, [payslips, runs]);
 
     useEffect(() => {
         setPage(1);
@@ -718,6 +726,24 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
         return counts;
     }, [activeRunPayslips]);
 
+    const handleBatchReissue = useCallback((items: Payslip[]) => {
+        if (items.length === 0) { toast.error("No on-hold payslips to re-issue"); return; }
+        items.forEach((ps) => {
+            releasePaymentHold(ps.id);
+            dispatchNotification(
+                "payslip_published",
+                { name: getEmpName(ps.employeeId), period: `${ps.periodStart} — ${ps.periodEnd}`, amount: formatCurrency(ps.netPay) },
+                ps.employeeId,
+                undefined,
+                undefined,
+                undefined,
+                { suppressToast: true }
+            );
+        });
+        const employeeCount = new Set(items.map((ps) => ps.employeeId)).size;
+        toast.success(`Re-issued ${employeeCount} employee${employeeCount !== 1 ? "s" : ""} (${items.length} payslip${items.length !== 1 ? "s" : ""})`);
+    }, [releasePaymentHold, getEmpName]);
+
     // ─── Batch handlers ──────────────────────────────────────────
     // Use store-first pattern (matching single-action buttons).
     // The write-through subscriber in sync.service.ts persists to Supabase.
@@ -726,12 +752,12 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
         if (draftSlips.length === 0) { toast.error("No draft payslips in a locked payroll run to publish"); return; }
         setBatchProcessing(true);
         try {
+            const publishedEmployeeCount = new Set(draftSlips.map((ps) => ps.employeeId)).size;
             draftSlips.forEach((ps) => {
                 publishPayslip(ps.id);
                 useAuditStore.getState().log({ entityType: "payslip", entityId: ps.id, action: "payroll_published", performedBy: currentUser.id });
-                dispatchNotification("payslip_published", { name: getEmpName(ps.employeeId), period: `${ps.periodStart} — ${ps.periodEnd}`, amount: formatCurrency(ps.netPay) }, ps.employeeId);
             });
-            toast.success(`Published ${draftSlips.length} payslip${draftSlips.length > 1 ? "s" : ""}`);
+            toast.success(`Published ${publishedEmployeeCount} employee${publishedEmployeeCount !== 1 ? "s" : ""} (${draftSlips.length} payslip${draftSlips.length !== 1 ? "s" : ""})`);
         } catch (err) {
             toast.error(`Failed to publish payslips: ${err instanceof Error ? err.message : "Unknown error"}`);
         } finally {
@@ -1186,7 +1212,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                                         <p className="mt-1.5">Use <strong>Apply Deductions</strong> first to compute and attach deductions before publishing, or proceed to publish as-is.</p>
                                                                     </div>
                                                                 ) : (
-                                                                    <p>This will publish all <strong>{statusCounts.draft}</strong> draft payslip{statusCounts.draft !== 1 ? "s" : ""} and notify employees. This action cannot be undone.</p>
+                                                                    <p>This will publish all <strong>{statusCounts.draft}</strong> draft payslip{statusCounts.draft !== 1 ? "s" : ""}. A summary notification will show the number of employees published.</p>
                                                                 )}
                                                                 <p className="text-muted-foreground text-xs">Employees will be able to view their payslips after publishing.</p>
                                                             </div>
@@ -1364,7 +1390,7 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                         <AlertDialogTitle>Publish {statusCounts.draft} Draft Payslip{statusCounts.draft !== 1 ? "s" : ""}?</AlertDialogTitle>
                                                         <AlertDialogDescription asChild>
                                                             <div className="space-y-2 text-sm">
-                                                                <p>This will publish all draft payslips in locked runs and notify employees.</p>
+                                                                <p>This will publish all draft payslips in locked runs. A summary notification will show the number of employees published.</p>
                                                                 <p className="text-muted-foreground text-xs">Employees will be able to view their payslips after publishing.</p>
                                                             </div>
                                                         </AlertDialogDescription>
@@ -1548,6 +1574,39 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                             </CardContent>
                                         </Card>
                                     </div>
+
+                                    {activeRun?.status === "ended" && (
+                                        <div className="flex flex-wrap items-center gap-2 p-3 bg-muted/30 border border-border/50 rounded-lg">
+                                            <span className="text-xs font-medium text-muted-foreground mr-2">Batch Actions:</span>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 text-xs gap-1.5 text-amber-600 border-amber-200 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                                                        disabled={activeRunHoldPayslips.length === 0}
+                                                    >
+                                                        <RotateCcw className="h-3.5 w-3.5" />
+                                                        Re-Issue All On-Hold ({activeRunHoldPayslips.length})
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Re-Issue All On-Hold Payslips?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This will release all on-hold payslips in the ended cycle and notify employees to re-sign.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleBatchReissue(activeRunHoldPayslips)}>
+                                                            Re-Issue All
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
+                                    )}
 
                                     <PayslipTable
                                         payslips={activeRunPayslips}
@@ -1875,15 +1934,24 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                                                         <AlertDialogFooter>
                                                                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                                                                                             <AlertDialogAction onClick={() => {
-                                                                                                payslips
-                                                                                                    .filter((p) => (runObj?.payslipIds ?? []).includes(p.id) && p.status === "published" && !p.signedAt)
-                                                                                                    .forEach((p) => {
-                                                                                                        holdPayment(p.id);
-                                                                                                        dispatchNotification("payslip_on_hold", { name: getEmpName(p.employeeId), period: `${p.periodStart} - ${p.periodEnd}`, reason: "Late compliance to payroll submission. Please coordinate with the payroll team to resolve this issue." }, p.employeeId);
-                                                                                                    });
+                                                                                                const onHoldPayslips = payslips
+                                                                                                    .filter((p) => (runObj?.payslipIds ?? []).includes(p.id) && p.status === "published" && !p.signedAt);
+                                                                                                onHoldPayslips.forEach((p) => {
+                                                                                                    holdPayment(p.id);
+                                                                                                    dispatchNotification(
+                                                                                                        "payslip_on_hold",
+                                                                                                        { name: getEmpName(p.employeeId), period: `${p.periodStart} - ${p.periodEnd}`, reason: "Late compliance to payroll submission. Please coordinate with the payroll team to resolve this issue." },
+                                                                                                        p.employeeId,
+                                                                                                        undefined,
+                                                                                                        undefined,
+                                                                                                        undefined,
+                                                                                                        { suppressToast: true }
+                                                                                                    );
+                                                                                                });
                                                                                                 endRun(run.date);
                                                                                                 useAuditStore.getState().log({ entityType: "payroll_run", entityId: run.date, action: "payroll_ended", performedBy: currentUser.id });
-                                                                                                toast.success("Payroll cycle ended");
+                                                                                                const employeeCount = new Set(onHoldPayslips.map((p) => p.employeeId)).size;
+                                                                                                toast.success(`Payroll cycle ended. On-hold notifications sent to ${employeeCount} employee${employeeCount !== 1 ? "s" : ""}.`);
                                                                                             }}>End Cycle</AlertDialogAction>
                                                                                         </AlertDialogFooter>
                                                                                     </AlertDialogContent>
@@ -1998,6 +2066,37 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
                                                             <span className="text-sm text-muted-foreground">Total held amount</span>
                                                             <span className="text-lg font-bold text-amber-600 dark:text-amber-400 tabular-nums">₱{heldTotal.toLocaleString()}</span>
                                                         </div>
+                                                        {completedHoldPayslips.length > 0 && (
+                                                            <div className="flex flex-wrap items-center gap-2 p-3 bg-muted/30 border border-border/50 rounded-lg">
+                                                                <span className="text-xs font-medium text-muted-foreground mr-2">Batch Actions:</span>
+                                                                <AlertDialog>
+                                                                    <AlertDialogTrigger asChild>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            className="h-8 text-xs gap-1.5 text-amber-600 border-amber-200 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                                                                        >
+                                                                            <RotateCcw className="h-3.5 w-3.5" />
+                                                                            Re-Issue All (Completed Runs) ({completedHoldPayslips.length})
+                                                                        </Button>
+                                                                    </AlertDialogTrigger>
+                                                                    <AlertDialogContent>
+                                                                        <AlertDialogHeader>
+                                                                            <AlertDialogTitle>Re-Issue All On-Hold Payslips?</AlertDialogTitle>
+                                                                            <AlertDialogDescription>
+                                                                                This will release on-hold payslips from completed runs and notify employees to re-sign.
+                                                                            </AlertDialogDescription>
+                                                                        </AlertDialogHeader>
+                                                                        <AlertDialogFooter>
+                                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                            <AlertDialogAction onClick={() => handleBatchReissue(completedHoldPayslips)}>
+                                                                                Re-Issue All
+                                                                            </AlertDialogAction>
+                                                                        </AlertDialogFooter>
+                                                                    </AlertDialogContent>
+                                                                </AlertDialog>
+                                                            </div>
+                                                        )}
                                                         <div className="relative">
                                                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                                             <Input
