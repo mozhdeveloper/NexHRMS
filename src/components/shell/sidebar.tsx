@@ -240,6 +240,21 @@ function SidebarComponent() {
         return () => window.removeEventListener("resize", onResize);
     }, [setMobileSidebarOpen]);
 
+    // Keyboard shortcut: Ctrl+. to toggle sidebar (desktop only)
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.ctrlKey && e.key === ".") {
+                // Don't toggle when typing in inputs
+                const tag = (e.target as HTMLElement)?.tagName;
+                if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
+                e.preventDefault();
+                toggleSidebar();
+            }
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [toggleSidebar]);
+
     /* ---------- Shared navigation content ---------- */
     const navContent = (showLabel: boolean, isMobile: boolean) => {
         const collapsed = !showLabel && !isMobile;
