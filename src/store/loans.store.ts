@@ -1,7 +1,5 @@
 "use client";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type { Loan, LoanDeduction, LoanRepaymentSchedule, LoanBalanceHistory } from "@/types";
 import { SEED_LOANS } from "@/data/seed";
@@ -34,8 +32,7 @@ interface LoansState {
 }
 
 export const useLoansStore = create<LoansState>()(
-    persist(
-        (set, get) => ({
+    (set, get) => ({
             loans: SEED_LOANS,
 
             createLoan: (data) =>
@@ -225,12 +222,5 @@ export const useLoansStore = create<LoansState>()(
                 return { deducted: maxDeduction, skipped: false };
             },
             resetToSeed: () => set({ loans: SEED_LOANS }),
-        }),
-        {
-            name: "soren-loans",
-            version: 2,
-            storage: safePersistStorage,
-            migrate: () => ({ loans: SEED_LOANS }),
-        }
-    )
+        })
 );

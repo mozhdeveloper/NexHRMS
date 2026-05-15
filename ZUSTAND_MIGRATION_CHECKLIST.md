@@ -20,10 +20,10 @@
 | 8 | `roles.store` | Low | roles (mostly hardcoded) | ✅ Service created |
 | 9 | `location.store` | Low | location_pings, site_survey_photos, break_records | ✅ Service created |
 | 10 | `timesheet.store` | Medium | timesheets, attendance_rule_sets | ✅ Service created |
-| 11 | `leave.store` | Medium | leave_requests, leave_balances, leave_policies | ⬜ |
-| 12 | `loans.store` | Medium | loans, loan_deductions, loan_repayment_schedule | ⬜ |
-| 13 | `employees.store` | Medium | employees, salary_change_requests, salary_history | ⬜ |
-| 14 | `deductions.store` | Medium | deduction_templates, employee_deduction_assignments | ⬜ |
+| 11 | `leave.store` | Medium | leave_requests, leave_balances, leave_policies | ✅ Service created |
+| 12 | `loans.store` | Medium | loans, loan_deductions, loan_repayment_schedule | ✅ Service created |
+| 13 | `employees.store` | Medium | employees, salary_change_requests, salary_history | ✅ Service created |
+| 14 | `deductions.store` | Medium | deduction_templates, employee_deduction_assignments | ✅ Already DB-first |
 | 15 | `jobs.store` | Medium | jobs, job_applications | ⬜ |
 | 16 | `auth.store` | Medium | profiles (auth handled by Supabase Auth) | ⬜ |
 | 17 | `attendance.store` | High | attendance_logs, events, evidence, exceptions, shifts, holidays, penalties | ⬜ |
@@ -348,15 +348,16 @@ Each store follows the same 5-step process:
 
 ---
 
-## Store 11: `leave.store`
+## Store 11: `leave.store` ✅ SERVICE CREATED
 
 ### A. Service Layer
-- [ ] Create `src/services/leave-actions.service.ts`
-- [ ] `addRequest(data)` — DB-first
-- [ ] `updateStatus(id, status, reviewedBy)` — DB-first (handles balance deduction)
-- [ ] `initBalances(employeeId, year)` — DB-first
-- [ ] `accrueLeave(employeeId, type, year, days)` — DB-first
-- [ ] `addPolicy(data)` / `updatePolicy(id, data)` / `deletePolicy(id)` — DB-first
+- [x] Created `src/services/leave-actions.service.ts`
+- [x] `addRequest(data)` — DB-first
+- [x] `updateStatus(id, status, reviewedBy)` — DB-first
+- [x] `addPolicy(data)` — DB-first
+- [x] `updatePolicy(id, data)` — DB-first
+- [x] `deletePolicy(id)` — DB-first
+- [x] `accrueLeave(employeeId, type, year, days)` — DB-first
 
 ### B. Update UI Consumers
 - [ ] `src/app/[role]/leave/_views/admin-view.tsx` — approve/reject
@@ -364,10 +365,11 @@ Each store follows the same 5-step process:
 - [ ] `src/app/[role]/settings/_views/admin-view.tsx` — policy CRUD
 
 ### C. Remove Write-Through
-- [ ] Delete `useLeaveStore.subscribe(...)` block in `sync.service.ts`
+- [x] Deleted `useLeaveStore.subscribe(...)` block in `sync.service.ts`
 
 ### D. Remove Persist
-- [ ] Remove `persist(...)` wrapper (already partialize = policies only)
+- [x] Removed `persist(...)` wrapper from `leave.store.ts`
+- [x] Store is now pure in-memory (hydrated from Supabase on login)
 
 ### E. Verify
 - [ ] Submit leave → refresh → still pending
@@ -375,27 +377,27 @@ Each store follows the same 5-step process:
 
 ---
 
-## Store 12: `loans.store`
+## Store 12: `loans.store` ✅ SERVICE CREATED
 
 ### A. Service Layer
-- [ ] Create `src/services/loans-actions.service.ts`
-- [ ] `createLoan(data)` — DB-first
-- [ ] `deductFromLoan(id, amount)` — DB-first
-- [ ] `settleLoan(id)` — DB-first
-- [ ] `freezeLoan(id)` / `unfreezeLoan(id)` — DB-first
-- [ ] `cancelLoan(id)` — DB-first
-- [ ] `recordDeduction(loanId, payslipId, amount)` — DB-first
-- [ ] `recordCappedDeduction(loanId, payslipId, netPay)` — DB-first
+- [x] Created `src/services/loans-actions.service.ts`
+- [x] `createLoan(data)` — DB-first
+- [x] `settleLoan(id)` — DB-first
+- [x] `freezeLoan(id)` / `unfreezeLoan(id)` — DB-first
+- [x] `cancelLoan(id)` — DB-first
+- [x] `recordDeduction(loanId, payslipId, amount)` — DB-first
+- [x] `recordCappedDeduction(loanId, payslipId, netPay)` — DB-first
 
 ### B. Update UI Consumers
 - [ ] `src/app/[role]/loans/page.tsx` + views
 - [ ] Payroll computation (calls recordCappedDeduction)
 
 ### C. Remove Write-Through
-- [ ] Delete `useLoansStore.subscribe(...)` block in `sync.service.ts`
+- [x] Deleted `useLoansStore.subscribe(...)` block in `sync.service.ts`
 
 ### D. Remove Persist
-- [ ] Remove `persist(...)` wrapper (already partialize = empty)
+- [x] Removed `persist(...)` wrapper from `loans.store.ts`
+- [x] Store is now pure in-memory (hydrated from Supabase on login)
 
 ### E. Verify
 - [ ] Create loan → refresh → still there
@@ -403,18 +405,18 @@ Each store follows the same 5-step process:
 
 ---
 
-## Store 13: `employees.store`
+## Store 13: `employees.store` ✅ SERVICE CREATED
 
 ### A. Service Layer
-- [ ] Create `src/services/employees-actions.service.ts`
-- [ ] `addEmployee(data)` — DB-first
-- [ ] `updateEmployee(id, patch)` — DB-first
-- [ ] `removeEmployee(id)` — DB-first
-- [ ] `toggleStatus(id)` — DB-first
-- [ ] `resignEmployee(id)` — DB-first
-- [ ] `proposeSalaryChange(data)` — DB-first
-- [ ] `approveSalaryChange(requestId, reviewerId)` — DB-first
-- [ ] `rejectSalaryChange(requestId, reviewerId)` — DB-first
+- [x] Created `src/services/employees-actions.service.ts`
+- [x] `addEmployee(data)` — DB-first
+- [x] `updateEmployee(id, patch)` — DB-first
+- [x] `removeEmployee(id)` — DB-first
+- [x] `toggleStatus(id)` — DB-first
+- [x] `resignEmployee(id)` — DB-first
+- [x] `proposeSalaryChange(data)` — DB-first
+- [x] `approveSalaryChange(requestId, reviewerId)` — DB-first
+- [x] `rejectSalaryChange(requestId, reviewerId)` — DB-first
 
 ### B. Update UI Consumers
 - [ ] `src/app/[role]/employees/manage/_views/admin-view.tsx` — all CRUD
@@ -422,10 +424,12 @@ Each store follows the same 5-step process:
 - [ ] Multiple other files that call `updateEmployee`
 
 ### C. Remove Write-Through
-- [ ] Delete `useEmployeesStore.subscribe(...)` block in `sync.service.ts`
+- [x] Deleted `useEmployeesStore.subscribe(...)` block in `sync.service.ts`
 
 ### D. Remove Persist
-- [ ] Remove `persist(...)` wrapper (already partialize = deletedIds + docs)
+- [x] Removed `persist(...)` wrapper from `employees.store.ts`
+- [x] Removed `migrate`, `merge` config
+- [x] Store is now pure in-memory (hydrated from Supabase on login)
 
 ### E. Verify
 - [ ] Add employee → refresh → still there
@@ -434,26 +438,22 @@ Each store follows the same 5-step process:
 
 ---
 
-## Store 14: `deductions.store`
+## Store 14: `deductions.store` ✅ ALREADY DB-FIRST
 
 ### A. Service Layer
-- [ ] Create `src/services/deductions-actions.service.ts`
-- [ ] `addTemplate(data)` — DB-first (via API route)
-- [ ] `updateTemplate(id, data)` — DB-first
-- [ ] `deleteTemplate(id)` — DB-first
-- [ ] `assignToEmployee(data)` — DB-first
-- [ ] `unassignFromEmployee(assignmentId)` — DB-first
-- [ ] `bulkAssignToEmployees(data)` — DB-first
+- [x] Store already uses API routes directly (`/api/payroll/templates`, `/api/payroll/templates/assignments`)
+- [x] All mutations are async and write to DB first
+- [x] No separate service file needed — store IS the service layer
 
 ### B. Update UI Consumers
-- [ ] `src/app/[role]/payroll/_views/admin-view.tsx` — DeductionTemplatesSection
-- [ ] `src/app/[role]/employees/manage/_views/admin-view.tsx` — per-employee assignments
+- [x] Already using async store methods that call API routes
 
 ### C. Remove Write-Through
-- [ ] (Currently no write-through — uses API routes directly)
+- [x] No write-through existed (store already calls API routes directly)
 
 ### D. Remove Persist
-- [ ] Remove `persist(...)` wrapper
+- [x] Removed `persist(...)` wrapper from `deductions.store.ts`
+- [x] Store is now pure in-memory (fetched fresh on mount via API)
 
 ### E. Verify
 - [ ] Add template → refresh → still there
@@ -645,10 +645,10 @@ Each store follows the same 5-step process:
 | 8 | roles | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 9 | location | ✅ | ✅ | ✅ | ✅ | ⬜ |
 | 10 | timesheet | ✅ | ✅ | ✅ | ✅ | ⬜ |
-| 11 | leave | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 12 | loans | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 13 | employees | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 14 | deductions | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 11 | leave | ✅ | ⬜ | ✅ | ✅ | ⬜ |
+| 12 | loans | ✅ | ⬜ | ✅ | ✅ | ⬜ |
+| 13 | employees | ✅ | ⬜ | ✅ | ✅ | ⬜ |
+| 14 | deductions | ✅ | ✅ | ✅ | ✅ | ⬜ |
 | 15 | jobs | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 16 | auth | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 17 | attendance | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |

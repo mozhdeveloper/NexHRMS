@@ -409,80 +409,9 @@ export function startWriteThrough(): void {
   // Kiosk mode syncs all attendance data (used by all employees without individual login)
   const isKioskMode = typeof window !== "undefined" && window.location.pathname.startsWith("/kiosk");
 
-  // ─── Employees write-through ──────────────────────────────
-  _subscriptions.push(
-    useEmployeesStore.subscribe(
-      (state, prevState) => {
-        if (_writePaused) return;
-        // Detect changed employees — only admin/hr can write employee records
-        if (isAdminOrHr) {
-          const deletedIds = new Set(state.deletedEmployeeIds ?? []);
-          for (const emp of state.employees) {
-            if (deletedIds.has(emp.id)) continue;
-            const prev = prevState.employees.find((e) => e.id === emp.id);
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(emp)) {
-              employeesDb.upsert(emp);
-            }
-          }
-          // Detect deletions
-          for (const prev of prevState.employees) {
-            if (!state.employees.find((e) => e.id === prev.id)) {
-              employeesDb.remove(prev.id);
-            }
-          }
-        }
-        // Salary requests
-        for (const req of state.salaryRequests) {
-          const prev = prevState.salaryRequests.find((r) => r.id === req.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(req)) {
-            salaryDb.upsertRequest(req);
-          }
-        }
-        // Salary history
-        for (const entry of state.salaryHistory) {
-          if (!prevState.salaryHistory.find((h) => h.id === entry.id)) {
-            salaryDb.insertHistory(entry);
-          }
-        }
-      }
-    )
-  );
+  // ─── Employees write-through — REMOVED (DB-first via employees-actions.service.ts) ───
 
-  // ─── Leave write-through ──────────────────────────────────
-  _subscriptions.push(
-    useLeaveStore.subscribe(
-      (state, prevState) => {
-        if (_writePaused) return;
-        // Leave requests: any authenticated user can submit/update their own
-        for (const req of state.requests) {
-          const prev = prevState.requests.find((r) => r.id === req.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(req)) {
-            leaveDb.upsertRequest(req);
-          }
-        }
-        // Leave balances and policies: admin/hr only
-        if (isAdminOrHr) {
-          for (const bal of state.balances) {
-            const prev = prevState.balances.find((b) => b.id === bal.id);
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(bal)) {
-              leaveDb.upsertBalance(bal);
-            }
-          }
-          for (const pol of state.policies) {
-            const prev = prevState.policies.find((p) => p.id === pol.id);
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(pol)) {
-              leaveDb.upsertPolicy(pol);
-            }
-          }
-          for (const prev of prevState.policies) {
-            if (!state.policies.find((p) => p.id === prev.id)) {
-              leaveDb.deletePolicy(prev.id);
-            }
-          }
-        }
-      }
-    )
-  );
+  // ─── Leave write-through — REMOVED (DB-first via leave-actions.service.ts) ───
 
   // ─── Attendance write-through ─────────────────────────────
   _subscriptions.push(
@@ -591,54 +520,7 @@ export function startWriteThrough(): void {
 
   // ─── Payroll write-through — REMOVED (DB-first via payroll.store.ts + payroll-actions.service.ts) ───
 
-  // ─── Loans write-through ──────────────────────────────────
-  _subscriptions.push(
-    useLoansStore.subscribe(
-      (state, prevState) => {
-        if (_writePaused) return;
-        for (const loan of state.loans) {
-          const prev = prevState.loans.find((l) => l.id === loan.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(loan)) {
-            // Separate the embedded arrays from the loan row (repaymentSchedule / balanceHistory are child sub-tables, not loan columns)
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { deductions, repaymentSchedule: _repaymentSchedule, balanceHistory: _balanceHistory, ...loanRow } = loan;
-            loansDb.upsert(loanRow as typeof loanRow & { id: string });
-            // Sync new deductions
-            if (deductions) {
-              const prevDeds = prev?.deductions ?? [];
-              for (const ded of deductions) {
-                if (!prevDeds.find((d) => d.id === ded.id)) {
-                  // FK guard: loan_deductions.payslip_id → payslips.id
-                  // Only insert the deduction after the referenced payslip is
-                  // confirmed written to Supabase. If the payslip is unknown
-                  // (e.g. after a reset), skip entirely — inserting without the
-                  // parent row would always violate fk_ld_payslip.
-                  if (!ded.payslipId) {
-                    // No payslip reference at all — safe to insert directly
-                    loansDb.insertDeduction(ded);
-                  } else {
-                    const referencedPayslip = usePayrollStore
-                      .getState()
-                      .payslips.find((p) => p.id === ded.payslipId);
-                    if (referencedPayslip) {
-                      // Upsert the payslip first; only proceed if it succeeded
-                      payrollDb.upsertPayslip(referencedPayslip).then((ok) => {
-                        if (ok) loansDb.insertDeduction(ded);
-                        else console.warn("[sync] Skipping loan deduction — payslip upsert failed:", ded.payslipId);
-                      });
-                    } else {
-                      // Payslip not in store → not in DB either; skip to avoid FK violation
-                      console.warn("[sync] Skipping loan deduction — referenced payslip not in store:", ded.payslipId);
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    )
-  );
+  // ─── Loans write-through — REMOVED (DB-first via loans-actions.service.ts) ───
 
   // ─── Projects write-through — REMOVED (DB-first via projects.store.ts) ───
 

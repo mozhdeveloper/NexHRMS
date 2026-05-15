@@ -1,7 +1,5 @@
 "use client";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type { LeaveRequest, LeaveStatus, LeavePolicy, LeaveBalance, LeaveType, LeaveDuration } from "@/types";
 import { SEED_LEAVES } from "@/data/seed";
@@ -127,8 +125,7 @@ interface LeaveState {
 }
 
 export const useLeaveStore = create<LeaveState>()(
-    persist(
-        (set, get) => ({
+    (set, get) => ({
             requests: SEED_LEAVES,
             policies: DEFAULT_LEAVE_POLICIES,
             balances: [],
@@ -346,26 +343,5 @@ export const useLeaveStore = create<LeaveState>()(
                 });
             },
             resetToSeed: () => set({ requests: SEED_LEAVES, balances: [] }),
-        }),
-        {
-            name: "soren-leave",
-            version: 3,
-            storage: safePersistStorage,
-            migrate: (persistedState: unknown, version: number) => {
-                const state = (persistedState ?? {}) as Record<string, unknown>;
-                // Preserve existing data during migrations
-                if (version < 3) {
-                    // Ensure requests array exists
-                    if (!Array.isArray(state.requests)) {
-                        state.requests = SEED_LEAVES;
-                    }
-                    // Preserve balances if they exist
-                    if (!Array.isArray(state.balances)) {
-                        state.balances = [];
-                    }
-                }
-                return state;
-            },
-        }
-    )
+        })
 );
