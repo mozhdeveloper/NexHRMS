@@ -761,61 +761,11 @@ export function startWriteThrough(): void {
     )
   );
 
-  // ─── Timesheets write-through ─────────────────────────────
-  _subscriptions.push(
-    useTimesheetStore.subscribe(
-      (state, prevState) => {
-        if (_writePaused) return;
-        for (const ts of state.timesheets) {
-          const prev = prevState.timesheets.find((pt) => pt.id === ts.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(ts)) {
-            timesheetsDb.upsertTimesheet(ts);
-          }
-        }
-        for (const rs of state.ruleSets) {
-          const prev = prevState.ruleSets.find((pr) => pr.id === rs.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(rs)) {
-            timesheetsDb.upsertRuleSet(rs);
-          }
-        }
-        for (const prev of prevState.ruleSets) {
-          if (!state.ruleSets.find((rs) => rs.id === prev.id)) {
-            timesheetsDb.deleteRuleSet(prev.id);
-          }
-        }
-      }
-    )
-  );
+  // ─── Timesheets write-through — REMOVED (DB-first via timesheet-actions.service.ts) ───
 
   // ─── Notifications write-through — REMOVED (DB-first via notifications.store.ts) ───
 
-  // ─── Location write-through ───────────────────────────────
-  _subscriptions.push(
-    useLocationStore.subscribe(
-      (state, prevState) => {
-        if (_writePaused) return;
-        // Pings (append-only)
-        for (const ping of state.pings) {
-          if (!prevState.pings.find((pp) => pp.id === ping.id)) {
-            locationDb.insertPing(ping);
-          }
-        }
-        // Photos
-        for (const photo of state.photos) {
-          if (!prevState.photos.find((pp) => pp.id === photo.id)) {
-            locationDb.upsertPhoto(photo);
-          }
-        }
-        // Breaks
-        for (const br of state.breaks) {
-          const prev = prevState.breaks.find((pb) => pb.id === br.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(br)) {
-            locationDb.upsertBreak(br);
-          }
-        }
-      }
-    )
-  );
+  // ─── Location write-through — REMOVED (DB-first via location-actions.service.ts) ───
 
   console.log("[sync] Write-through subscriptions active");
 }

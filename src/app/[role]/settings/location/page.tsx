@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { useLocationStore } from "@/store/location.store";
+import * as locationService from "@/services/location-actions.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -78,7 +79,7 @@ function SliderRow({ label, hint, value, min, max, step, unit, onChange }: {
 
 export default function LocationSettingsPage() {
     const currentUser = useAuthStore((s) => s.currentUser);
-    const { config, updateConfig, resetToSeed, fetchConfig, hasFetchedConfig } = useLocationStore();
+    const { config, fetchConfig, hasFetchedConfig } = useLocationStore();
     const [resetOpen, setResetOpen] = useState(false);
     const rh = useRoleHref();
 
@@ -118,49 +119,49 @@ export default function LocationSettingsPage() {
             {/* Location Tracking */}
             <Section icon={Navigation} title="Location Tracking" description="Background GPS pinging for field employees">
                 <Row label="Enable Tracking" hint="Background GPS pings while checked in">
-                    <Switch checked={config.enabled} onCheckedChange={(v) => updateConfig({ enabled: v })} />
+                    <Switch checked={config.enabled} onCheckedChange={(v) => locationService.updateConfig({ enabled: v })} />
                 </Row>
                 <SliderRow
                     label="Ping Interval" hint="How often to record GPS coordinates"
                     value={config.pingIntervalMinutes} min={1} max={30} step={1} unit=" min"
-                    onChange={(v) => updateConfig({ pingIntervalMinutes: v })}
+                    onChange={(v) => locationService.updateConfig({ pingIntervalMinutes: v })}
                 />
                 <Row label="Require Location for Check-in" hint="Block check-in if GPS is unavailable">
-                    <Switch checked={config.requireLocation} onCheckedChange={(v) => updateConfig({ requireLocation: v })} />
+                    <Switch checked={config.requireLocation} onCheckedChange={(v) => locationService.updateConfig({ requireLocation: v })} />
                 </Row>
                 <Row label="Warn Employee on Geofence Exit" hint="Show warning toast when employee leaves project area">
-                    <Switch checked={config.warnEmployeeOutOfFence} onCheckedChange={(v) => updateConfig({ warnEmployeeOutOfFence: v })} />
+                    <Switch checked={config.warnEmployeeOutOfFence} onCheckedChange={(v) => locationService.updateConfig({ warnEmployeeOutOfFence: v })} />
                 </Row>
                 <Row label="Alert Admin on Geofence Exit" hint="Notify admin when employee leaves project area">
-                    <Switch checked={config.alertAdminOutOfFence} onCheckedChange={(v) => updateConfig({ alertAdminOutOfFence: v })} />
+                    <Switch checked={config.alertAdminOutOfFence} onCheckedChange={(v) => locationService.updateConfig({ alertAdminOutOfFence: v })} />
                 </Row>
                 <Row label="Alert Admin When GPS Disabled" hint="Notify admin if employee turns off location">
-                    <Switch checked={config.alertAdminLocationDisabled} onCheckedChange={(v) => updateConfig({ alertAdminLocationDisabled: v })} />
+                    <Switch checked={config.alertAdminLocationDisabled} onCheckedChange={(v) => locationService.updateConfig({ alertAdminLocationDisabled: v })} />
                 </Row>
                 <Row label="Track During Breaks" hint="Continue GPS pinging during lunch / break periods">
-                    <Switch checked={config.trackDuringBreaks} onCheckedChange={(v) => updateConfig({ trackDuringBreaks: v })} />
+                    <Switch checked={config.trackDuringBreaks} onCheckedChange={(v) => locationService.updateConfig({ trackDuringBreaks: v })} />
                 </Row>
                 <SliderRow
                     label="Ping Retention" hint="Days to keep location ping history"
                     value={config.retainDays} min={7} max={90} step={1} unit=" days"
-                    onChange={(v) => updateConfig({ retainDays: v })}
+                    onChange={(v) => locationService.updateConfig({ retainDays: v })}
                 />
             </Section>
 
             {/* Selfie / Photo */}
             <Section icon={Camera} title="Site Survey Selfie" description="Require photo evidence during check-in">
                 <Row label="Require Selfie on Check-in" hint="Employee must take a selfie with GPS stamp">
-                    <Switch checked={config.requireSelfie} onCheckedChange={(v) => updateConfig({ requireSelfie: v })} />
+                    <Switch checked={config.requireSelfie} onCheckedChange={(v) => locationService.updateConfig({ requireSelfie: v })} />
                 </Row>
                 <SliderRow
                     label="Image Quality" hint="JPEG compression quality (higher = larger file)"
                     value={Math.round(config.selfieCompressionQuality * 100)} min={30} max={100} step={5} unit="%"
-                    onChange={(v) => updateConfig({ selfieCompressionQuality: v / 100 })}
+                    onChange={(v) => locationService.updateConfig({ selfieCompressionQuality: v / 100 })}
                 />
                 <SliderRow
                     label="Photo Retention" hint="Days to keep selfie images"
                     value={config.selfieMaxAge} min={7} max={180} step={1} unit=" days"
-                    onChange={(v) => updateConfig({ selfieMaxAge: v })}
+                    onChange={(v) => locationService.updateConfig({ selfieMaxAge: v })}
                 />
             </Section>
 
@@ -169,25 +170,25 @@ export default function LocationSettingsPage() {
                 <SliderRow
                     label="Lunch Duration" hint="Standard lunch break length"
                     value={config.lunchDuration} min={15} max={120} step={5} unit=" min"
-                    onChange={(v) => updateConfig({ lunchDuration: v })}
+                    onChange={(v) => locationService.updateConfig({ lunchDuration: v })}
                 />
                 <Row label="Geofence on Break End" hint="Check if employee is within geofence when ending break">
-                    <Switch checked={config.lunchGeofenceRequired} onCheckedChange={(v) => updateConfig({ lunchGeofenceRequired: v })} />
+                    <Switch checked={config.lunchGeofenceRequired} onCheckedChange={(v) => locationService.updateConfig({ lunchGeofenceRequired: v })} />
                 </Row>
                 <SliderRow
                     label="Overtime Threshold" hint="Minutes over lunch before flagging as overtime"
                     value={config.lunchOvertimeThreshold} min={1} max={30} step={1} unit=" min"
-                    onChange={(v) => updateConfig({ lunchOvertimeThreshold: v })}
+                    onChange={(v) => locationService.updateConfig({ lunchOvertimeThreshold: v })}
                 />
                 <SliderRow
                     label="Grace Period" hint="Extra minutes allowed before overtime warning"
                     value={config.breakGracePeriod} min={0} max={15} step={1} unit=" min"
-                    onChange={(v) => updateConfig({ breakGracePeriod: v })}
+                    onChange={(v) => locationService.updateConfig({ breakGracePeriod: v })}
                 />
                 <SliderRow
                     label="Max Breaks Per Day" hint="Maximum number of break sessions allowed"
                     value={config.allowedBreaksPerDay} min={1} max={5} step={1} unit=""
-                    onChange={(v) => updateConfig({ allowedBreaksPerDay: v })}
+                    onChange={(v) => locationService.updateConfig({ allowedBreaksPerDay: v })}
                 />
             </Section>
 
@@ -222,7 +223,7 @@ export default function LocationSettingsPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => { resetToSeed(); setResetOpen(false); toast.success("Location settings reset to defaults"); }}>Reset</AlertDialogAction>
+                        <AlertDialogAction onClick={() => { useLocationStore.getState().resetToSeed(); setResetOpen(false); toast.success("Location settings reset to defaults"); }}>Reset</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

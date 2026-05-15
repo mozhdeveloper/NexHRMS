@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useTimesheetStore } from "@/store/timesheet.store";
+import * as tsService from "@/services/timesheet-actions.service";
 import { useAttendanceStore } from "@/store/attendance.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useAuthStore } from "@/store/auth.store";
@@ -26,7 +27,7 @@ import type { Timesheet } from "@/types";
 import { EmployeeCombobox } from "@/components/ui/employee-combobox";
 
 export default function TimesheetsPage() {
-    const { timesheets, ruleSets, computeTimesheet, submitTimesheet, approveTimesheet, rejectTimesheet, getPendingApproval, addRuleSet } = useTimesheetStore();
+    const { timesheets, ruleSets, computeTimesheet, getPendingApproval } = useTimesheetStore();
     const { logs, shiftTemplates, employeeShifts } = useAttendanceStore();
     const employees = useEmployeesStore((s) => s.employees);
     const currentUser = useAuthStore((s) => s.currentUser);
@@ -164,9 +165,9 @@ export default function TimesheetsPage() {
         setComputeOpen(false);
     };
 
-    const handleAddRuleSet = () => {
+    const handleAddRuleSet = async () => {
         if (!rsName) { toast.error("Rule set name required"); return; }
-        addRuleSet({
+        const result = await tsService.addRuleSet({
             name: rsName,
             standardHoursPerDay: Number(rsStdHours),
             graceMinutes: Number(rsGrace),
@@ -175,14 +176,14 @@ export default function TimesheetsPage() {
             nightDiffStart: "22:00",
             nightDiffEnd: "06:00",
             holidayMultiplier: 1.0,
-            // OT multipliers (migration 055) — DOLE PH defaults
             otMultiplierRegular: 1.25,
             otMultiplierRestDay: 1.30,
             otMultiplierSpecialHoliday: 1.30,
             otMultiplierRegularHoliday: 2.00,
             otMultiplierNightDiff: 1.10,
         });
-        toast.success("Rule set created");
+        if (result.ok) toast.success("Rule set created");
+        else toast.error("Failed to create rule set");
         setEditRsOpen(false);
         setRsName("");
     };
@@ -340,16 +341,16 @@ export default function TimesheetsPage() {
                                                         <Eye className="h-3.5 w-3.5" />
                                                     </Button>
                                                     {ts.status === "computed" && (
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600" onClick={() => { submitTimesheet(ts.id); toast.success("Timesheet submitted for approval"); }} title="Submit">
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600" onClick={async () => { const ok = await tsService.submitTimesheet(ts.id); if (ok) toast.success("Timesheet submitted for approval"); else toast.error("Failed to submit timesheet"); }} title="Submit">
                                                             <ClipboardList className="h-3.5 w-3.5" />
                                                         </Button>
                                                     )}
                                                     {canApprove && ts.status === "submitted" && (
                                                         <>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" onClick={() => { approveTimesheet(ts.id, currentUser.id); toast.success("Timesheet approved"); }} title="Approve">
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" onClick={async () => { const ok = await tsService.approveTimesheet(ts.id, currentUser.id); if (ok) toast.success("Timesheet approved"); else toast.error("Failed to approve"); }} title="Approve">
                                                                 <CheckCircle className="h-3.5 w-3.5" />
                                                             </Button>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => { rejectTimesheet(ts.id, currentUser.id); toast.success("Timesheet rejected"); }} title="Reject">
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={async () => { const ok = await tsService.rejectTimesheet(ts.id, currentUser.id); if (ok) toast.success("Timesheet rejected"); else toast.error("Failed to reject"); }} title="Reject">
                                                                 <XCircle className="h-3.5 w-3.5" />
                                                             </Button>
                                                         </>

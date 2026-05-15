@@ -1,7 +1,5 @@
 "use client";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type {
     SiteSurveyPhoto,
@@ -73,8 +71,7 @@ interface LocationState {
 }
 
 export const useLocationStore = create<LocationState>()(
-    persist(
-        (set, get) => ({
+    (set, get) => ({
             config: { ...DEFAULT_CONFIG },
             photos: [],
             breaks: [],
@@ -228,7 +225,5 @@ export const useLocationStore = create<LocationState>()(
                     body: JSON.stringify(DEFAULT_CONFIG),
                 }).catch(() => {});
             },
-        }),
-        { name: "soren-location", version: 1, storage: safePersistStorage }
-    )
+        })
 );

@@ -18,8 +18,8 @@
 | 6 | `departments.store` | Low | departments | ✅ Service created |
 | 7 | `job-titles.store` | Low | job_titles | ✅ Service created |
 | 8 | `roles.store` | Low | roles (mostly hardcoded) | ✅ Service created |
-| 9 | `location.store` | Low | location_pings, site_survey_photos, break_records | ⬜ |
-| 10 | `timesheet.store` | Medium | timesheets, attendance_rule_sets | ⬜ |
+| 9 | `location.store` | Low | location_pings, site_survey_photos, break_records | ✅ Service created |
+| 10 | `timesheet.store` | Medium | timesheets, attendance_rule_sets | ✅ Service created |
 | 11 | `leave.store` | Medium | leave_requests, leave_balances, leave_policies | ⬜ |
 | 12 | `loans.store` | Medium | loans, loan_deductions, loan_repayment_schedule | ⬜ |
 | 13 | `employees.store` | Medium | employees, salary_change_requests, salary_history | ⬜ |
@@ -288,51 +288,63 @@ Each store follows the same 5-step process:
 
 ---
 
-## Store 9: `location.store`
+## Store 9: `location.store` ✅ DONE
 
 ### A. Service Layer
-- [ ] Create `src/services/location-actions.service.ts`
-- [ ] `addPhoto(data)` — DB-first
-- [ ] `updateConfig(patch)` — DB-first
-- [ ] `addBreak(data)` / `endBreak(id)` — DB-first
+- [x] Created `src/services/location-actions.service.ts`
+- [x] `updateConfig(patch)` — DB-first via /api/settings/location PATCH
+- [x] `resetConfig(defaults)` — DB-first
+- [x] `addPing(data)` — DB-first
+- [x] `addPhoto(data)` — DB-first
+- [x] `startBreak(data)` — DB-first
+- [x] `endBreak(breakId, data)` — DB-first
 
 ### B. Update UI Consumers
-- [ ] `src/app/[role]/attendance/_views/employee-view.tsx` — location/photo capture
-- [ ] `src/app/[role]/settings/_views/admin-view.tsx` — location config
+- [x] `src/app/[role]/settings/location/page.tsx` — config CRUD
+- [x] `src/components/attendance/location-tracker.tsx` — addPing
+- [x] `src/components/attendance/break-timer.tsx` — startBreak, endBreak
 
 ### C. Remove Write-Through
-- [ ] Delete `useLocationStore.subscribe(...)` block in `sync.service.ts`
+- [x] Deleted `useLocationStore.subscribe(...)` block in `sync.service.ts`
 
 ### D. Remove Persist
-- [ ] Remove `persist(...)` wrapper (already partialize = config only)
+- [x] Removed `persist(...)` wrapper from `location.store.ts`
+- [x] Store is now pure in-memory (hydrated from Supabase on login)
 
 ### E. Verify
 - [ ] Location ping recorded → refresh → still there
+- [ ] Start/end break → refresh → persisted
+- [ ] Config update → refresh → persisted
 
 ---
 
-## Store 10: `timesheet.store`
+## Store 10: `timesheet.store` ✅ DONE
 
 ### A. Service Layer
-- [ ] Create `src/services/timesheet-actions.service.ts`
-- [ ] `computeTimesheet(data)` — DB-first
-- [ ] `submitTimesheet(id)` — DB-first
-- [ ] `approveTimesheet(id, approverId)` — DB-first
-- [ ] `rejectTimesheet(id, approverId)` — DB-first
-- [ ] `addRuleSet(data)` / `updateRuleSet(id, data)` / `deleteRuleSet(id)` — DB-first
+- [x] Created `src/services/timesheet-actions.service.ts`
+- [x] `saveComputedTimesheet(ts)` — DB-first (computation stays in store)
+- [x] `submitTimesheet(id)` — DB-first
+- [x] `approveTimesheet(id, approverId)` — DB-first
+- [x] `rejectTimesheet(id, approverId)` — DB-first
+- [x] `addRuleSet(data)` — DB-first
+- [x] `updateRuleSet(id, data)` — DB-first
+- [x] `deleteRuleSet(id)` — DB-first
 
 ### B. Update UI Consumers
-- [ ] `src/app/[role]/timesheets/page.tsx` + views
+- [x] `src/app/[role]/timesheets/page.tsx` — submit, approve, reject, addRuleSet
 
 ### C. Remove Write-Through
-- [ ] Delete `useTimesheetStore.subscribe(...)` block in `sync.service.ts`
+- [x] Deleted `useTimesheetStore.subscribe(...)` block in `sync.service.ts`
 
 ### D. Remove Persist
-- [ ] Remove `persist(...)` wrapper (already partialize = ruleSets only)
+- [x] Removed `persist(...)` wrapper from `timesheet.store.ts`
+- [x] Removed `partialize`, `migrate` config
+- [x] Store is now pure in-memory (hydrated from Supabase on login)
 
 ### E. Verify
 - [ ] Compute timesheet → refresh → still there
 - [ ] Approve → refresh → status persisted
+- [ ] Add rule set → refresh → persisted
 
 ---
 
@@ -631,8 +643,8 @@ Each store follows the same 5-step process:
 | 6 | departments | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 7 | job-titles | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 8 | roles | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 9 | location | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 10 | timesheet | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 9 | location | ✅ | ✅ | ✅ | ✅ | ⬜ |
+| 10 | timesheet | ✅ | ✅ | ✅ | ✅ | ⬜ |
 | 11 | leave | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 12 | loans | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 13 | employees | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |

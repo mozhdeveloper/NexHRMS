@@ -1,7 +1,5 @@
 "use client";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type { Timesheet, TimesheetSegment, AttendanceRuleSet, TimesheetStatus } from "@/types";
 
@@ -89,8 +87,7 @@ function calcNightDiffMinutes(
 }
 
 export const useTimesheetStore = create<TimesheetState>()(
-    persist(
-        (set, get) => ({
+    (set, get) => ({
             timesheets: [],
             ruleSets: [DEFAULT_RULE_SET],
 
@@ -252,30 +249,5 @@ export const useTimesheetStore = create<TimesheetState>()(
             getPendingApproval: () =>
                 get().timesheets.filter((t) => t.status === "submitted"),
             resetToSeed: () => set({ timesheets: [] }),
-        }),
-        { name: "soren-timesheet", version: 2, storage: safePersistStorage,
-          // Only persist rule sets — timesheets come from Supabase
-          partialize: (state: TimesheetState) => ({
-            ruleSets: state.ruleSets,
-          }),
-          migrate: (persistedState: unknown, version: number) => {
-            // v1 → v2 (migration 055): back-fill OT multipliers on existing rule sets
-            const s = (persistedState ?? {}) as { ruleSets?: AttendanceRuleSet[] };
-            if (version < 2 && Array.isArray(s.ruleSets)) {
-              s.ruleSets = s.ruleSets.map((rs) => {
-                const r = rs as Partial<AttendanceRuleSet>;
-                return {
-                  ...rs,
-                  otMultiplierRegular: r.otMultiplierRegular ?? 1.25,
-                  otMultiplierRestDay: r.otMultiplierRestDay ?? 1.30,
-                  otMultiplierSpecialHoliday: r.otMultiplierSpecialHoliday ?? 1.30,
-                  otMultiplierRegularHoliday: r.otMultiplierRegularHoliday ?? 2.00,
-                  otMultiplierNightDiff: r.otMultiplierNightDiff ?? 1.10,
-                } as AttendanceRuleSet;
-              });
-            }
-            return s as TimesheetState;
-          },
-        }
-    )
+        })
 );
