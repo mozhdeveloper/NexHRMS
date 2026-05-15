@@ -15,9 +15,9 @@
 | 3 | `audit.store` | Low | audit_logs | ✅ Service created |
 | 4 | `events.store` | Low | calendar_events | ✅ Service created |
 | 5 | `projects.store` | Low | projects, project_assignments | ✅ Service created |
-| 6 | `departments.store` | Low | departments | ⬜ |
-| 7 | `job-titles.store` | Low | job_titles | ⬜ |
-| 8 | `roles.store` | Low | roles (mostly hardcoded) | ⬜ |
+| 6 | `departments.store` | Low | departments | ✅ Service created |
+| 7 | `job-titles.store` | Low | job_titles | ✅ Service created |
+| 8 | `roles.store` | Low | roles (mostly hardcoded) | ✅ Service created |
 | 9 | `location.store` | Low | location_pings, site_survey_photos, break_records | ⬜ |
 | 10 | `timesheet.store` | Medium | timesheets, attendance_rule_sets | ⬜ |
 | 11 | `leave.store` | Medium | leave_requests, leave_balances, leave_policies | ⬜ |
@@ -202,72 +202,89 @@ Each store follows the same 5-step process:
 
 ---
 
-## Store 6: `departments.store`
+## Store 6: `departments.store` ✅ DONE
 
 ### A. Service Layer
-- [ ] Create `src/services/departments-actions.service.ts`
-- [ ] `addDepartment(data)` — DB-first
-- [ ] `updateDepartment(id, data)` — DB-first
-- [ ] `deleteDepartment(id)` — DB-first
+- [x] Created `src/services/departments-actions.service.ts`
+- [x] `addDepartment(data)` — DB-first
+- [x] `updateDepartment(id, data)` — DB-first
+- [x] `deleteDepartment(id)` — DB-first
+- [x] `toggleDepartmentActive(id)` — DB-first
 
 ### B. Update UI Consumers
-- [ ] `src/app/[role]/employees/manage/_views/admin-view.tsx` — department CRUD tab
+- [x] `src/app/[role]/settings/organization/page.tsx` — department CRUD
+- [x] `src/app/[role]/employees/manage/_views/admin-view.tsx` — department CRUD tab
 
 ### C. Remove Write-Through
-- [ ] Delete departments subscriber in `sync.service.ts` (if exists)
+- [x] No write-through existed for departments (localStorage-only persist)
 
 ### D. Remove Persist
-- [ ] Remove `persist(...)` wrapper
+- [x] Removed `persist(...)` wrapper from `departments.store.ts`
+- [x] Store is now pure in-memory (hydrated from Supabase on login)
 
 ### E. Verify
 - [ ] Add department → refresh → still there
+- [ ] Update department → refresh → persisted
+- [ ] Delete department → refresh → gone
 
 ---
 
-## Store 7: `job-titles.store`
+## Store 7: `job-titles.store` ✅ DONE
 
 ### A. Service Layer
-- [ ] Create `src/services/job-titles-actions.service.ts`
-- [ ] `addJobTitle(data)` — DB-first
-- [ ] `updateJobTitle(id, data)` — DB-first
-- [ ] `deleteJobTitle(id)` — DB-first
-- [ ] `toggleActive(id)` — DB-first
+- [x] Created `src/services/job-titles-actions.service.ts`
+- [x] `addJobTitle(data)` — DB-first
+- [x] `updateJobTitle(id, data)` — DB-first
+- [x] `deleteJobTitle(id)` — DB-first
+- [x] `toggleJobTitleActive(id)` — DB-first
 
 ### B. Update UI Consumers
-- [ ] `src/app/[role]/employees/manage/_views/admin-view.tsx` — job titles tab
+- [x] `src/app/[role]/settings/organization/page.tsx` — positions CRUD
+- [x] `src/app/[role]/employees/manage/_views/admin-view.tsx` — job titles tab
 
 ### C. Remove Write-Through
-- [ ] Delete job-titles subscriber in `sync.service.ts` (if exists)
+- [x] No write-through existed for job-titles (localStorage-only persist)
 
 ### D. Remove Persist
-- [ ] Remove `persist(...)` wrapper
+- [x] Removed `persist(...)` wrapper from `job-titles.store.ts`
+- [x] Store is now pure in-memory (hydrated from Supabase on login)
 
 ### E. Verify
 - [ ] Add job title → refresh → still there
+- [ ] Update job title → refresh → persisted
+- [ ] Delete job title → refresh → gone
 
 ---
 
-## Store 8: `roles.store`
+## Store 8: `roles.store` ✅ DONE
 
 ### A. Service Layer
-- [ ] Create `src/services/roles-actions.service.ts`
-- [ ] `addRole(data)` — DB-first
-- [ ] `updateRole(id, data)` — DB-first
-- [ ] `deleteRole(id)` — DB-first
-- [ ] `updateDashboardLayout(role, layout)` — DB-first
+- [x] Created `src/services/roles-actions.service.ts`
+- [x] `createRole(data)` — DB-first via /api/roles POST
+- [x] `updateRole(id, data)` — DB-first via /api/roles PUT
+- [x] `deleteRole(id)` — DB-first via /api/roles DELETE
+- [x] `duplicateRole(id)` — DB-first
+- [x] `setPermissions(roleId, perms)` — DB-first
+- [x] `addPermission(roleId, perm)` — DB-first
+- [x] `removePermission(roleId, perm)` — DB-first
+- [x] `saveDashboardLayout(roleId, widgets)` — DB-first
 
 ### B. Update UI Consumers
-- [ ] `src/app/[role]/settings/_views/admin-view.tsx` — roles tab
-- [ ] `src/app/[role]/settings/roles/page.tsx`
+- [x] `src/app/[role]/settings/roles/page.tsx` — role CRUD, permissions, duplicate
+- [x] `src/app/[role]/settings/dashboard-builder/page.tsx` — saveDashboardLayout
 
 ### C. Remove Write-Through
-- [ ] Delete roles subscriber in `sync.service.ts` (if exists)
+- [x] No write-through existed for roles (used fire-and-forget sync)
 
 ### D. Remove Persist
-- [ ] Remove `persist(...)` wrapper
+- [x] Removed `persist(...)` wrapper from `roles.store.ts`
+- [x] Store is now pure in-memory (hydrated via `fetchRoles()` on mount)
 
 ### E. Verify
+- [ ] Create role → refresh → still there
 - [ ] Update role permissions → refresh → persisted
+- [ ] Delete custom role → refresh → gone
+- [ ] Dashboard layout save → refresh → persisted
 
 ---
 
@@ -611,9 +628,9 @@ Each store follows the same 5-step process:
 | 3 | audit | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 4 | events | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 5 | projects | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 6 | departments | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 7 | job-titles | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 8 | roles | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 6 | departments | ✅ | ✅ | ✅ | ✅ | ⬜ |
+| 7 | job-titles | ✅ | ✅ | ✅ | ✅ | ⬜ |
+| 8 | roles | ✅ | ✅ | ✅ | ✅ | ⬜ |
 | 9 | location | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 10 | timesheet | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 11 | leave | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |

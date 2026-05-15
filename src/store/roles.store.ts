@@ -1,7 +1,5 @@
 "use client";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type { CustomRole, Permission, WidgetConfig } from "@/types";
 
@@ -360,8 +358,7 @@ interface RolesState {
 }
 
 export const useRolesStore = create<RolesState>()(
-    persist(
-        (set, get) => ({
+    (set, get) => ({
             roles: buildSystemRoles(),
             isLoading: false,
             hasFetchedFromDb: false,
@@ -640,12 +637,5 @@ export const useRolesStore = create<RolesState>()(
                     get().syncRoleToDb(role);
                 }
             },
-        }),
-        {
-            name: "soren-roles",
-            version: 3,
-            storage: safePersistStorage,
-            migrate: () => ({ roles: buildSystemRoles(), isLoading: false, hasFetchedFromDb: false }),
-        }
-    )
+        })
 );

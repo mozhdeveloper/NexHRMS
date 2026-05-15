@@ -12,6 +12,8 @@ import { useProjectsStore } from "@/store/projects.store";
 import { useAttendanceStore } from "@/store/attendance.store";
 import { useJobTitlesStore } from "@/store/job-titles.store";
 import { useDepartmentsStore } from "@/store/departments.store";
+import * as deptService from "@/services/departments-actions.service";
+import * as jtService from "@/services/job-titles-actions.service";
 import {
     createUserAccount,
     adminResetPassword,
@@ -84,8 +86,8 @@ export default function AdminEmployeesView() {
     const { getEmployeeBalances } = useLeaveStore();
     const { projects, assignEmployee: assignToProject, removeEmployee: removeFromProject, getProjectForEmployee } = useProjectsStore();
     const { shiftTemplates, assignShift, unassignShift } = useAttendanceStore();
-    const { jobTitles, addJobTitle, updateJobTitle, deleteJobTitle, toggleActive: toggleJobTitleActive } = useJobTitlesStore();
-    const { departments, addDepartment, updateDepartment, deleteDepartment, toggleActive: toggleDeptActive } = useDepartmentsStore();
+    const { jobTitles } = useJobTitlesStore();
+    const { departments } = useDepartmentsStore();
     const { hasPermission } = useRolesStore();
     const rh = useRoleHref();
     const canManage = hasPermission(currentUser.role, "employees:edit");
@@ -202,12 +204,12 @@ export default function AdminEmployeesView() {
         });
     }, [jobTitles, jtSearch, jtDeptFilter, jtStatusFilter]);
 
-    const handleAddJobTitle = () => {
+    const handleAddJobTitle = async () => {
         if (!jtNewName.trim()) { toast.error("Job title name is required."); return; }
         const existing = jobTitles.find((jt) => jt.name.toLowerCase() === jtNewName.trim().toLowerCase());
         if (existing) { toast.error("A job title with this name already exists."); return; }
         try {
-            addJobTitle({
+            const result = await jtService.addJobTitle({
                 name: jtNewName.trim(),
                 description: jtNewDesc.trim() || undefined,
                 department: jtNewDept || undefined,
@@ -216,9 +218,13 @@ export default function AdminEmployeesView() {
                 color: jtNewColor,
                 createdBy: currentUser.id,
             });
-            toast.success(`Job title "${jtNewName.trim()}" created!`);
-            setJtAddOpen(false);
-            setJtNewName(""); setJtNewDesc(""); setJtNewDept(""); setJtNewIsLead(false); setJtNewColor("#6366f1");
+            if (result.ok) {
+                toast.success(`Job title "${jtNewName.trim()}" created!`);
+                setJtAddOpen(false);
+                setJtNewName(""); setJtNewDesc(""); setJtNewDept(""); setJtNewIsLead(false); setJtNewColor("#6366f1");
+            } else {
+                toast.error("Failed to create job title in database.");
+            }
         } catch (err) {
             toast.error(`Failed to create job title: ${err instanceof Error ? err.message : "Unknown error"}`);
         }
@@ -234,31 +240,36 @@ export default function AdminEmployeesView() {
         setJtEditOpen(true);
     };
 
-    const handleSaveEditJt = () => {
+    const handleSaveEditJt = async () => {
         if (!editingJt) return;
         if (!jtEditName.trim()) { toast.error("Job title name is required."); return; }
         const existing = jobTitles.find((jt) => jt.id !== editingJt.id && jt.name.toLowerCase() === jtEditName.trim().toLowerCase());
         if (existing) { toast.error("A job title with this name already exists."); return; }
         try {
-            updateJobTitle(editingJt.id, {
+            const ok = await jtService.updateJobTitle(editingJt.id, {
                 name: jtEditName.trim(),
                 description: jtEditDesc.trim() || undefined,
                 department: jtEditDept || undefined,
                 isLead: jtEditIsLead,
                 color: jtEditColor,
             });
-            toast.success(`Job title "${jtEditName.trim()}" updated!`);
-            setJtEditOpen(false);
-            setEditingJt(null);
+            if (ok) {
+                toast.success(`Job title "${jtEditName.trim()}" updated!`);
+                setJtEditOpen(false);
+                setEditingJt(null);
+            } else {
+                toast.error("Failed to update job title in database.");
+            }
         } catch (err) {
             toast.error(`Failed to update job title: ${err instanceof Error ? err.message : "Unknown error"}`);
         }
     };
 
-    const handleDeleteJt = (jt: JobTitle) => {
+    const handleDeleteJt = async (jt: JobTitle) => {
         try {
-            deleteJobTitle(jt.id);
-            toast.success(`Job title "${jt.name}" deleted.`);
+            const ok = await jtService.deleteJobTitle(jt.id);
+            if (ok) toast.success(`Job title "${jt.name}" deleted.`);
+            else toast.error("Failed to delete job title from database.");
         } catch (err) {
             toast.error(`Failed to delete job title: ${err instanceof Error ? err.message : "Unknown error"}`);
         }
@@ -289,12 +300,12 @@ export default function AdminEmployeesView() {
         });
     }, [departments, deptSearch, deptStatusFilter]);
 
-    const handleAddDepartment = () => {
+    const handleAddDepartment = async () => {
         if (!deptNewName.trim()) { toast.error("Department name is required."); return; }
         const existing = departments.find((d) => d.name.toLowerCase() === deptNewName.trim().toLowerCase());
         if (existing) { toast.error("A department with this name already exists."); return; }
         try {
-            addDepartment({
+            const result = await deptService.addDepartment({
                 name: deptNewName.trim(),
                 description: deptNewDesc.trim() || undefined,
                 headId: deptNewHead !== "none" ? deptNewHead : undefined,
@@ -302,9 +313,13 @@ export default function AdminEmployeesView() {
                 isActive: true,
                 createdBy: currentUser.id,
             });
-            toast.success(`Department "${deptNewName.trim()}" created!`);
-            setDeptAddOpen(false);
-            setDeptNewName(""); setDeptNewDesc(""); setDeptNewHead("none"); setDeptNewColor("#6366f1");
+            if (result.ok) {
+                toast.success(`Department "${deptNewName.trim()}" created!`);
+                setDeptAddOpen(false);
+                setDeptNewName(""); setDeptNewDesc(""); setDeptNewHead("none"); setDeptNewColor("#6366f1");
+            } else {
+                toast.error("Failed to create department in database.");
+            }
         } catch (err) {
             toast.error(`Failed to create department: ${err instanceof Error ? err.message : "Unknown error"}`);
         }
@@ -319,30 +334,35 @@ export default function AdminEmployeesView() {
         setDeptEditOpen(true);
     };
 
-    const handleSaveEditDept = () => {
+    const handleSaveEditDept = async () => {
         if (!editingDept) return;
         if (!deptEditName.trim()) { toast.error("Department name is required."); return; }
         const existing = departments.find((d) => d.id !== editingDept.id && d.name.toLowerCase() === deptEditName.trim().toLowerCase());
         if (existing) { toast.error("A department with this name already exists."); return; }
         try {
-            updateDepartment(editingDept.id, {
+            const ok = await deptService.updateDepartment(editingDept.id, {
                 name: deptEditName.trim(),
                 description: deptEditDesc.trim() || undefined,
                 headId: deptEditHead !== "none" ? deptEditHead : undefined,
                 color: deptEditColor,
             });
-            toast.success(`Department "${deptEditName.trim()}" updated!`);
-            setDeptEditOpen(false);
-            setEditingDept(null);
+            if (ok) {
+                toast.success(`Department "${deptEditName.trim()}" updated!`);
+                setDeptEditOpen(false);
+                setEditingDept(null);
+            } else {
+                toast.error("Failed to update department in database.");
+            }
         } catch (err) {
             toast.error(`Failed to update department: ${err instanceof Error ? err.message : "Unknown error"}`);
         }
     };
 
-    const handleDeleteDept = (d: Department) => {
+    const handleDeleteDept = async (d: Department) => {
         try {
-            deleteDepartment(d.id);
-            toast.success(`Department "${d.name}" deleted.`);
+            const ok = await deptService.deleteDepartment(d.id);
+            if (ok) toast.success(`Department "${d.name}" deleted.`);
+            else toast.error("Failed to delete department from database.");
         } catch (err) {
             toast.error(`Failed to delete department: ${err instanceof Error ? err.message : "Unknown error"}`);
         }
@@ -2124,7 +2144,7 @@ export default function AdminEmployeesView() {
                                                             <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" title="Edit" onClick={() => openEditJt(jt)}>
                                                                 <Pencil className="h-3.5 w-3.5" />
                                                             </Button>
-                                                            <Button variant="ghost" size="icon" className={`h-7 w-7 ${jt.isActive ? "text-muted-foreground hover:text-amber-600" : "text-amber-600 hover:text-emerald-600"}`} title={jt.isActive ? "Deactivate" : "Activate"} onClick={() => toggleJobTitleActive(jt.id)}>
+                                                            <Button variant="ghost" size="icon" className={`h-7 w-7 ${jt.isActive ? "text-muted-foreground hover:text-amber-600" : "text-amber-600 hover:text-emerald-600"}`} title={jt.isActive ? "Deactivate" : "Activate"} onClick={() => jtService.toggleJobTitleActive(jt.id)}>
                                                                 {jt.isActive ? <UserMinus className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}
                                                             </Button>
                                                             <AlertDialog>
@@ -2299,7 +2319,7 @@ export default function AdminEmployeesView() {
                                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" title="Edit" onClick={() => openEditDept(d)}>
                                                                     <Pencil className="h-3.5 w-3.5" />
                                                                 </Button>
-                                                                <Button variant="ghost" size="icon" className={`h-7 w-7 ${d.isActive ? "text-muted-foreground hover:text-amber-600" : "text-amber-600 hover:text-emerald-600"}`} title={d.isActive ? "Deactivate" : "Activate"} onClick={() => toggleDeptActive(d.id)}>
+                                                                <Button variant="ghost" size="icon" className={`h-7 w-7 ${d.isActive ? "text-muted-foreground hover:text-amber-600" : "text-amber-600 hover:text-emerald-600"}`} title={d.isActive ? "Deactivate" : "Activate"} onClick={() => deptService.toggleDepartmentActive(d.id)}>
                                                                     {d.isActive ? <UserMinus className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}
                                                                 </Button>
                                                                 <AlertDialog>

@@ -1294,6 +1294,34 @@ export const loanExtrasDb = {
   fetchAllRepaymentSchedules: () => fetchAll<LoanRepaymentSchedule>("loan_repayment_schedule"),
 };
 
+// ─── Departments ────────────────────────────────────────────────
+
+export const departmentsDb = {
+  fetchAll: () => fetchAll<import("@/types").Department>("departments"),
+
+  async upsert(dept: import("@/types").Department): Promise<boolean> {
+    return upsertRow("departments", dept as unknown as Record<string, unknown>);
+  },
+
+  async remove(id: string): Promise<boolean> {
+    return deleteRow("departments", id);
+  },
+};
+
+// ─── Job Titles ─────────────────────────────────────────────────
+
+export const jobTitlesDb = {
+  fetchAll: () => fetchAll<import("@/types").JobTitle>("job_titles"),
+
+  async upsert(jt: import("@/types").JobTitle): Promise<boolean> {
+    return upsertRow("job_titles", jt as unknown as Record<string, unknown>);
+  },
+
+  async remove(id: string): Promise<boolean> {
+    return deleteRow("job_titles", id);
+  },
+};
+
 // ─── Sync Check ─────────────────────────────────────────────────
 
 /** Returns true if we should sync with Supabase (not demo mode, and client available) */

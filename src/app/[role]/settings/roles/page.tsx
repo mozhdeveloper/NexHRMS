@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { useRolesStore, PERMISSION_GROUPS, ALL_PERMISSIONS } from "@/store/roles.store";
+import * as rolesService from "@/services/roles-actions.service";
 import type { CustomRole, Permission } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,8 +23,7 @@ import {
 export default function RolesPage() {
     const role = useAuthStore((s) => s.currentUser.role);
     const {
-        roles, createRole, updateRole, deleteRole, duplicateRole,
-        setPermissions, exportConfig, importConfig, resetToDefaults,
+        roles, exportConfig, importConfig, resetToDefaults,
         fetchRoles, hasFetchedFromDb,
     } = useRolesStore();
 
@@ -69,13 +69,17 @@ export default function RolesPage() {
         );
     }
 
-    const handleCreate = () => {
+    const handleCreate = async () => {
         if (!newName || !newSlug) { toast.error("Name and slug are required"); return; }
         if (roles.some((r) => r.slug === newSlug)) { toast.error("Slug already exists"); return; }
-        createRole({ name: newName, slug: newSlug, color: newColor, icon: "Users", permissions: ["page:dashboard"], dashboardLayout: undefined });
-        toast.success(`Role "${newName}" created`);
-        setNewName(""); setNewSlug(""); setNewColor("#6366f1");
-        setCreateOpen(false);
+        const result = await rolesService.createRole({ name: newName, slug: newSlug, color: newColor, icon: "Users", permissions: ["page:dashboard"], dashboardLayout: undefined });
+        if (result.ok) {
+            toast.success(`Role "${newName}" created`);
+            setNewName(""); setNewSlug(""); setNewColor("#6366f1");
+            setCreateOpen(false);
+        } else {
+            toast.error("Failed to create role in database");
+        }
     };
 
     const openEdit = (r: CustomRole) => {
@@ -86,11 +90,11 @@ export default function RolesPage() {
         setExpandedGroups(new Set());
     };
 
-    const handleSaveEdit = () => {
+    const handleSaveEdit = async () => {
         if (!editRole) return;
-        updateRole(editRole.id, { name: editName, color: editColor });
-        setPermissions(editRole.id, editPerms);
-        toast.success(`Role "${editName}" updated`);
+        const ok = await rolesService.updateRole(editRole.id, { name: editName, color: editColor, permissions: editPerms });
+        if (ok) toast.success(`Role "${editName}" updated`);
+        else toast.error("Failed to update role in database");
         setEditRole(null);
     };
 
@@ -242,7 +246,7 @@ export default function RolesPage() {
                                 <Button variant="outline" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => openEdit(r)}>
                                     <Pencil className="h-3 w-3" /> Edit
                                 </Button>
-                                <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => { duplicateRole(r.id); toast.success("Role duplicated"); }}>
+                                <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={async () => { const result = await rolesService.duplicateRole(r.id); if (result.ok) toast.success("Role duplicated"); else toast.error("Failed to duplicate role"); }}>
                                     <Copy className="h-3 w-3" />
                                 </Button>
                                 {!r.isSystem && (
@@ -375,9 +379,9 @@ export default function RolesPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => {
+                        <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={async () => {
                             if (deleteId) {
-                                const ok = deleteRole(deleteId);
+                                const ok = await rolesService.deleteRole(deleteId);
                                 if (ok) toast.success("Role deleted");
                                 else toast.error("Cannot delete system role");
                                 setDeleteId(null);

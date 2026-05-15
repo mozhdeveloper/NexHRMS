@@ -30,6 +30,8 @@ import {
   notificationsDb,
   locationDb,
   loanExtrasDb,
+  departmentsDb,
+  jobTitlesDb,
   createClient,
 } from "./db.service";
 import { keysToCamel } from "@/lib/db-utils";
@@ -47,6 +49,8 @@ import { useTimesheetStore } from "@/store/timesheet.store";
 import { useNotificationsStore, DEFAULT_EMPLOYEE_PREFS } from "@/store/notifications.store";
 import type { EmployeeNotifPrefs } from "@/store/notifications.store";
 import { useLocationStore } from "@/store/location.store";
+import { useDepartmentsStore } from "@/store/departments.store";
+import { useJobTitlesStore } from "@/store/job-titles.store";
 import { useAuthStore } from "@/store/auth.store";
 
 let _hydrated = false;
@@ -197,6 +201,8 @@ async function hydrateAllStoresInternal(opts?: { skipSessionCheck?: boolean }): 
       breakRecords,
       allLoanDeductions,
       allRepaymentSchedules,
+      departmentsFromDb,
+      jobTitlesFromDb,
     ] = await Promise.all([
       projectsDb.fetchAll(),
       auditDb.fetchAll(),
@@ -218,6 +224,8 @@ async function hydrateAllStoresInternal(opts?: { skipSessionCheck?: boolean }): 
       locationDb.fetchBreaks(),
       loanExtrasDb.fetchAllDeductions(),
       loanExtrasDb.fetchAllRepaymentSchedules(),
+      departmentsDb.fetchAll(),
+      jobTitlesDb.fetchAll(),
     ]);
 
     // Fetch employee-shift assignments separately (returns a mapping, not an array)
@@ -366,6 +374,16 @@ async function hydrateAllStoresInternal(opts?: { skipSessionCheck?: boolean }): 
         ...(sitePhotos.length > 0 ? { photos: sitePhotos } : {}),
         ...(breakRecords.length > 0 ? { breaks: breakRecords } : {}),
       });
+    }
+
+    // Hydrate departments store
+    if (departmentsFromDb.length > 0) {
+      useDepartmentsStore.setState({ departments: departmentsFromDb });
+    }
+
+    // Hydrate job-titles store
+    if (jobTitlesFromDb.length > 0) {
+      useJobTitlesStore.setState({ jobTitles: jobTitlesFromDb });
     }
 
     _hydrated = true;

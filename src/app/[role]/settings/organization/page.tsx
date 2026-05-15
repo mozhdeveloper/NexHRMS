@@ -6,6 +6,8 @@ import { useRolesStore } from "@/store/roles.store";
 import { useEmployeesStore } from "@/store/employees.store";
 import { useDepartmentsStore } from "@/store/departments.store";
 import { useJobTitlesStore } from "@/store/job-titles.store";
+import * as deptService from "@/services/departments-actions.service";
+import * as jtService from "@/services/job-titles-actions.service";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,8 +36,8 @@ export default function OrganizationPage() {
     const employees = useEmployeesStore((s) => s.employees);
 
     // Use persisted stores instead of local state
-    const { departments, addDepartment, updateDepartment, deleteDepartment, resetToSeed: resetDepts } = useDepartmentsStore();
-    const { jobTitles, addJobTitle, updateJobTitle, deleteJobTitle, resetToSeed: resetJobTitles } = useJobTitlesStore();
+    const { departments } = useDepartmentsStore();
+    const { jobTitles } = useJobTitlesStore();
 
     const { hasPermission } = useRolesStore();
     const canManage = hasPermission(currentUser.role, "settings:organization");
@@ -71,43 +73,49 @@ export default function OrganizationPage() {
         return employees.filter((e) => e.department === deptName && e.status === "active").length;
     };
 
-    const handleSaveDept = () => {
+    const handleSaveDept = async () => {
         if (!deptName) { toast.error("Department name is required"); return; }
         if (editDept) {
-            updateDepartment(editDept.id, { name: deptName, description: deptDesc || undefined, color: deptColor });
-            toast.success("Department updated");
+            const ok = await deptService.updateDepartment(editDept.id, { name: deptName, description: deptDesc || undefined, color: deptColor });
+            if (ok) toast.success("Department updated");
+            else toast.error("Failed to update department");
         } else {
-            addDepartment({ name: deptName, description: deptDesc || undefined, color: deptColor, isActive: true, createdBy: currentUser.id });
-            toast.success("Department added");
+            const result = await deptService.addDepartment({ name: deptName, description: deptDesc || undefined, color: deptColor, isActive: true, createdBy: currentUser.id });
+            if (result.ok) toast.success("Department added");
+            else toast.error("Failed to add department");
         }
         setDeptOpen(false); setEditDept(null); setDeptName(""); setDeptDesc(""); setDeptColor("#6366f1");
     };
 
-    const handleDeleteDept = (id: string) => {
-        deleteDepartment(id);
-        toast.success("Department removed");
+    const handleDeleteDept = async (id: string) => {
+        const ok = await deptService.deleteDepartment(id);
+        if (ok) toast.success("Department removed");
+        else toast.error("Failed to delete department");
     };
 
-    const handleSavePos = () => {
+    const handleSavePos = async () => {
         if (!posTitle || !posDept) { toast.error("Title and department are required"); return; }
         if (editPos) {
-            updateJobTitle(editPos.id, { name: posTitle, department: posDept, isLead: posIsLead, color: posColor });
-            toast.success("Position updated");
+            const ok = await jtService.updateJobTitle(editPos.id, { name: posTitle, department: posDept, isLead: posIsLead, color: posColor });
+            if (ok) toast.success("Position updated");
+            else toast.error("Failed to update position");
         } else {
-            addJobTitle({ name: posTitle, department: posDept, isActive: true, isLead: posIsLead, color: posColor, createdBy: currentUser.id });
-            toast.success("Position added");
+            const result = await jtService.addJobTitle({ name: posTitle, department: posDept, isActive: true, isLead: posIsLead, color: posColor, createdBy: currentUser.id });
+            if (result.ok) toast.success("Position added");
+            else toast.error("Failed to add position");
         }
         setPosOpen(false); setEditPos(null); setPosTitle(""); setPosDept(""); setPosIsLead(false); setPosColor("#6366f1");
     };
 
-    const handleDeletePos = (id: string) => {
-        deleteJobTitle(id);
-        toast.success("Position removed");
+    const handleDeletePos = async (id: string) => {
+        const ok = await jtService.deleteJobTitle(id);
+        if (ok) toast.success("Position removed");
+        else toast.error("Failed to delete position");
     };
 
     const handleReset = () => {
-        resetDepts();
-        resetJobTitles();
+        useDepartmentsStore.getState().resetToSeed();
+        useJobTitlesStore.getState().resetToSeed();
         setResetOpen(false);
         toast.success("Organization structure reset to defaults");
     };

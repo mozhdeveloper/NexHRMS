@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { useRolesStore } from "@/store/roles.store";
+import * as rolesService from "@/services/roles-actions.service";
 import { WIDGET_CATALOG, getWidgetMeta } from "@/components/dashboard-builder/widget-registry";
 import { WidgetGrid } from "@/components/dashboard-builder/widget-grid";
 import type { WidgetConfig, WidgetType } from "@/types";
@@ -20,7 +21,7 @@ import {
 
 export default function DashboardBuilderPage() {
     const role = useAuthStore((s) => s.currentUser.role);
-    const { roles, getDashboardLayout, saveDashboardLayout } = useRolesStore();
+    const { roles, getDashboardLayout } = useRolesStore();
 
     const canManage = role === "admin";
 
@@ -69,10 +70,11 @@ export default function DashboardBuilderPage() {
         setWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, colSpan } : w)));
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!selectedRole) return;
-        saveDashboardLayout(selectedRole.id, widgets);
-        toast.success(`Dashboard saved for "${selectedRole.name}"`);
+        const ok = await rolesService.saveDashboardLayout(selectedRole.id, widgets);
+        if (ok) toast.success(`Dashboard saved for "${selectedRole.name}"`);
+        else toast.error("Failed to save dashboard layout");
     };
 
     const handleReset = () => {
