@@ -628,9 +628,9 @@ Each store follows the same 5-step process:
 | 3 | audit | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 4 | events | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 5 | projects | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 6 | departments | ✅ | ✅ | ✅ | ✅ | ⬜ |
-| 7 | job-titles | ✅ | ✅ | ✅ | ✅ | ⬜ |
-| 8 | roles | ✅ | ✅ | ✅ | ✅ | ⬜ |
+| 6 | departments | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 7 | job-titles | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 8 | roles | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 9 | location | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 10 | timesheet | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 11 | leave | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
