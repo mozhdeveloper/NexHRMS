@@ -1,7 +1,5 @@
 "use client";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type {
     AttendanceLog, AttendanceFlag, AttendanceEvent, AttendanceEvidence,
@@ -117,8 +115,7 @@ function calculateHours(checkIn: string, checkOut: string) {
 }
 
 export const useAttendanceStore = create<AttendanceState>()(
-    persist(
-        (set, get) => ({
+    (set, get) => ({
             events: [],
             evidence: [],
             exceptions: [],
@@ -852,71 +849,5 @@ export const useAttendanceStore = create<AttendanceState>()(
                     holidays: DEFAULT_HOLIDAYS.map((h, i) => ({ ...h, id: `HOL-${i + 1}` })),
                     penalties: [],
                 })),
-        }),
-        {
-            name: "soren-attendance",
-            version: 5,
-            storage: safePersistStorage,
-            // Only persist config/templates — transactional data (logs, events) comes from Supabase
-            partialize: (state: AttendanceState) => ({
-                shiftTemplates: state.shiftTemplates,
-                employeeShifts: state.employeeShifts,
-                holidays: state.holidays,
-                penalties: state.penalties,
-            }),
-            migrate: (persistedState: unknown, version: number) => {
-                const state = (persistedState ?? {}) as Record<string, unknown>;
-                if (version < 4) {
-                    // v3 → v4: holidays field was added
-                    if (!state.holidays) {
-                        state.holidays = DEFAULT_HOLIDAYS.map((h, i) => ({ ...h, id: `HOL-${i + 1}` }));
-                    }
-                }
-                if (version < 5) {
-                    // v4 → v5: normalize events with timestampUtc → timestampUTC
-                    if (Array.isArray(state.events)) {
-                        state.events = (state.events as Record<string, unknown>[]).map((e) => {
-                            if (e.timestampUtc !== undefined && e.timestampUTC === undefined) {
-                                e.timestampUTC = e.timestampUtc;
-                                delete e.timestampUtc;
-                            }
-                            return e;
-                        });
-                    }
-                }
-                return state;
-            },
-            // Deduplicate logs on rehydration (one log per employee+date)
-            merge: (persisted, current) => {
-                const persistedState = persisted as Partial<AttendanceState> | undefined;
-                const currentState = current as AttendanceState;
-                if (!persistedState) return currentState;
-                
-                // Deduplicate logs by employee+date (keep latest based on updatedAt)
-                const logs = persistedState.logs ?? currentState.logs;
-                const logMap = new Map<string, AttendanceLog>();
-                for (const log of logs) {
-                    const key = `${log.employeeId}|${log.date}`;
-                    const existing = logMap.get(key);
-                    if (!existing || (log.updatedAt && existing.updatedAt && log.updatedAt > existing.updatedAt)) {
-                        logMap.set(key, log);
-                    }
-                }
-                
-                // Deduplicate events by ID
-                const events = persistedState.events ?? currentState.events;
-                const eventMap = new Map<string, AttendanceEvent>();
-                for (const ev of events) {
-                    if (!eventMap.has(ev.id)) eventMap.set(ev.id, ev);
-                }
-                
-                return {
-                    ...currentState,
-                    ...persistedState,
-                    logs: Array.from(logMap.values()),
-                    events: Array.from(eventMap.values()),
-                };
-            },
-        }
-    )
+        })
 );

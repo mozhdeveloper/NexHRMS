@@ -51,7 +51,6 @@ import type { EmployeeNotifPrefs } from "@/store/notifications.store";
 import { useLocationStore } from "@/store/location.store";
 import { useDepartmentsStore } from "@/store/departments.store";
 import { useJobTitlesStore } from "@/store/job-titles.store";
-import { useAuthStore } from "@/store/auth.store";
 
 let _hydrated = false;
 let _subscriptions: (() => void)[] = [];
@@ -60,8 +59,11 @@ let _realtimeChannel: ReturnType<ReturnType<typeof createClient>["channel"]> | n
 /**
  * When true, all write-through subscription callbacks are a no-op.
  * Used by `handleResetAll` to prevent seed data from being pushed to Supabase
- * during a bulk store reset. Subscribers re-enable after force-rehydration.
+ * during a bulk store reset. Now that all stores are DB-first, the flag is
+ * still toggled by `pauseWriteThrough` / `resumeWriteThrough` for any future
+ * subscribers and to keep the public API stable for callers.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 let _writePaused = false;
 
 /**
@@ -403,120 +405,15 @@ export function startWriteThrough(): void {
   // Clean up previous subscriptions
   stopWriteThrough();
 
-  // Determine write scope — only admin/hr manage HR data (employees meta, leave balances, attendance logs)
-  const role = useAuthStore.getState().currentUser?.role ?? "";
-  const isAdminOrHr = ["admin", "hr"].includes(role);
-  // Kiosk mode syncs all attendance data (used by all employees without individual login)
-  const isKioskMode = typeof window !== "undefined" && window.location.pathname.startsWith("/kiosk");
+  // All store write-throughs have been migrated to DB-first action services.
+  // This function is kept as a no-op entry point for now so callers don't break;
+  // it will be fully removed during final cleanup once Store 16 (auth) is migrated.
 
   // ─── Employees write-through — REMOVED (DB-first via employees-actions.service.ts) ───
 
   // ─── Leave write-through — REMOVED (DB-first via leave-actions.service.ts) ───
 
-  // ─── Attendance write-through ─────────────────────────────
-  _subscriptions.push(
-    useAttendanceStore.subscribe(
-      (state, prevState) => {
-        if (_writePaused) return;
-        // Logs: admin/hr/kiosk sync all logs; employees sync only their own log entries
-        const currentUserState = useAuthStore.getState().currentUser;
-        const currentEmployees = useEmployeesStore.getState().employees;
-        const myEmployeeId = currentEmployees.find(
-          (e) => e.profileId === currentUserState?.id || e.email === currentUserState?.email || e.name === currentUserState?.name
-        )?.id;
-
-        for (const log of state.logs) {
-          const prev = prevState.logs.find((l) => l.id === log.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(log)) {
-            // Admin/HR/kiosk sync all; employees only sync their own
-            if (isAdminOrHr || isKioskMode || log.employeeId === myEmployeeId) {
-              attendanceDb.upsertLog(log);
-            }
-          }
-        }
-        // Events (append-only): all roles — employees clock in/out
-        // Collect promises so evidence inserts can wait for parent events (FK constraint)
-        const eventInsertPromises: Promise<boolean>[] = [];
-        for (const evt of state.events) {
-          if (!prevState.events.find((e) => e.id === evt.id)) {
-            eventInsertPromises.push(attendanceDb.insertEvent(evt));
-          }
-        }
-        // Holidays, shifts, exceptions, penalties, shifts: admin/hr only
-        if (isAdminOrHr) {
-          for (const h of state.holidays) {
-            const prev = prevState.holidays.find((ph) => ph.id === h.id);
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(h)) {
-              attendanceDb.upsertHoliday(h);
-            }
-          }
-          for (const prev of prevState.holidays) {
-            if (!state.holidays.find((h) => h.id === prev.id)) {
-              attendanceDb.deleteHoliday(prev.id);
-            }
-          }
-          for (const s of state.shiftTemplates) {
-            const prev = prevState.shiftTemplates.find((ps) => ps.id === s.id);
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(s)) {
-              attendanceDb.upsertShift(s);
-            }
-          }
-          for (const prev of prevState.shiftTemplates) {
-            if (!state.shiftTemplates.find((s) => s.id === prev.id)) {
-              attendanceDb.deleteShift(prev.id);
-            }
-          }
-        }
-        // Overtime requests: all roles — employees submit their own
-        for (const req of state.overtimeRequests) {
-          const prev = prevState.overtimeRequests.find((r) => r.id === req.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(req)) {
-            attendanceDb.upsertOvertimeRequest(req);
-          }
-        }
-        // Evidence (append-only): all roles
-        // Must wait for parent event inserts to commit first (attendance_evidence_event_id_fkey)
-        const newEvidence = state.evidence.filter(
-          (ev) => !prevState.evidence.find((e) => e.id === ev.id)
-        );
-        if (newEvidence.length > 0) {
-          Promise.all(eventInsertPromises).then(() => {
-            for (const ev of newEvidence) {
-              attendanceDb.insertEvidence(ev);
-            }
-          });
-        }
-        // Exceptions and penalties: admin/hr only
-        if (isAdminOrHr) {
-          for (const exc of state.exceptions) {
-            const prev = prevState.exceptions.find((e) => e.id === exc.id);
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(exc)) {
-              attendanceDb.upsertException(exc);
-            }
-          }
-          for (const pen of state.penalties) {
-            const prev = prevState.penalties.find((p) => p.id === pen.id);
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(pen)) {
-              attendanceDb.upsertPenalty(pen);
-            }
-          }
-        }
-        // Employee-shift assignments: admin/hr only
-        if (isAdminOrHr) {
-          for (const [empId, shiftId] of Object.entries(state.employeeShifts)) {
-            if (prevState.employeeShifts[empId] !== shiftId) {
-              attendanceDb.upsertEmployeeShift(empId, shiftId);
-            }
-          }
-          for (const empId of Object.keys(prevState.employeeShifts)) {
-            if (!(empId in state.employeeShifts)) {
-              attendanceDb.deleteEmployeeShift(empId);
-            }
-          }
-        }
-      }
-    )
-  );
+  // ─── Attendance write-through — REMOVED (DB-first via attendance-actions.service.ts) ───
 
   // ─── Payroll write-through — REMOVED (DB-first via payroll.store.ts + payroll-actions.service.ts) ───
 
@@ -527,121 +424,9 @@ export function startWriteThrough(): void {
   // ─── Audit write-through — REMOVED (DB-first via audit.store.ts) ───
   // ─── Events write-through — REMOVED (DB-first via events.store.ts) ───
 
-  // ─── Messaging write-through ──────────────────────────────
-  _subscriptions.push(
-    useMessagingStore.subscribe(
-      (state, prevState) => {
-        if (_writePaused) return;
-        // Use an async IIFE so channels are fully committed to Supabase before
-        // any message insert runs. This prevents the FK constraint violation
-        // (channel_messages_channel_id_fkey) that occurs when a seed-only channel
-        // has never been persisted to Supabase and a user sends their first message.
-        (async () => {
-          // Announcements (no FK dependency, can run in parallel)
-          const announcementOps = state.announcements
-            .filter((ann) => {
-              const prev = prevState.announcements.find((a) => a.id === ann.id);
-              return !prev || JSON.stringify(prev) !== JSON.stringify(ann);
-            })
-            .map((ann) => messagingDb.upsertAnnouncement(ann));
+  // ─── Messaging write-through — REMOVED (DB-first via messaging-actions.service.ts) ───
 
-          // Channels — await all upserts before touching messages
-          for (const ch of state.channels) {
-            const prev = prevState.channels.find((c) => c.id === ch.id);
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(ch)) {
-              await messagingDb.upsertChannel(ch);
-            }
-          }
-          for (const prev of prevState.channels) {
-            if (!state.channels.find((c) => c.id === prev.id)) {
-              messagingDb.deleteChannel(prev.id);
-            }
-          }
-
-          // Messages — for each new message, guarantee its parent channel exists
-          // in Supabase first (handles seed-only channels that were never synced)
-          for (const msg of state.messages) {
-            const prev = prevState.messages.find((m) => m.id === msg.id);
-            if (!prev) {
-              // Ensure the parent channel is persisted before the message
-              const parentChannel = state.channels.find((c) => c.id === msg.channelId);
-              if (parentChannel) {
-                await messagingDb.upsertChannel(parentChannel);
-              }
-              await messagingDb.insertMessage(msg);
-            } else if (JSON.stringify(prev) !== JSON.stringify(msg)) {
-              await messagingDb.upsertMessage(msg);
-            }
-          }
-
-          await Promise.all(announcementOps);
-        })();
-      }
-    )
-  );
-
-  // ─── Tasks write-through ──────────────────────────────────
-  // Groups MUST be persisted before tasks because tasks have a FK on group_id.
-  // We use an async IIFE to await all group upserts before touching tasks,
-  // preventing FK-violation silent failures when both are created together.
-  _subscriptions.push(
-    useTasksStore.subscribe(
-      (state, prevState) => {
-        if (_writePaused) return;
-        void (async () => {
-          // Task groups — await all upserts/deletes before tasks
-          for (const g of state.groups) {
-            const prev = prevState.groups.find((pg) => pg.id === g.id);
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(g)) {
-              await tasksDb.upsertGroup(g);
-            }
-          }
-          for (const prev of prevState.groups) {
-            if (!state.groups.find((g) => g.id === prev.id)) {
-              await tasksDb.deleteGroup(prev.id);
-            }
-          }
-          // Tasks — safe to run now that groups are committed
-          for (const t of state.tasks) {
-            const prev = prevState.tasks.find((pt) => pt.id === t.id);
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(t)) {
-              tasksDb.upsertTask(t);
-            }
-          }
-          for (const prev of prevState.tasks) {
-            if (!state.tasks.find((t) => t.id === prev.id)) {
-              tasksDb.deleteTask(prev.id);
-            }
-          }
-          // Completion reports
-          for (const r of state.completionReports) {
-            const prev = prevState.completionReports.find((pr) => pr.id === r.id);
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(r)) {
-              tasksDb.upsertCompletionReport(r);
-            }
-          }
-          // Comments (append-only)
-          for (const c of state.comments) {
-            if (!prevState.comments.find((pc) => pc.id === c.id)) {
-              tasksDb.insertComment(c);
-            }
-          }
-          // Task tags
-          for (const tag of state.taskTags) {
-            const prev = prevState.taskTags.find((pt) => pt.id === tag.id);
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(tag)) {
-              tasksDb.upsertTag(tag);
-            }
-          }
-          for (const prev of prevState.taskTags) {
-            if (!state.taskTags.find((t) => t.id === prev.id)) {
-              tasksDb.deleteTag(prev.id);
-            }
-          }
-        })();
-      }
-    )
-  );
+  // ─── Tasks write-through — REMOVED (DB-first via tasks-actions.service.ts) ───
 
   // ─── Timesheets write-through — REMOVED (DB-first via timesheet-actions.service.ts) ───
 

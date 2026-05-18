@@ -24,11 +24,11 @@
 | 12 | `loans.store` | Medium | loans, loan_deductions, loan_repayment_schedule | ✅ Service created |
 | 13 | `employees.store` | Medium | employees, salary_change_requests, salary_history | ✅ Service created |
 | 14 | `deductions.store` | Medium | deduction_templates, employee_deduction_assignments | ✅ Already DB-first |
-| 15 | `jobs.store` | Medium | jobs, job_applications | ⬜ |
-| 16 | `auth.store` | Medium | profiles (auth handled by Supabase Auth) | ⬜ |
-| 17 | `attendance.store` | High | attendance_logs, events, evidence, exceptions, shifts, holidays, penalties | ⬜ |
-| 18 | `messaging.store` | High | announcements, text_channels, channel_messages | ⬜ |
-| 19 | `tasks.store` | High | task_groups, tasks, completion_reports, task_comments, task_tags | ⬜ |
+| 15 | `jobs.store` | Medium | jobs, job_applications | ✅ Service created |
+| 16 | `auth.store` | Medium | profiles (auth handled by Supabase Auth) | ⏸ Deferred (see Store 16) |
+| 17 | `attendance.store` | High | attendance_logs, events, evidence, exceptions, shifts, holidays, penalties | ✅ Service created |
+| 18 | `messaging.store` | High | announcements, text_channels, channel_messages | ✅ Service created |
+| 19 | `tasks.store` | High | task_groups, tasks, completion_reports, task_comments, task_tags | ✅ Service created |
 
 ---
 
@@ -461,24 +461,28 @@ Each store follows the same 5-step process:
 
 ---
 
-## Store 15: `jobs.store`
+## Store 15: `jobs.store` ✅ SERVICE CREATED
 
 ### A. Service Layer
-- [ ] Create `src/services/jobs-actions.service.ts`
-- [ ] `addJob(data)` — DB-first (via API route)
-- [ ] `updateJob(id, data)` — DB-first
-- [ ] `deleteJob(id)` — DB-first
-- [ ] `addApplication(jobId, data)` — DB-first
-- [ ] `updateApplication(jobId, appId, data)` — DB-first
+- [x] Created `src/services/jobs-actions.service.ts`
+- [x] `addJob(data)` — DB-first (via `/api/jobs` POST)
+- [x] `updateJob(id, patch)` — DB-first
+- [x] `setJobStatus(id, status)` — DB-first
+- [x] `deleteJob(id)` — DB-first
+- [x] `addApplication(data)` — DB-first
+- [x] `updateApplication(id, patch)` — DB-first
+- [x] `setApplicationStatus(id, status, reviewedBy)` — DB-first
+- [x] `deleteApplication(id)` — DB-first
 
 ### B. Update UI Consumers
 - [ ] `src/app/[role]/jobs/_views/admin-view.tsx`
 
 ### C. Remove Write-Through
-- [ ] (Currently no write-through — uses API routes directly)
+- [x] No write-through existed — store used fire-and-forget API calls; service now awaits responses
 
 ### D. Remove Persist
-- [ ] Remove `persist(...)` wrapper
+- [x] Removed `persist(...)` wrapper from `jobs.store.ts`
+- [x] Store is now pure in-memory (hydrated via `fetchJobs()` on mount)
 
 ### E. Verify
 - [ ] Post job → refresh → still there
@@ -486,23 +490,26 @@ Each store follows the same 5-step process:
 
 ---
 
-## Store 16: `auth.store`
+## Store 16: `auth.store` ⏸ DEFERRED
 
 ### A. Service Layer
-- [ ] Already exists: `src/services/auth.service.ts`
-- [ ] `signIn`, `signOut`, `createUserAccount`, `adminResetPassword` — all DB-first
-- [ ] Keep Zustand for session state (`currentUser`, `isAuthenticated`)
+- [x] Already exists: `src/services/auth.service.ts`
+- [x] `signIn`, `signOut`, `createUserAccount`, `adminResetPassword`, `adminDeleteAccount`, `changeMyPassword`, `listUserAccounts`, `getCurrentUser` — all DB-first server actions
 
 ### B. Update UI Consumers
-- [ ] Already using service layer for mutations
-- [ ] Keep store for reading `currentUser.role`, `isAuthenticated`
+- [x] Already using server actions for production auth flows
+- [x] Client-side store still used for reading `currentUser.role`, `isAuthenticated`
 
 ### C. Remove Write-Through
-- [ ] (No write-through for auth — already service-based)
+- [x] No write-through existed for auth (already service-based)
 
-### D. Remove Persist
-- [ ] Keep persist for `currentUser` + `isAuthenticated` (needed for page refresh)
-- [ ] Remove `accounts` array (demo-only data)
+### D. Remove Persist — DEFERRED
+- [ ] Keeping `persist(...)` for now: the store still owns the demo-mode `accounts` array used by `login`, `createAccount`, `changePassword`, `adminSetPassword`, `deleteAccount`, and `completeOnboarding`. Those methods are still consumed by:
+  - `src/app/[role]/employees/manage/_views/admin-view.tsx`
+  - `src/app/[role]/messages/_views/admin-view.tsx`
+  - `src/app/[role]/messages/_views/employee-view.tsx`
+  - `src/app/[role]/settings/_views/admin-view.tsx`
+- [ ] Removing `accounts` requires migrating those consumers to call `auth.service.ts` server actions first; tracked as a follow-up. Until then `persist` is required for session continuity.
 
 ### E. Verify
 - [ ] Login → refresh → still authenticated
@@ -510,40 +517,41 @@ Each store follows the same 5-step process:
 
 ---
 
-## Store 17: `attendance.store` (COMPLEX)
+## Store 17: `attendance.store` ✅ SERVICE CREATED (COMPLEX)
 
 ### A. Service Layer
-- [ ] Create `src/services/attendance-actions.service.ts`
-- [ ] `checkIn(employeeId, projectId)` — DB-first
-- [ ] `checkOut(employeeId, projectId)` — DB-first
-- [ ] `markAbsent(employeeId, date)` — DB-first
-- [ ] `appendEvent(data)` — DB-first
-- [ ] `recordEvidence(data)` — DB-first
-- [ ] `autoGenerateExceptions(date, employeeIds)` — DB-first
-- [ ] `autoMarkAbsentAfterShift(date, employees)` — DB-first
-- [ ] `resolveException(id, resolvedBy, notes)` — DB-first
-- [ ] `submitOvertimeRequest(data)` — DB-first
-- [ ] `approveOvertime(id, approverId)` — DB-first
-- [ ] `rejectOvertime(id, approverId, reason)` — DB-first
-- [ ] `createShift(data)` / `updateShift` / `deleteShift` — DB-first
-- [ ] `assignShift(employeeId, shiftId)` — DB-first
-- [ ] `addHoliday(data)` / `updateHoliday` / `deleteHoliday` — DB-first
-- [ ] `applyPenalty(data)` / `clearPenalty(employeeId)` — DB-first
-- [ ] `bulkUpsertLogs(rows)` — DB-first
-- [ ] `resetTodayLog(employeeId)` — DB-first
+- [x] Created `src/services/attendance-actions.service.ts`
+- [x] `checkIn(employeeId, projectId, method)` — DB-first (event + log atomically)
+- [x] `checkOut(employeeId, projectId, method)` — DB-first (with same-method enforcement)
+- [x] `markAbsent(employeeId, date)` — DB-first
+- [x] `appendEvent(data)` — DB-first
+- [x] `recordEvidence(data)` — DB-first
+- [x] `bulkUpsertLogs(rows)` — DB-first (batch import)
+- [x] `resetTodayLog(employeeId)` — DB-first cleanup
+- [x] `resolveException(id, resolvedBy, notes)` — DB-first
+- [x] `updateException(id, updates)` — DB-first
+- [x] `submitOvertimeRequest(data)` — DB-first
+- [x] `approveOvertime(id, approverId)` — DB-first (also patches the day's log)
+- [x] `rejectOvertime(id, approverId, reason)` — DB-first
+- [x] `createShift(data)` / `updateShift` / `deleteShift` — DB-first
+- [x] `assignShift(employeeId, shiftId)` / `unassignShift(employeeId)` — DB-first
+- [x] `addHoliday(data)` / `updateHoliday` / `deleteHoliday` — DB-first
+- [x] `applyPenalty(data)` / `clearPenalty(employeeId)` — DB-first
 
 ### B. Update UI Consumers
 - [ ] `src/app/[role]/attendance/_views/admin-view.tsx` (~122KB)
 - [ ] `src/app/[role]/attendance/_views/employee-view.tsx` (~74KB)
 - [ ] `src/app/[role]/settings/_views/admin-view.tsx` — shifts/holidays
 - [ ] Kiosk pages
-- [ ] Multiple API routes that call store directly
+- [ ] API routes that call store directly
 
 ### C. Remove Write-Through
-- [ ] Delete `useAttendanceStore.subscribe(...)` block in `sync.service.ts` (largest block)
+- [x] Deleted `useAttendanceStore.subscribe(...)` block in `sync.service.ts`
 
 ### D. Remove Persist
-- [ ] Remove `persist(...)` wrapper (already partialize = shifts/holidays/penalties)
+- [x] Removed `persist(...)` wrapper from `attendance.store.ts`
+- [x] Removed `partialize`, `migrate`, `merge` config
+- [x] Store is now pure in-memory (hydrated from Supabase on login)
 
 ### E. Verify
 - [ ] Check-in → refresh → recorded
@@ -554,28 +562,31 @@ Each store follows the same 5-step process:
 
 ---
 
-## Store 18: `messaging.store` (COMPLEX)
+## Store 18: `messaging.store` ✅ SERVICE CREATED (COMPLEX)
 
 ### A. Service Layer
-- [ ] Create `src/services/messaging-actions.service.ts`
-- [ ] `addAnnouncement(data)` — DB-first
-- [ ] `updateAnnouncement(id, data)` — DB-first
-- [ ] `deleteAnnouncement(id)` — DB-first
-- [ ] `addChannel(data)` — DB-first
-- [ ] `updateChannel(id, data)` — DB-first
-- [ ] `deleteChannel(id)` — DB-first
-- [ ] `sendMessage(channelId, data)` — DB-first
-- [ ] `editMessage(channelId, msgId, content)` — DB-first
-- [ ] `deleteMessage(channelId, msgId)` — DB-first
+- [x] Created `src/services/messaging-actions.service.ts`
+- [x] `sendAnnouncement(data)` — DB-first (also dispatches in-app/email notif logs)
+- [x] `markAnnouncementRead(id, employeeId)` — DB-first
+- [x] `deleteAnnouncement(id)` — local-only (legacy semantic preserved; pending dedicated DB delete method)
+- [x] `createChannel(data)` — DB-first
+- [x] `updateChannel(id, patch)` — DB-first
+- [x] `archiveChannel(id)` / `unarchiveChannel(id)` — DB-first
+- [x] `deleteChannel(id)` — DB-first (cascades messages)
+- [x] `addChannelMember(channelId, employeeId)` / `removeChannelMember` — DB-first
+- [x] `sendMessage(channelId, data)` — DB-first (ensures parent channel persisted first)
+- [x] `markMessageRead(messageId, employeeId)` — DB-first
+- [x] `deleteMessage(id)` — local-only (legacy semantic preserved; pending dedicated DB delete method)
 
 ### B. Update UI Consumers
 - [ ] `src/app/[role]/messages/page.tsx` + views
 
 ### C. Remove Write-Through
-- [ ] Delete `useMessagingStore.subscribe(...)` block in `sync.service.ts`
+- [x] Deleted `useMessagingStore.subscribe(...)` block in `sync.service.ts`
 
 ### D. Remove Persist
-- [ ] Remove `persist(...)` wrapper (already partialize = channels only)
+- [x] Removed `persist(...)` wrapper from `messaging.store.ts`
+- [x] Store is now pure in-memory (hydrated from Supabase on login)
 
 ### E. Verify
 - [ ] Send message → refresh → still there
@@ -584,21 +595,22 @@ Each store follows the same 5-step process:
 
 ---
 
-## Store 19: `tasks.store` (COMPLEX)
+## Store 19: `tasks.store` ✅ SERVICE CREATED (COMPLEX)
 
 ### A. Service Layer
-- [ ] Create `src/services/tasks-actions.service.ts`
-- [ ] `addGroup(data)` — DB-first
-- [ ] `updateGroup(id, data)` — DB-first
-- [ ] `deleteGroup(id)` — DB-first
-- [ ] `addTask(data)` — DB-first
-- [ ] `updateTask(id, data)` — DB-first
-- [ ] `deleteTask(id)` — DB-first
-- [ ] `submitCompletion(taskId, data)` — DB-first
-- [ ] `verifyCompletion(reportId, verifiedBy)` — DB-first
-- [ ] `rejectCompletion(reportId, rejectedBy, reason)` — DB-first
-- [ ] `addComment(taskId, data)` — DB-first
-- [ ] `addTag(data)` / `updateTag` / `deleteTag` — DB-first
+- [x] Created `src/services/tasks-actions.service.ts`
+- [x] `addGroup(data)` — DB-first
+- [x] `updateGroup(id, patch)` — DB-first
+- [x] `deleteGroup(id)` — DB-first (cascades child tasks locally)
+- [x] `addTask(data)` — DB-first (ensures parent group persisted first to avoid FK violation)
+- [x] `updateTask(id, patch)` — DB-first
+- [x] `deleteTask(id)` — DB-first
+- [x] `changeStatus(id, status)` — DB-first
+- [x] `submitCompletion(taskId, data)` — DB-first (also flips task to "submitted")
+- [x] `verifyCompletion(reportId, verifiedBy)` — DB-first
+- [x] `rejectCompletion(reportId, rejectedBy, reason)` — DB-first
+- [x] `addComment(taskId, data)` — DB-first (append-only)
+- [x] `addTag(data)` / `updateTag` / `deleteTag` — DB-first
 
 ### B. Update UI Consumers
 - [ ] `src/app/[role]/tasks/_views/admin-view.tsx` (~134KB)
@@ -606,10 +618,12 @@ Each store follows the same 5-step process:
 - [ ] `src/app/[role]/tasks/[id]/page.tsx`
 
 ### C. Remove Write-Through
-- [ ] Delete `useTasksStore.subscribe(...)` block in `sync.service.ts`
+- [x] Deleted `useTasksStore.subscribe(...)` block in `sync.service.ts`
 
 ### D. Remove Persist
-- [ ] Remove `persist(...)` wrapper (already partialize = tags only)
+- [x] Removed `persist(...)` wrapper from `tasks.store.ts`
+- [x] Removed `migrate` config
+- [x] Store is now pure in-memory (hydrated from Supabase on login)
 
 ### E. Verify
 - [ ] Create task → refresh → still there
@@ -649,11 +663,11 @@ Each store follows the same 5-step process:
 | 12 | loans | ✅ | ⬜ | ✅ | ✅ | ⬜ |
 | 13 | employees | ✅ | ⬜ | ✅ | ✅ | ⬜ |
 | 14 | deductions | ✅ | ✅ | ✅ | ✅ | ⬜ |
-| 15 | jobs | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 16 | auth | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 17 | attendance | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 18 | messaging | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 19 | tasks | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 15 | jobs | ✅ | ⬜ | ✅ | ✅ | ⬜ |
+| 16 | auth | ✅ | ⬜ | ✅ | ⏸ | ⬜ |
+| 17 | attendance | ✅ | ⬜ | ✅ | ✅ | ⬜ |
+| 18 | messaging | ✅ | ⬜ | ✅ | ✅ | ⬜ |
+| 19 | tasks | ✅ | ⬜ | ✅ | ✅ | ⬜ |
 
 ---
 
