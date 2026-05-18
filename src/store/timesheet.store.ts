@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { nanoid } from "nanoid";
+import { timesheetsDb } from "@/services/db.service";
 import type { Timesheet, TimesheetSegment, AttendanceRuleSet, TimesheetStatus } from "@/types";
 
 interface TimesheetState {
@@ -91,110 +92,108 @@ export const useTimesheetStore = create<TimesheetState>()(
             timesheets: [],
             ruleSets: [DEFAULT_RULE_SET],
 
-            addRuleSet: (data) =>
-                set((s) => ({
-                    ruleSets: [...s.ruleSets, { ...data, id: `RS-${nanoid(8)}` }],
-                })),
+        addRuleSet: (data) => {
+            const rs = { ...data, id: `RS-${nanoid(8)}` };
+            set((s) => ({ ruleSets: [...s.ruleSets, rs] }));
+            timesheetsDb.upsertRuleSet(rs).catch((err) => {
+                console.warn("[timesheet] ruleSet DB write failed:", err);
+            });
+        },
 
-            updateRuleSet: (id, data) =>
-                set((s) => ({
-                    ruleSets: s.ruleSets.map((r) => (r.id === id ? { ...r, ...data } : r)),
-                })),
+        updateRuleSet: (id, data) => {
+            set((s) => {
+                const updated = s.ruleSets.map((r) => (r.id === id ? { ...r, ...data } : r));
+                const rs = updated.find((r) => r.id === id);
+                if (rs) {
+                    timesheetsDb.upsertRuleSet(rs).catch((err) => {
+                        console.warn("[timesheet] ruleSet update DB write failed:", err);
+                    });
+                }
+                return { ruleSets: updated };
+            });
+        },
 
-            deleteRuleSet: (id) =>
-                set((s) => ({
-                    ruleSets: s.ruleSets.filter((r) => r.id !== id),
-                })),
+        deleteRuleSet: (id) => {
+            set((s) => ({ ruleSets: s.ruleSets.filter((r) => r.id !== id) }));
+            timesheetsDb.deleteRuleSet(id).catch((err) => {
+                console.warn("[timesheet] ruleSet delete failed:", err);
+            });
+        },
 
             getRuleSet: (id) => get().ruleSets.find((r) => r.id === id),
 
-            computeTimesheet: (data) =>
+            computeTimesheet: (data) => {
+                const ruleSet = get().ruleSets.find((r) => r.id === data.ruleSetId) || DEFAULT_RULE_SET;
+                const inMin = parseTime(data.checkIn);
+                let outMin = parseTime(data.checkOut);
+                const shiftStartMin = parseTime(data.shiftStart);
+                let shiftEndMin = parseTime(data.shiftEnd);
+
+                if (shiftEndMin <= shiftStartMin) shiftEndMin += 1440;
+                if (outMin <= inMin) outMin += 1440;
+
+                const stdHoursMin = ruleSet.standardHoursPerDay * 60;
+                const rawWorkedMin = Math.max(0, outMin - inMin - data.breakDuration);
+                const workedMin = roundMinutes(rawWorkedMin, ruleSet.roundingPolicy);
+
+                const rawLate = inMin - shiftStartMin;
+                const lateMinutes = rawLate > ruleSet.graceMinutes ? Math.round(rawLate) : 0;
+                const undertimeMinutes = outMin < shiftEndMin ? Math.round(shiftEndMin - outMin) : 0;
+
+                const regularMin = Math.min(workedMin, stdHoursMin);
+                const overtimeMin = Math.max(0, workedMin - stdHoursMin);
+
+                let nightDiffMin = 0;
+                if (ruleSet.nightDiffStart && ruleSet.nightDiffEnd) {
+                    nightDiffMin = calcNightDiffMinutes(
+                        inMin, outMin,
+                        parseTime(ruleSet.nightDiffStart),
+                        parseTime(ruleSet.nightDiffEnd),
+                    );
+                }
+
+                const segments: TimesheetSegment[] = [];
+                if (regularMin > 0) {
+                    segments.push({
+                        id: `SEG-${nanoid(6)}`, timesheetId: "", segmentType: "regular",
+                        startTime: data.checkIn, endTime: data.shiftEnd,
+                        hours: Math.round((regularMin / 60) * 100) / 100, multiplier: 1.0,
+                    });
+                }
+                if (overtimeMin > 0) {
+                    segments.push({
+                        id: `SEG-${nanoid(6)}`, timesheetId: "", segmentType: "overtime",
+                        startTime: data.shiftEnd, endTime: data.checkOut,
+                        hours: Math.round((overtimeMin / 60) * 100) / 100, multiplier: 1.25,
+                    });
+                }
+                if (nightDiffMin > 0) {
+                    segments.push({
+                        id: `SEG-${nanoid(6)}`, timesheetId: "", segmentType: "night_diff",
+                        startTime: ruleSet.nightDiffStart!, endTime: ruleSet.nightDiffEnd!,
+                        hours: Math.round((nightDiffMin / 60) * 100) / 100, multiplier: 1.1,
+                    });
+                }
+
+                const tsId = `TS-${nanoid(8)}`;
+                const ts: Timesheet = {
+                    id: tsId,
+                    employeeId: data.employeeId,
+                    date: data.date,
+                    ruleSetId: data.ruleSetId,
+                    shiftId: data.shiftId,
+                    regularHours: Math.round((regularMin / 60) * 100) / 100,
+                    overtimeHours: Math.round((overtimeMin / 60) * 100) / 100,
+                    nightDiffHours: Math.round((nightDiffMin / 60) * 100) / 100,
+                    totalHours: Math.round((workedMin / 60) * 100) / 100,
+                    lateMinutes,
+                    undertimeMinutes,
+                    segments: segments.map((seg) => ({ ...seg, timesheetId: tsId })),
+                    status: "computed",
+                    computedAt: new Date().toISOString(),
+                };
+
                 set((s) => {
-                    const ruleSet = s.ruleSets.find((r) => r.id === data.ruleSetId) || DEFAULT_RULE_SET;
-                    const inMin = parseTime(data.checkIn);
-                    let outMin = parseTime(data.checkOut);
-                    const shiftStartMin = parseTime(data.shiftStart);
-                    let shiftEndMin = parseTime(data.shiftEnd);
-
-                    // ── Overnight normalization ─────────────────────────────
-                    // If the shift end is before or equal to shift start it crosses midnight
-                    if (shiftEndMin <= shiftStartMin) shiftEndMin += 1440;
-                    // If checkout is at or before checkin it crossed midnight
-                    if (outMin <= inMin) outMin += 1440;
-
-                    const stdHoursMin = ruleSet.standardHoursPerDay * 60;
-
-                    // ── Worked minutes (net of break, rounded) ──────────────
-                    const rawWorkedMin = Math.max(0, outMin - inMin - data.breakDuration);
-                    const workedMin = roundMinutes(rawWorkedMin, ruleSet.roundingPolicy);
-
-                    // ── Late minutes ────────────────────────────────────────
-                    const rawLate = inMin - shiftStartMin;
-                    const lateMinutes = rawLate > ruleSet.graceMinutes ? Math.round(rawLate) : 0;
-
-                    // ── Undertime: how many minutes before shift end did they leave ──
-                    const undertimeMinutes = outMin < shiftEndMin
-                        ? Math.round(shiftEndMin - outMin)
-                        : 0;
-
-                    // ── Regular vs overtime ─────────────────────────────────
-                    const regularMin = Math.min(workedMin, stdHoursMin);
-                    const overtimeMin = Math.max(0, workedMin - stdHoursMin);
-
-                    // ── Night differential (correct overnight window) ────────
-                    let nightDiffMin = 0;
-                    if (ruleSet.nightDiffStart && ruleSet.nightDiffEnd) {
-                        nightDiffMin = calcNightDiffMinutes(
-                            inMin, outMin,
-                            parseTime(ruleSet.nightDiffStart),
-                            parseTime(ruleSet.nightDiffEnd),
-                        );
-                    }
-
-                    // ── Build segments ──────────────────────────────────────
-                    const segments: TimesheetSegment[] = [];
-                    if (regularMin > 0) {
-                        segments.push({
-                            id: `SEG-${nanoid(6)}`, timesheetId: "", segmentType: "regular",
-                            startTime: data.checkIn, endTime: data.shiftEnd,
-                            hours: Math.round((regularMin / 60) * 100) / 100, multiplier: 1.0,
-                        });
-                    }
-                    if (overtimeMin > 0) {
-                        segments.push({
-                            id: `SEG-${nanoid(6)}`, timesheetId: "", segmentType: "overtime",
-                            startTime: data.shiftEnd, endTime: data.checkOut,
-                            hours: Math.round((overtimeMin / 60) * 100) / 100, multiplier: 1.25,
-                        });
-                    }
-                    if (nightDiffMin > 0) {
-                        segments.push({
-                            id: `SEG-${nanoid(6)}`, timesheetId: "", segmentType: "night_diff",
-                            startTime: ruleSet.nightDiffStart!, endTime: ruleSet.nightDiffEnd!,
-                            hours: Math.round((nightDiffMin / 60) * 100) / 100, multiplier: 1.1,
-                        });
-                    }
-
-                    const tsId = `TS-${nanoid(8)}`;
-                    const ts: Timesheet = {
-                        id: tsId,
-                        employeeId: data.employeeId,
-                        date: data.date,
-                        ruleSetId: data.ruleSetId,
-                        shiftId: data.shiftId,
-                        regularHours: Math.round((regularMin / 60) * 100) / 100,
-                        overtimeHours: Math.round((overtimeMin / 60) * 100) / 100,
-                        nightDiffHours: Math.round((nightDiffMin / 60) * 100) / 100,
-                        totalHours: Math.round((workedMin / 60) * 100) / 100,
-                        lateMinutes,
-                        undertimeMinutes,
-                        segments: segments.map((seg) => ({ ...seg, timesheetId: tsId })),
-                        status: "computed",
-                        computedAt: new Date().toISOString(),
-                    };
-
-                    // Replace existing for same employee+date if still in computed status
-                    // For submitted/approved timesheets, update in place rather than creating duplicates
                     const existing = s.timesheets.find(
                         (t) => t.employeeId === data.employeeId && t.date === data.date
                     );
@@ -202,38 +201,54 @@ export const useTimesheetStore = create<TimesheetState>()(
                         if (existing.status === "computed" || existing.status === "rejected") {
                             return { timesheets: s.timesheets.map((t) => (t.id === existing.id ? ts : t)) };
                         }
-                        // For submitted/approved, don't overwrite — return unchanged
                         return {};
                     }
                     return { timesheets: [...s.timesheets, ts] };
-                }),
+                });
 
-            submitTimesheet: (id) =>
+                // Write to DB (fire-and-forget)
+                timesheetsDb.upsertTimesheet(ts).catch((err) => {
+                    console.warn("[timesheet] computeTimesheet DB write failed:", err);
+                });
+            },
+
+            submitTimesheet: (id) => {
                 set((s) => ({
                     timesheets: s.timesheets.map((t) =>
                         t.id === id && t.status === "computed"
                             ? { ...t, status: "submitted" as TimesheetStatus }
                             : t
                     ),
-                })),
+                }));
+                const ts = get().timesheets.find((t) => t.id === id);
+                if (ts) timesheetsDb.upsertTimesheet({ ...ts, status: "submitted" }).catch(() => {});
+            },
 
-            approveTimesheet: (id, approverId) =>
+            approveTimesheet: (id, approverId) => {
+                const now = new Date().toISOString();
                 set((s) => ({
                     timesheets: s.timesheets.map((t) =>
                         t.id === id && t.status === "submitted"
-                            ? { ...t, status: "approved" as TimesheetStatus, approvedBy: approverId, approvedAt: new Date().toISOString() }
+                            ? { ...t, status: "approved" as TimesheetStatus, approvedBy: approverId, approvedAt: now }
                             : t
                     ),
-                })),
+                }));
+                const ts = get().timesheets.find((t) => t.id === id);
+                if (ts) timesheetsDb.upsertTimesheet({ ...ts, status: "approved", approvedBy: approverId, approvedAt: now }).catch(() => {});
+            },
 
-            rejectTimesheet: (id, approverId) =>
+            rejectTimesheet: (id, approverId) => {
+                const now = new Date().toISOString();
                 set((s) => ({
                     timesheets: s.timesheets.map((t) =>
                         t.id === id && t.status === "submitted"
-                            ? { ...t, status: "rejected" as TimesheetStatus, approvedBy: approverId, approvedAt: new Date().toISOString() }
+                            ? { ...t, status: "rejected" as TimesheetStatus, approvedBy: approverId, approvedAt: now }
                             : t
                     ),
-                })),
+                }));
+                const ts = get().timesheets.find((t) => t.id === id);
+                if (ts) timesheetsDb.upsertTimesheet({ ...ts, status: "rejected", approvedBy: approverId, approvedAt: now }).catch(() => {});
+            },
 
             getByEmployee: (employeeId) =>
                 get().timesheets.filter((t) => t.employeeId === employeeId),

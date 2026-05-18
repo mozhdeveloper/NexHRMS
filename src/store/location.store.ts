@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { nanoid } from "nanoid";
+import { locationDb } from "@/services/db.service";
 import type {
     SiteSurveyPhoto,
     BreakRecord,
@@ -72,6 +73,7 @@ interface LocationState {
 
 export const useLocationStore = create<LocationState>()(
     (set, get) => ({
+    (set, get) => ({
             config: { ...DEFAULT_CONFIG },
             photos: [],
             breaks: [],
@@ -118,10 +120,14 @@ export const useLocationStore = create<LocationState>()(
             // ─── Photos ────────────────────────────────
             addPhoto: (data) => {
                 const id = `PHOTO-${nanoid(8)}`;
+                const photo = { ...data, id };
                 set((s) => {
-                    const photos = [{ ...data, id }, ...s.photos];
-                    // Auto-purge oldest if over limit
+                    const photos = [photo, ...s.photos];
                     return { photos: photos.slice(0, MAX_PHOTOS) };
+                });
+                // Write to DB (fire-and-forget)
+                locationDb.upsertPhoto(photo).catch((err) => {
+                    console.warn("[location] photo DB write failed:", err);
                 });
                 return id;
             },
@@ -138,24 +144,24 @@ export const useLocationStore = create<LocationState>()(
             startBreak: (data) => {
                 const id = `BRK-${nanoid(8)}`;
                 const now = new Date();
-                set((s) => ({
-                    breaks: [
-                        ...s.breaks,
-                        {
-                            id,
-                            employeeId: data.employeeId,
-                            date: now.toISOString().split("T")[0],
-                            breakType: data.breakType,
-                            startTime: now.toISOString(),
-                            startLat: data.lat,
-                            startLng: data.lng,
-                        },
-                    ],
-                }));
+                const br = {
+                    id,
+                    employeeId: data.employeeId,
+                    date: now.toISOString().split("T")[0],
+                    breakType: data.breakType,
+                    startTime: now.toISOString(),
+                    startLat: data.lat,
+                    startLng: data.lng,
+                };
+                set((s) => ({ breaks: [...s.breaks, br] }));
+                // Write to DB (fire-and-forget)
+                locationDb.upsertBreak(br).catch((err) => {
+                    console.warn("[location] break start DB write failed:", err);
+                });
                 return id;
             },
 
-            endBreak: (breakId, data) =>
+            endBreak: (breakId, data) => {
                 set((s) => ({
                     breaks: s.breaks.map((b) => {
                         if (b.id !== breakId || b.endTime) return b;
@@ -165,7 +171,7 @@ export const useLocationStore = create<LocationState>()(
                         );
                         const config = s.config;
                         const overtime = duration > config.lunchDuration + config.lunchOvertimeThreshold;
-                        return {
+                        const updated = {
                             ...b,
                             endTime,
                             endLat: data.lat,
@@ -175,8 +181,14 @@ export const useLocationStore = create<LocationState>()(
                             duration,
                             overtime,
                         };
+                        // Write updated break to DB (fire-and-forget)
+                        locationDb.upsertBreak(updated).catch((err) => {
+                            console.warn("[location] break end DB write failed:", err);
+                        });
+                        return updated;
                     }),
-                })),
+                }));
+            },
 
             getActiveBreak: (employeeId) =>
                 get().breaks.find((b) => b.employeeId === employeeId && !b.endTime),
@@ -192,10 +204,14 @@ export const useLocationStore = create<LocationState>()(
             },
 
             // ─── Location pings ────────────────────────
-            addPing: (data) =>
-                set((s) => ({
-                    pings: [...s.pings, { ...data, id: `PING-${nanoid(8)}` }],
-                })),
+            addPing: (data) => {
+                const ping = { ...data, id: `PING-${nanoid(8)}` };
+                set((s) => ({ pings: [...s.pings, ping] }));
+                // Write to DB (fire-and-forget)
+                locationDb.insertPing(ping).catch((err) => {
+                    console.warn("[location] ping DB write failed:", err);
+                });
+            },
 
             getPings: (employeeId, date) => {
                 const all = get().pings.filter((p) => p.employeeId === employeeId);

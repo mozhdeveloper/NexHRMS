@@ -750,10 +750,8 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
             const publishedEmployeeCount = new Set(draftSlips.map((ps) => ps.employeeId)).size;
             // Single setState → single write-through → single DB upsert
             batchPublishPayslips(draftSlips.map((ps) => ps.id));
-            // Audit logs still individual (append-only, no batch concern)
-            draftSlips.forEach((ps) => {
-                useAuditStore.getState().log({ entityType: "payslip", entityId: ps.id, action: "payroll_published", performedBy: currentUser.id });
-            });
+            // Single setState + single batch DB write for audit
+            useAuditStore.getState().batchLog(draftSlips.map((ps) => ({ entityType: "payslip", entityId: ps.id, action: "payroll_published" as const, performedBy: currentUser.id })));
             toast.success(`Published ${publishedEmployeeCount} employee${publishedEmployeeCount !== 1 ? "s" : ""} (${draftSlips.length} payslip${draftSlips.length !== 1 ? "s" : ""})`);
         } catch (err) {
             toast.error(`Failed to publish payslips: ${err instanceof Error ? err.message : "Unknown error"}`);
@@ -770,10 +768,8 @@ export default function AdminPayrollView({ mode = "admin" }: AdminPayrollViewPro
             const batchRef = `BATCH-REF-${Date.now()}`;
             // Single setState → single write-through → single DB upsert
             batchRecordPayment(signedSlips.map((ps) => ps.id), "bank_transfer", batchRef);
-            // Audit logs still individual (append-only)
-            signedSlips.forEach((ps) => {
-                useAuditStore.getState().log({ entityType: "payslip", entityId: ps.id, action: "payment_recorded", performedBy: currentUser.id });
-            });
+            // Single setState + single batch DB write for audit
+            useAuditStore.getState().batchLog(signedSlips.map((ps) => ({ entityType: "payslip", entityId: ps.id, action: "payment_recorded" as const, performedBy: currentUser.id })));
             // Single setState for all notification logs + parallel push
             dispatchBatchNotifications(
                 signedSlips.map((ps) => ({

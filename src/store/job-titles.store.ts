@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { nanoid } from "nanoid";
 import type { JobTitle } from "@/types";
 import { ROLES, DEPARTMENTS } from "@/lib/constants";
-import { useAuditStore } from "@/store/audit.store";
+import { jobTitlesDb } from "@/services/db.service";
 
 // ─── Seed Data (matches migration seed) ────────────────────────
 const SEED_JOB_TITLES: JobTitle[] = ROLES.map((role, idx) => {
@@ -59,6 +59,8 @@ interface JobTitlesState {
 export const useJobTitlesStore = create<JobTitlesState>()(
     (set, get) => ({
         jobTitles: SEED_JOB_TITLES,
+    (set, get) => ({
+        jobTitles: SEED_JOB_TITLES,
 
         // ── Add ───────────────────────────────────────────
         addJobTitle: (data) => {
@@ -111,7 +113,15 @@ export const useJobTitlesStore = create<JobTitlesState>()(
         getByName: (name) => get().jobTitles.find((jt) => jt.name.toLowerCase() === name.toLowerCase()),
         getActive: () => get().jobTitles.filter((jt) => jt.isActive),
         getByDepartment: (dept) => get().jobTitles.filter((jt) => jt.department === dept),
+        // ── Selectors ─────────────────────────────────────
+        getById: (id) => get().jobTitles.find((jt) => jt.id === id),
+        getByName: (name) => get().jobTitles.find((jt) => jt.name.toLowerCase() === name.toLowerCase()),
+        getActive: () => get().jobTitles.filter((jt) => jt.isActive),
+        getByDepartment: (dept) => get().jobTitles.filter((jt) => jt.department === dept),
 
+        // ── Reset ─────────────────────────────────────────
+        resetToSeed: () => set({ jobTitles: SEED_JOB_TITLES }),
+    })
         // ── Reset ─────────────────────────────────────────
         resetToSeed: () => set({ jobTitles: SEED_JOB_TITLES }),
     })

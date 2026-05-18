@@ -18,6 +18,7 @@ import type {
   Payslip, PayrollRun, PayrollAdjustment, FinalPayComputation, PayScheduleConfig,
   Loan, LoanDeduction, LoanRepaymentSchedule,
   Project, AuditLogEntry, CalendarEvent,
+  Department, JobTitle,
   SalaryChangeRequest, SalaryHistoryEntry,
   PenaltyRecord,
   Announcement, TextChannel, ChannelMessage,
@@ -1049,6 +1050,11 @@ export const auditDb = {
   async insert(entry: AuditLogEntry): Promise<boolean> {
     return insertRow("audit_logs", entry as unknown as Record<string, unknown>);
   },
+
+  /** Batch insert audit log entries — single DB call per 100-row chunk. */
+  async batchInsert(entries: AuditLogEntry[]): Promise<boolean> {
+    return batchInsertRows("audit_logs", entries as unknown as Record<string, unknown>[]);
+  },
 };
 
 // ─── Calendar Events ────────────────────────────────────────────
@@ -1062,6 +1068,34 @@ export const eventsDb = {
 
   async remove(id: string): Promise<boolean> {
     return deleteRow("calendar_events", id);
+  },
+};
+
+// ─── Departments ────────────────────────────────────────────
+
+export const departmentsDb = {
+  fetchAll: () => fetchAll<Department>("departments"),
+
+  async upsert(dept: Department): Promise<boolean> {
+    return upsertRow("departments", dept as unknown as Record<string, unknown>);
+  },
+
+  async remove(id: string): Promise<boolean> {
+    return deleteRow("departments", id);
+  },
+};
+
+// ─── Job Titles ─────────────────────────────────────────────
+
+export const jobTitlesDb = {
+  fetchAll: () => fetchAll<JobTitle>("job_titles"),
+
+  async upsert(jt: JobTitle): Promise<boolean> {
+    return upsertRow("job_titles", jt as unknown as Record<string, unknown>);
+  },
+
+  async remove(id: string): Promise<boolean> {
+    return deleteRow("job_titles", id);
   },
 };
 

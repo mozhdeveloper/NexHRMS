@@ -128,7 +128,7 @@ Each store follows the same 5-step process:
 
 ---
 
-## Store 3: `audit.store` ✅ SERVICE CREATED
+## Store 3: `audit.store` ✅ BATCH OPTIMIZED
 
 ### A. Service Layer
 - [x] Created `src/services/audit-actions.service.ts`
@@ -151,7 +151,7 @@ Each store follows the same 5-step process:
 
 ---
 
-## Store 4: `events.store` ✅ SERVICE CREATED
+## Store 4: `events.store` ✅ DB-FIRST VERIFIED
 
 ### A. Service Layer
 - [x] Created `src/services/events-actions.service.ts`
@@ -176,7 +176,7 @@ Each store follows the same 5-step process:
 
 ---
 
-## Store 5: `projects.store` ✅ SERVICE CREATED
+## Store 5: `projects.store` ✅ DB-FIRST VERIFIED
 
 ### A. Service Layer
 - [x] Created `src/services/projects-actions.service.ts`

@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { nanoid } from "nanoid";
 import type { Department } from "@/types";
 import { DEPARTMENTS } from "@/lib/constants";
-import { useAuditStore } from "@/store/audit.store";
+import { departmentsDb } from "@/services/db.service";
 
 // ─── Seed Data (matches migration seed) ────────────────────────
 const SEED_DEPARTMENTS: Department[] = DEPARTMENTS.map((name, idx) => {
@@ -49,6 +49,8 @@ interface DepartmentsState {
 }
 
 export const useDepartmentsStore = create<DepartmentsState>()(
+    (set, get) => ({
+        departments: SEED_DEPARTMENTS,
     (set, get) => ({
         departments: SEED_DEPARTMENTS,
 
@@ -102,7 +104,14 @@ export const useDepartmentsStore = create<DepartmentsState>()(
         getById: (id) => get().departments.find((d) => d.id === id),
         getByName: (name) => get().departments.find((d) => d.name.toLowerCase() === name.toLowerCase()),
         getActive: () => get().departments.filter((d) => d.isActive),
+        // ── Selectors ─────────────────────────────────────
+        getById: (id) => get().departments.find((d) => d.id === id),
+        getByName: (name) => get().departments.find((d) => d.name.toLowerCase() === name.toLowerCase()),
+        getActive: () => get().departments.filter((d) => d.isActive),
 
+        // ── Reset ─────────────────────────────────────────
+        resetToSeed: () => set({ departments: SEED_DEPARTMENTS }),
+    })
         // ── Reset ─────────────────────────────────────────
         resetToSeed: () => set({ departments: SEED_DEPARTMENTS }),
     })

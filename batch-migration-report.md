@@ -35,27 +35,34 @@ graph LR
 | **Write-Through Sync** | Subscribes to store changes → pushes to Supabase | [sync.service.ts](file:///c:/xampp/htdocs/Github/SorenHRMS/src/services/sync.service.ts) |
 | **DB Service** | Raw Supabase CRUD operations, snake_case conversion | [db.service.ts](file:///c:/xampp/htdocs/Github/SorenHRMS/src/services/db.service.ts) |
 
-### 13 Stores Currently Synced to Supabase
+### Stores Migrated to DB-First (10 of 19)
 
-| # | Store | Table(s) | Write-Through |
-|---|-------|----------|---------------|
-| 1 | `employees.store` | `employees`, `salary_change_requests`, `salary_history` | ✅ |
-| 2 | `leave.store` | `leave_requests`, `leave_balances`, `leave_policies` | ✅ |
-| 3 | `attendance.store` | `attendance_logs`, `attendance_events`, `holidays`, `shift_templates`, etc. | ✅ |
-| 4 | `payroll.store` | `payslips`, `payroll_runs`, `payroll_adjustments`, `final_pay_computations`, etc. | ✅ **Batched** |
-| 5 | `loans.store` | `loans`, `loan_deductions` | ✅ |
-| 6 | `projects.store` | `projects` | ✅ |
-| 7 | `audit.store` | `audit_logs` | ✅ |
-| 8 | `events.store` | `calendar_events` | ✅ |
-| 9 | `messaging.store` | `announcements`, `text_channels`, `channel_messages` | ✅ |
-| 10 | `tasks.store` | `task_groups`, `tasks`, `completion_reports`, `task_comments`, `task_tags` | ✅ |
-| 11 | `timesheet.store` | `timesheets`, `timesheet_rule_sets` | ✅ |
-| 12 | `notifications.store` | `notification_logs`, `notification_rules` | ✅ **Batched** |
-| 13 | `location.store` | `location_pings`, `site_survey_photos`, `break_records` | ✅ |
+| # | Store | Table(s) | Strategy | Status |
+|---|-------|----------|----------|--------|
+| 1 | `payroll.store` | `payslips`, `payroll_runs`, `payroll_adjustments`, `final_pay_computations` | Batch DB-first via service layer | ✅ **Batch optimized** |
+| 2 | `notifications.store` | `notification_logs`, `notification_rules` | Batch DB-first via store self-subscriber | ✅ **Batch optimized** |
+| 3 | `audit.store` | `audit_logs` | Inline fire-and-forget + `batchLog()` for bulk ops | ✅ Done |
+| 4 | `events.store` | `calendar_events` | Inline fire-and-forget on every mutation | ✅ Done |
+| 5 | `projects.store` | `projects` | Inline fire-and-forget on every mutation | ✅ Done |
+| 6 | `departments.store` | `departments` | Inline fire-and-forget via new `departmentsDb` | ✅ Done |
+| 7 | `job-titles.store` | `job_titles` | Inline fire-and-forget via new `jobTitlesDb` | ✅ Done |
+| 8 | `roles.store` | `custom_roles` (via `/api/roles`) | Already DB-first via `syncRoleToDb()` — persist removed | ✅ Done |
+| 9 | `location.store` | `location_pings`, `site_survey_photos`, `break_records` | Inline fire-and-forget; write-through removed | ✅ Done |
+| 10 | `timesheet.store` | `timesheets`, `attendance_rule_sets` | Inline fire-and-forget; write-through removed | ✅ Done |
 
-### 10 Stores NOT Synced (Local Only)
+### Stores Still on Write-Through (9 remaining)
 
-`appearance`, `auth`, `deductions`, `departments`, `job-titles`, `jobs`, `kiosk`, `offline-queue`, `roles`, `ui`
+| # | Store | Notes |
+|---|-------|-------|
+| 11 | `leave.store` | Has write-through subscriber in `sync.service.ts` |
+| 12 | `loans.store` | Has write-through subscriber in `sync.service.ts` |
+| 13 | `employees.store` | Core entity — high consumer count, many FK dependencies |
+| 14 | `deductions.store` | Uses API routes partially; no write-through but no inline writes |
+| 15 | `jobs.store` | Local-only seed data, simple CRUD |
+| 16 | `auth.store` | Mostly read-only session data |
+| 17 | `attendance.store` | **High risk** — offline kiosk, must implement offline queue before persist removal |
+| 18 | `messaging.store` | Channels → messages FK ordering matters |
+| 19 | `tasks.store` | Write-through subscriber in `sync.service.ts` |
 
 ---
 
@@ -383,21 +390,27 @@ Same pattern as payroll — remove the subscriber block from `sync.service.ts`.
 
 Recommended order (by complexity, simplest first):
 
-| Order | Store | Complexity | Reason |
-|-------|-------|-----------|--------|
-| 1 | ✅ **payroll** | Done first | Already has batch methods |
-| 2 | ✅ **notifications** | Low | Append-only logs, simple structure |
-| 3 | **audit** | Low | Append-only, no updates |
-| 4 | **events** | Low | Simple CRUD |
-| 5 | **projects** | Low | Simple CRUD |
-| 6 | **timesheet** | Medium | Rule sets have FK dependencies |
-| 7 | **leave** | Medium | Balances, policies, requests — 3 sub-tables |
-| 8 | **employees** | Medium | Core table, many FKs depend on it |
-| 9 | **loans** | Medium | Deductions have FK → payslips |
-| 10 | **attendance** | High | Events, evidence, exceptions, shifts — complex FK chain |
-| 11 | **messaging** | High | Channels → messages FK ordering |
-| 12 | **tasks** | High | Groups → tasks FK, comments, reports, tags |
-| 13 | **location** | Low | Pings, photos, breaks |
+| Order | Store | Complexity | Status | Reason |
+|-------|-------|-----------|--------|---------|
+| 1 | ✅ **payroll** | Done | ✅ Complete | Already had batch methods; DB-first service layer |
+| 2 | ✅ **notifications** | Done | ✅ Complete | Batch insert logs; self-subscriber DB-first |
+| 3 | ✅ **audit** | Low | ✅ Complete | `batchLog()` added; inline DB writes |
+| 4 | ✅ **events** | Low | ✅ Complete | Inline DB writes |
+| 5 | ✅ **projects** | Low | ✅ Complete | Inline DB writes |
+| 6 | ✅ **departments** | Low | ✅ Complete | New `departmentsDb`; inline writes; persist removed |
+| 7 | ✅ **job-titles** | Low | ✅ Complete | New `jobTitlesDb`; inline writes; persist removed |
+| 8 | ✅ **roles** | Low | ✅ Complete | Already DB-first via API routes; persist removed |
+| 9 | ✅ **location** | Low | ✅ Complete | Inline writes; write-through removed from sync.service |
+| 10 | ✅ **timesheet** | Medium | ✅ Complete | Inline writes; write-through removed; `computeTimesheet` refactored |
+| 11 | **leave** | Medium | ⏳ Pending | Balances, policies, requests — 3 sub-tables |
+| 12 | **loans** | Medium | ⏳ Pending | Deductions have FK → payslips |
+| 13 | **employees** | High | ⏳ Pending | Core table, many FKs, 17+ consumers |
+| 14 | **deductions** | Medium | ⏳ Pending | Uses API routes partially |
+| 15 | **jobs** | Low | ⏳ Pending | Simple CRUD, local seed data |
+| 16 | **auth** | Low | ⏳ Pending | Mostly read-only session data |
+| 17 | **attendance** | **High** | ⏳ Pending ⚠️ | Kiosk offline-first — offline queue needed before persist removal |
+| 18 | **messaging** | High | ⏳ Pending | Channels → messages FK ordering |
+| 19 | **tasks** | High | ⏳ Pending | Groups → tasks FK, comments, reports, tags |
 
 ---
 
@@ -525,14 +538,51 @@ The first path is incremental, each step is independently testable, and users be
 
 ---
 
-## Summary
+## Session Log
+
+### Phase 1 — Batch Optimization (Payroll + Notifications)
 
 | What | Status |
 |------|--------|
-| Batch optimization (store + DB + sync) | ✅ **Shipped** |
-| Migration architecture documented | ✅ **This document** |
-| Payroll service layer created | ⏳ Future |
-| Notification service layer created | ⏳ Future |
-| Write-through removal | ⏳ Future |
-| Zustand persist removal | ⏳ Future |
-| React Query migration | ⏳ Future (optional) |
+| `batchUpsertRows` / `batchInsertRows` DB primitives | ✅ **Shipped** |
+| `payrollDb.batchUpsertPayslips()` | ✅ **Shipped** |
+| `notificationsDb.batchInsertLogs()` | ✅ **Shipped** |
+| `payroll.store` batch methods (`batchPublishPayslips`, `batchRecordPayment`, `batchReleasePaymentHold`) | ✅ **Shipped** |
+| `notifications.store` `batchDispatch()` | ✅ **Shipped** |
+| `admin-view.tsx` batch handlers using new methods | ✅ **Shipped** |
+| Write-through subscriber updated to batch-aware | ✅ **Shipped** |
+
+### Phase 2 — DB-First Migration: Stores 3–10
+
+| What | Status |
+|------|--------|
+| `auditDb.batchInsert()` DB primitive | ✅ **Shipped** |
+| `audit.store` — `batchLog()` + inline DB writes | ✅ **Shipped** |
+| `events.store` — inline DB writes (verified, no changes needed) | ✅ **Verified** |
+| `projects.store` — inline DB writes (verified, no changes needed) | ✅ **Verified** |
+| `departmentsDb` added to `db.service.ts` | ✅ **Shipped** |
+| `departments.store` — inline DB writes + persist removed | ✅ **Shipped** |
+| `jobTitlesDb` added to `db.service.ts` | ✅ **Shipped** |
+| `job-titles.store` — inline DB writes + persist removed | ✅ **Shipped** |
+| `roles.store` — persist removed (already DB-first via API routes) | ✅ **Shipped** |
+| `location.store` — inline DB writes + write-through removed + persist removed | ✅ **Shipped** |
+| `timesheet.store` — inline DB writes + write-through removed + persist removed | ✅ **Shipped** |
+| `sync.service.ts` — timesheet + location write-through subscribers removed | ✅ **Shipped** |
+| `admin-view.tsx` — N×`auditStore.log()` replaced with `auditStore.batchLog()` in batch handlers | ✅ **Shipped** |
+| Build verification (`npm run build` exit code 0) | ✅ **Passed** |
+
+### Phase 3 — Remaining Stores (Pending)
+
+| What | Status |
+|------|--------|
+| `leave.store` migration | ⏳ Pending |
+| `loans.store` migration | ⏳ Pending |
+| `employees.store` migration | ⏳ Pending |
+| `deductions.store` migration | ⏳ Pending |
+| `jobs.store` migration | ⏳ Pending |
+| `auth.store` migration | ⏳ Pending |
+| `attendance.store` migration | ⏳ Pending ⚠️ (offline queue required first) |
+| `messaging.store` migration | ⏳ Pending |
+| `tasks.store` migration | ⏳ Pending |
+| Full `sync.service.ts` write-through removal | ⏳ Pending (after all stores done) |
+| React Query / SWR migration | ⏳ Optional long-term |
