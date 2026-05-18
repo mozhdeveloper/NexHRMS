@@ -1,7 +1,6 @@
 "use client";
 import { create } from "zustand";
 import { nanoid } from "nanoid";
-import { locationDb } from "@/services/db.service";
 import type {
     SiteSurveyPhoto,
     BreakRecord,
@@ -73,7 +72,6 @@ interface LocationState {
 
 export const useLocationStore = create<LocationState>()(
     (set, get) => ({
-    (set, get) => ({
             config: { ...DEFAULT_CONFIG },
             photos: [],
             breaks: [],
@@ -99,22 +97,10 @@ export const useLocationStore = create<LocationState>()(
 
             updateConfig: (patch) => {
                 set((s) => ({ config: { ...s.config, ...patch } }));
-                // Fire-and-forget DB sync
-                fetch("/api/settings/location", {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(patch),
-                }).catch(() => {});
             },
 
             resetConfig: () => {
                 set({ config: { ...DEFAULT_CONFIG } });
-                // Sync defaults to DB
-                fetch("/api/settings/location", {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(DEFAULT_CONFIG),
-                }).catch(() => {});
             },
 
             // ─── Photos ────────────────────────────────
@@ -124,10 +110,6 @@ export const useLocationStore = create<LocationState>()(
                 set((s) => {
                     const photos = [photo, ...s.photos];
                     return { photos: photos.slice(0, MAX_PHOTOS) };
-                });
-                // Write to DB (fire-and-forget)
-                locationDb.upsertPhoto(photo).catch((err) => {
-                    console.warn("[location] photo DB write failed:", err);
                 });
                 return id;
             },
@@ -154,10 +136,6 @@ export const useLocationStore = create<LocationState>()(
                     startLng: data.lng,
                 };
                 set((s) => ({ breaks: [...s.breaks, br] }));
-                // Write to DB (fire-and-forget)
-                locationDb.upsertBreak(br).catch((err) => {
-                    console.warn("[location] break start DB write failed:", err);
-                });
                 return id;
             },
 
@@ -171,7 +149,7 @@ export const useLocationStore = create<LocationState>()(
                         );
                         const config = s.config;
                         const overtime = duration > config.lunchDuration + config.lunchOvertimeThreshold;
-                        const updated = {
+                        return {
                             ...b,
                             endTime,
                             endLat: data.lat,
@@ -181,11 +159,6 @@ export const useLocationStore = create<LocationState>()(
                             duration,
                             overtime,
                         };
-                        // Write updated break to DB (fire-and-forget)
-                        locationDb.upsertBreak(updated).catch((err) => {
-                            console.warn("[location] break end DB write failed:", err);
-                        });
-                        return updated;
                     }),
                 }));
             },
@@ -207,10 +180,6 @@ export const useLocationStore = create<LocationState>()(
             addPing: (data) => {
                 const ping = { ...data, id: `PING-${nanoid(8)}` };
                 set((s) => ({ pings: [...s.pings, ping] }));
-                // Write to DB (fire-and-forget)
-                locationDb.insertPing(ping).catch((err) => {
-                    console.warn("[location] ping DB write failed:", err);
-                });
             },
 
             getPings: (employeeId, date) => {
@@ -234,12 +203,6 @@ export const useLocationStore = create<LocationState>()(
                     breaks: [],
                     pings: [],
                 });
-                // Sync defaults to DB
-                fetch("/api/settings/location", {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(DEFAULT_CONFIG),
-                }).catch(() => {});
             },
         })
 );

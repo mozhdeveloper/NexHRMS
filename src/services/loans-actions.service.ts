@@ -6,9 +6,9 @@
  * Migration target: Store 12 of ZUSTAND_MIGRATION_CHECKLIST.md
  */
 
-import { loansDb, loanExtrasDb } from "./db.service";
+import { loansDb } from "./db.service";
 import { useLoansStore } from "@/store/loans.store";
-import type { Loan, LoanDeduction, LoanBalanceHistory } from "@/types";
+import type { Loan } from "@/types";
 import { nanoid } from "nanoid";
 
 /**
@@ -102,21 +102,8 @@ export async function recordDeduction(loanId: string, payslipId: string, amount:
     if (!loan) return false;
 
     const newBalance = Math.max(0, loan.remainingBalance - amount);
-    const deduction: LoanDeduction = {
-        id: `LD-${nanoid(8)}`,
-        loanId,
-        payslipId,
-        amount,
-        deductedAt: new Date().toISOString(),
-        remainingAfter: newBalance,
-    };
 
-    // Write deduction to DB
-    const dedOk = await loanExtrasDb.fetchDeductionsForLoan(loanId).then(() => true).catch(() => false);
-    // Actually insert the deduction row
-    const { insertRow } = await import("./db.service").then((m) => ({ insertRow: m }));
-    // Use the store's built-in method which handles all the state updates
-    // But first persist to DB
+    // Update loan balance in DB first
     const loanOk = await loansDb.update(loanId, {
         remainingBalance: newBalance,
         status: newBalance <= 0 ? "settled" : loan.status,
@@ -124,9 +111,7 @@ export async function recordDeduction(loanId: string, payslipId: string, amount:
     });
     if (!loanOk) return false;
 
-    // Insert deduction record
-    // Note: loanExtrasDb doesn't have an insert method exposed, use the store's recordDeduction
-    // which updates local state, and the deduction will be synced via the loan update
+    // Update local state via store method (handles deduction record + balance history)
     useLoansStore.getState().recordDeduction(loanId, payslipId, amount);
     return true;
 }

@@ -1,7 +1,5 @@
 "use client";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type { NotificationLog, NotificationType, NotificationRule, NotificationTrigger } from "@/types";
 import { useEmployeesStore } from "@/store/employees.store";
@@ -183,8 +181,7 @@ function getDefaultLinkForTrigger(trigger: NotificationTrigger): string {
 }
 
 export const useNotificationsStore = create<NotificationsState>()(
-    persist(
-        (set, get) => ({
+    (set, get) => ({
             logs: [],
             rules: [...DEFAULT_RULES],
             providerConfig: { ...DEFAULT_PROVIDER },
@@ -564,27 +561,5 @@ export const useNotificationsStore = create<NotificationsState>()(
                     body: JSON.stringify({ providerConfig: DEFAULT_PROVIDER }),
                 }).catch(() => {});
             },
-        }),
-        {
-            name: "soren-notifications",
-            version: 6,
-            storage: safePersistStorage,
-            // Only persist rules and prefs — logs come from Supabase
-            partialize: (state: NotificationsState) => ({
-                rules: state.rules,
-                providerConfig: state.providerConfig,
-                employeePrefs: state.employeePrefs,
-            }),
-            migrate: (persisted: unknown) => {
-                // Carry over rules and logs from previous versions; reset everything else.
-                const p = persisted as Partial<NotificationsState> | null;
-                return {
-                    logs: (p?.logs ?? []).filter((l) => !isLegacyIosAltitudeFalsePositiveNotification({ type: l.type, body: l.body })),
-                    rules: p?.rules ?? [...DEFAULT_RULES],
-                    providerConfig: p?.providerConfig ?? { ...DEFAULT_PROVIDER },
-                    employeePrefs: (p as Record<string, unknown>)?.employeePrefs as Record<string, EmployeeNotifPrefs> ?? {},
-                };
-            },
-        }
-    )
+        })
 );

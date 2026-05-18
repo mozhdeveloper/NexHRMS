@@ -1,12 +1,9 @@
 "use client";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { safePersistStorage } from "@/lib/storage";
 import { nanoid } from "nanoid";
 import type { Payslip, PayrollRun, PayrollAdjustment, PayScheduleConfig, FinalPayComputation, PayrollSignatureConfig, DeductionOverride, DeductionGlobalDefault, DeductionType } from "@/types";
 import { POLICY_VERSIONS } from "@/lib/constants";
 import { computeAllPHDeductions } from "@/lib/ph-deductions";
-import { payrollDb } from "@/services/db.service";
 
 export const DEFAULT_PAY_SCHEDULE: PayScheduleConfig = {
     defaultFrequency: "semi_monthly",
@@ -105,8 +102,7 @@ interface PayrollState {
 }
 
 export const usePayrollStore = create<PayrollState>()(
-    persist(
-        (set, get) => ({
+    (set, get) => ({
             payslips: [],
             runs: [],
             adjustments: [],
@@ -803,99 +799,5 @@ export const usePayrollStore = create<PayrollState>()(
                     adjustments: [],
                     finalPayComputations: [],
                 })),
-        }),
-        {
-            name: "soren-payroll",
-            version: 9,
-            storage: safePersistStorage,
-            // Only persist config — transactional data (payslips, runs) comes from Supabase
-            partialize: (state: PayrollState) => ({
-                paySchedule: state.paySchedule,
-                signatureConfig: state.signatureConfig,
-                deductionOverrides: state.deductionOverrides,
-                globalDefaults: state.globalDefaults,
-            }),
-            migrate: (persistedState: unknown, version: number) => {
-                const state = (persistedState ?? {}) as Record<string, unknown>;
-                // Preserve existing data during migrations
-                if (version < 9) {
-                    if (!Array.isArray(state.payslips)) state.payslips = [];
-                    if (!Array.isArray(state.runs)) state.runs = [];
-                    if (!Array.isArray(state.adjustments)) state.adjustments = [];
-                    if (!Array.isArray(state.finalPayComputations)) state.finalPayComputations = [];
-                    if (!state.paySchedule) state.paySchedule = DEFAULT_PAY_SCHEDULE;
-                }
-                return state;
-            },
-        }
-    )
+        })
 );
-
-// ─── DB-first self-subscriber (replaces sync.service.ts write-through) ───
-// Fires after any mutation, writes changed data to Supabase (fire-and-forget).
-if (typeof window !== "undefined") {
-    let _prevState = usePayrollStore.getState();
-    usePayrollStore.subscribe((state) => {
-        // Payslips
-        const changedPayslips = state.payslips.filter((ps) => {
-            const prev = _prevState.payslips.find((p) => p.id === ps.id);
-            return !prev || JSON.stringify(prev) !== JSON.stringify(ps);
-        });
-        if (changedPayslips.length > 1) {
-            payrollDb.batchUpsertPayslips(changedPayslips).catch(() => {});
-        } else if (changedPayslips.length === 1) {
-            payrollDb.upsertPayslip(changedPayslips[0]).catch(() => {});
-        }
-        // Runs
-        for (const run of state.runs) {
-            const prev = _prevState.runs.find((r) => r.id === run.id);
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(run)) {
-                payrollDb.upsertRun(run).catch(() => {});
-            }
-        }
-        // Adjustments
-        for (const adj of state.adjustments) {
-            const prev = _prevState.adjustments.find((a) => a.id === adj.id);
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(adj)) {
-                payrollDb.upsertAdjustment(adj).catch(() => {});
-            }
-        }
-        // Final pay
-        for (const fp of state.finalPayComputations) {
-            const prev = _prevState.finalPayComputations.find((f) => f.id === fp.id);
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(fp)) {
-                payrollDb.upsertFinalPay(fp).catch(() => {});
-            }
-        }
-        // Pay schedule
-        if (JSON.stringify(state.paySchedule) !== JSON.stringify(_prevState.paySchedule)) {
-            payrollDb.upsertPaySchedule({ id: "default", ...state.paySchedule }).catch(() => {});
-        }
-        // Deduction overrides
-        for (const ov of state.deductionOverrides) {
-            const prev = _prevState.deductionOverrides.find(
-                (d) => d.employeeId === ov.employeeId && d.deductionType === ov.deductionType
-            );
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(ov)) {
-                payrollDb.upsertDeductionOverride(ov).catch(() => {});
-            }
-        }
-        for (const prev of _prevState.deductionOverrides) {
-            if (!state.deductionOverrides.find((d) => d.employeeId === prev.employeeId && d.deductionType === prev.deductionType)) {
-                payrollDb.deleteDeductionOverride(prev.employeeId, prev.deductionType).catch(() => {});
-            }
-        }
-        // Global defaults
-        for (const gd of state.globalDefaults) {
-            const prev = _prevState.globalDefaults.find((d) => d.deductionType === gd.deductionType);
-            if (!prev || JSON.stringify(prev) !== JSON.stringify(gd)) {
-                payrollDb.upsertGlobalDefault(gd as unknown as Record<string, unknown>).catch(() => {});
-            }
-        }
-        // Signature config
-        if (JSON.stringify(state.signatureConfig) !== JSON.stringify(_prevState.signatureConfig)) {
-            payrollDb.upsertSignatureConfig(state.signatureConfig).catch(() => {});
-        }
-        _prevState = state;
-    });
-}

@@ -1,7 +1,6 @@
 "use client";
 import { create } from "zustand";
 import { nanoid } from "nanoid";
-import { timesheetsDb } from "@/services/db.service";
 import type { Timesheet, TimesheetSegment, AttendanceRuleSet, TimesheetStatus } from "@/types";
 
 interface TimesheetState {
@@ -95,29 +94,16 @@ export const useTimesheetStore = create<TimesheetState>()(
         addRuleSet: (data) => {
             const rs = { ...data, id: `RS-${nanoid(8)}` };
             set((s) => ({ ruleSets: [...s.ruleSets, rs] }));
-            timesheetsDb.upsertRuleSet(rs).catch((err) => {
-                console.warn("[timesheet] ruleSet DB write failed:", err);
-            });
         },
 
         updateRuleSet: (id, data) => {
-            set((s) => {
-                const updated = s.ruleSets.map((r) => (r.id === id ? { ...r, ...data } : r));
-                const rs = updated.find((r) => r.id === id);
-                if (rs) {
-                    timesheetsDb.upsertRuleSet(rs).catch((err) => {
-                        console.warn("[timesheet] ruleSet update DB write failed:", err);
-                    });
-                }
-                return { ruleSets: updated };
-            });
+            set((s) => ({
+                ruleSets: s.ruleSets.map((r) => (r.id === id ? { ...r, ...data } : r)),
+            }));
         },
 
         deleteRuleSet: (id) => {
             set((s) => ({ ruleSets: s.ruleSets.filter((r) => r.id !== id) }));
-            timesheetsDb.deleteRuleSet(id).catch((err) => {
-                console.warn("[timesheet] ruleSet delete failed:", err);
-            });
         },
 
             getRuleSet: (id) => get().ruleSets.find((r) => r.id === id),
@@ -205,11 +191,6 @@ export const useTimesheetStore = create<TimesheetState>()(
                     }
                     return { timesheets: [...s.timesheets, ts] };
                 });
-
-                // Write to DB (fire-and-forget)
-                timesheetsDb.upsertTimesheet(ts).catch((err) => {
-                    console.warn("[timesheet] computeTimesheet DB write failed:", err);
-                });
             },
 
             submitTimesheet: (id) => {
@@ -220,8 +201,6 @@ export const useTimesheetStore = create<TimesheetState>()(
                             : t
                     ),
                 }));
-                const ts = get().timesheets.find((t) => t.id === id);
-                if (ts) timesheetsDb.upsertTimesheet({ ...ts, status: "submitted" }).catch(() => {});
             },
 
             approveTimesheet: (id, approverId) => {
@@ -233,8 +212,6 @@ export const useTimesheetStore = create<TimesheetState>()(
                             : t
                     ),
                 }));
-                const ts = get().timesheets.find((t) => t.id === id);
-                if (ts) timesheetsDb.upsertTimesheet({ ...ts, status: "approved", approvedBy: approverId, approvedAt: now }).catch(() => {});
             },
 
             rejectTimesheet: (id, approverId) => {
@@ -246,8 +223,6 @@ export const useTimesheetStore = create<TimesheetState>()(
                             : t
                     ),
                 }));
-                const ts = get().timesheets.find((t) => t.id === id);
-                if (ts) timesheetsDb.upsertTimesheet({ ...ts, status: "rejected", approvedBy: approverId, approvedAt: now }).catch(() => {});
             },
 
             getByEmployee: (employeeId) =>
